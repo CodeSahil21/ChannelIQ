@@ -4,10 +4,15 @@ import { CreateUser } from "../utils/types";
 import nodemailer from 'nodemailer';
 
 const transporter = nodemailer.createTransport({
-    service: 'gmail', // or your email provider
+    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.EMAIL_PORT || '587'),
+    secure: false, // true for 465, false for other ports
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
+    },
+    tls: {
+        rejectUnauthorized: false
     }
 });
 
@@ -51,23 +56,43 @@ export const CreateUserService = async ({email,password,fullName}: CreateUser) =
 }
 
 
-export const sendOTPEmail = async (email: string, otp: string): Promise<void> => {
-    const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: email,
-        subject: 'Password Reset OTP - LetsChat',
-        html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #333;">Password Reset Request</h2>
-                <p>You requested to reset your password. Use the following OTP to proceed:</p>
-                <div style="background: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0;">
-                    <h1 style="color: #007bff; font-size: 32px; margin: 0;">${otp}</h1>
-                </div>
-                <p><strong>This OTP will expire in 10 minutes.</strong></p>
-                <p>If you didn't request this, please ignore this email.</p>
-            </div>
-        `
-    };
+// ...existing code...
 
-    await transporter.sendMail(mailOptions);
+export const sendOTPEmail = async (email: string, otp: string): Promise<void> => {
+    try {
+        const mailOptions = {
+            from: {
+                name: 'Corporate Chat',
+                address: process.env.EMAIL_USER || 'sahil.s39026@gmail.com'
+            },
+            to: email,
+            subject: 'Password Reset OTP - Corporate Chat',
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <h1 style="color: #2563eb;">Corporate Chat</h1>
+                    </div>
+                    <div style="background: white; border-radius: 8px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                        <h2 style="color: #333; margin-bottom: 20px;">Password Reset Request</h2>
+                        <p style="color: #666; margin-bottom: 20px;">You requested to reset your password. Use the following OTP to proceed:</p>
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; text-align: center; margin: 30px 0; border-radius: 8px;">
+                            <h1 style="color: white; font-size: 36px; margin: 0; letter-spacing: 4px;">${otp}</h1>
+                        </div>
+                        <p style="color: #e74c3c; font-weight: bold;">⏰ This OTP will expire in 10 minutes.</p>
+                        <p style="color: #666; margin-top: 20px;">If you didn't request this, please ignore this email.</p>
+                        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+                        <p style="color: #999; font-size: 14px;">This is an automated email, please do not reply.</p>
+                    </div>
+                </div>
+            `
+        };
+        
+        // Actually send the email
+        const result = await transporter.sendMail(mailOptions);
+        console.log('✅ OTP email sent successfully:', result.messageId);
+        
+    } catch (error) {
+        console.error('❌ Failed to send OTP email:', error);
+        throw new Error('Failed to send OTP email');
+    }
 };

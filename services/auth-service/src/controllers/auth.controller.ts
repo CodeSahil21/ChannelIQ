@@ -272,7 +272,7 @@ export const getUserProfileController = async(req: AuthenticatedRequest, res: Re
     }
 }
 
-export const logoutUserController = async(res:Response):Promise<void> =>{
+export const logoutUserController = async(_req:AuthenticatedRequest,res:Response):Promise<void> =>{
     try {
         // Clear the authentication cookie
         res.clearCookie("token", {
