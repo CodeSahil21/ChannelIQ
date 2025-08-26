@@ -77,3 +77,4 @@ Dockerfile.dev
 tmp/
 src/generated/prisma
 *.txt
+/src/generated/prisma
