@@ -1,1 +1,0 @@
-import { Kafka, AdminConfig, Producer, ProducerConfig, KafkaConfig, Admin, ITopicConfig, ConsumerConfig, EachMessagePayload, Message } from "kafkajs";

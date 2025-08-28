@@ -2,6 +2,7 @@ import { hashPassword } from "../utils/auth";
 import  prisma from '../db/db';
 import { CreateUser } from "../utils/types";
 import nodemailer from 'nodemailer';
+import {eventPublisher} from '../kafka/publisher'
 
 const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST || 'smtp.gmail.com',
@@ -17,42 +18,53 @@ const transporter = nodemailer.createTransport({
 });
 
 export const CreateUserService = async ({email,password,fullName}: CreateUser) => {
-   
-    //Check if user already exists
-    const isUserExists = await prisma.user.findUnique({
-        where:{
-            email: email
+    return await prisma.$transaction(async (tx) => {
+        // Check if user exists
+        const isUserExists = await tx.user.findUnique({
+            where: { email: email }
+        });
+
+        if(isUserExists){
+            throw new Error("User already exists");
         }
-    });
 
-    if(isUserExists){
-        throw new Error("User already exists");
-    }
+        // Hash password and create user
+        const hashedPassword = await hashPassword(password);
+        const idx = Math.floor(Math.random() * 100) + 1;
+        const randomAvatar = `https://avatar.iran.liara.run/public/${idx}.png`;
 
-    // Hash the password
-    const hashedPassword = await hashPassword(password);
+        const user = await tx.user.create({
+            data: {
+                email,
+                password: hashedPassword,
+                fullName,
+                profilePic: randomAvatar
+            },
+            select:{
+                id: true,
+                email: true,
+                fullName: true,
+                profilePic: true
+            }
+        });
 
-    //configuration for avatar
-    const idx = Math.floor(Math.random() * 100) + 1; // generate a num between 1-100
-    const randomAvatar = `https://avatar.iran.liara.run/public/${idx}.png`;
-
-    //Create user in the database
-    const user = await prisma.user.create({
-        data: {
-            email,
-            password: hashedPassword,
-            fullName,
-            profilePic: randomAvatar
-        },
-        select:{
-            id: true,
-            email: true,
-            fullName: true,
-            profilePic: true
+        // Publish event - if this fails, transaction automatically rolls back
+        try {
+            await eventPublisher.publishUserRegistered({
+                userId: user.id,
+                email: user.email,
+                fullName: user.fullName,
+                profilePic: user.profilePic
+            });
+        } catch (eventError) {
+            console.error(`❌ Failed to publish event for ${email}:`, eventError);
+            // Just throw - transaction will automatically rollback user creation
+            throw new Error("Service temporarily unavailable. Please try again later.");
         }
-    });
 
-    return user;
+        console.log(`✅ User registered successfully: ${user.email}`);
+        return user;
+    });
 }
 
 

@@ -7,24 +7,70 @@ import morgan from 'morgan';
 import { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import authRouter from './routes/auth.routes'; 
+import { isKafkaHealthy } from './kafka/kafkaManager';
+import prisma from './db/db';
 
 const app = express();
+
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? process.env.FRONTEND_URLS?.split(',') || ['http://localhost:3000']
+    : ['http://localhost:3000', 'http://localhost:5173'], // React/Vite defaults
+  credentials: true, // Allow cookies
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
+};
+
 app.use(helmet());
 app.use(morgan('dev'));
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
-app.get('/health',(_req,res)=>{
-    res.status(200).json({ status: 'ok', message: 'Server is running' });
-})
+
+app.get('/health', async (_req, res) => {
+  try {
+    const kafkaStatus = await isKafkaHealthy();
+    
+    // Add database health check
+    let dbStatus = false;
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      dbStatus = true;
+    } catch (dbError) {
+      console.error('Database health check failed:', dbError);
+    }
+    
+    const overallStatus = kafkaStatus && dbStatus;
+    
+    res.status(overallStatus ? 200 : 503).json({ 
+      status: overallStatus ? 'healthy' : 'degraded',
+      services: {
+        kafka: kafkaStatus ? 'connected' : 'disconnected',
+        database: dbStatus ? 'connected' : 'disconnected'
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    res.status(503).json({
+      status: 'error',
+      message: 'Health check failed'
+    });
+  }
+});
+
+
 app.use('/api/v1/auth', authRouter);
 
-// 404 handler
+// Global error handler
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error(err.stack);
-  res.status(500).json({ msg: 'Internal Server Error' });
+  res.status(500).json({ 
+    success:false,
+    msg: 'Internal Server Error' });
 });
 
 export default app;
