@@ -11,9 +11,7 @@ class EventPublisher {
    */
   async publishUserRegistered(userData:{
      userId:number;
-     fullName:string;
      email:string;
-     profilePic:string
   }): Promise<void> {
    try{
     const event = createUserRegistrationEvent(userData);

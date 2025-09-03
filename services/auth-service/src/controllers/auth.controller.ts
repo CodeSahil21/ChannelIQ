@@ -25,13 +25,12 @@ export const createUserController = async(req: Request, res: Response): Promise<
         }
 
         // Extract and sanitize validated data
-        const { email, password, fullName } = validationResult.data;
+        const { email, password } = validationResult.data;
         
         // Call the service to create user
         const user = await CreateUserService({ 
             email: email.toLowerCase().trim(), 
-            password, 
-            fullName: fullName.trim() 
+            password
         });
 
         // Generate a token for the user
@@ -141,8 +140,6 @@ export const loginuserController = async(req: Request, res: Response): Promise<v
                 id: true,
                 email: true,
                 password: true,
-                fullName: true,
-                profilePic:true
             }
         });
 

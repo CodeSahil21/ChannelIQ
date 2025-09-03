@@ -4,16 +4,12 @@ import {UserRegistrationEvent } from "../utils/types"
 
 export const createUserRegistrationEvent = (data: {
     userId:number;
-    fullName:string;
     email:string;
-    profilePic:string
 }): UserRegistrationEvent => {
   return {
    eventType: 'USER_REGISTERED',
    userId: data.userId,
-   fullName: data.fullName,
    email: data.email,
-   profilePic: data.profilePic,
    timestamp: new Date()
   };
 };

@@ -34,8 +34,6 @@ export const protectRoute = async (req: AuthenticatedRequest, res: Response, nex
             select: {
                 id: true,
                 email: true,
-                fullName: true,
-                profilePic: true
             }
         });
 

@@ -1,35 +1,35 @@
 import { kafkaConsumer } from './kafkaManager';
 
+
 export const startConsumer = async (): Promise<void> => {
   try {
     console.log('🔄 Starting Kafka consumer...');
-    
+
+    // subscribe accepts { topic: string, fromBeginning?: boolean }
     await kafkaConsumer.subscribe({
-      topics: ['user-management-events'], 
+      topic: 'user-management-events',
       fromBeginning: false
     });
 
     await kafkaConsumer.run({
-      eachMessage: async ({ topic, partition, message, heartbeat }) => {
+      eachMessage: async ({ topic, partition, message }) => {
         try {
           const value = message.value?.toString();
           if (!value) return;
 
           const parsedMessage = JSON.parse(value);
-          
+
           console.log(`📨 Received message from ${topic}:${partition}`, {
             key: message.key?.toString(),
             type: parsedMessage.type,
             userId: parsedMessage.data?.userId
           });
 
-          // Only handle user-management events
           if (topic === 'user-management-events') {
             await handleUserManagementEvent(parsedMessage);
           }
 
-          await heartbeat();
-          
+
         } catch (error) {
           console.error(`❌ Error processing message from ${topic}:`, error);
         }
@@ -39,18 +39,18 @@ export const startConsumer = async (): Promise<void> => {
     console.log('✅ Kafka consumer started successfully');
   } catch (error) {
     console.error('❌ Failed to start consumer:', error);
+    throw error;
   }
 };
+
 
 type UserManagementEvent = {
   type: 'USER_UPDATED' | 'USER_DELETED'; // Only these two events
   data: {
-    userId: string;
+    userId: number;
     service?: string;
     timestamp?: string;
-    firstName?: string;
     email?: string;
-    profilePic?: string;
   };
 };
 

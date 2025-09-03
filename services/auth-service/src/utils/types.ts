@@ -3,13 +3,10 @@ import {Request} from 'express';
 export interface CreateUser{
     email: string;
     password: string;
-    fullName:string;
 }
 interface User{
     id:number,
     email:string,
-    fullName:string,
-    profilePic:string
 }
 export interface AuthenticatedRequest extends Request {
     cookies: any;
@@ -25,6 +22,4 @@ export interface BaseEvent{
 export interface UserRegistrationEvent extends BaseEvent {
     userId: number;
     email: string;
-    fullName: string;
-    profilePic: string; 
 }

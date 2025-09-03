@@ -1,7 +1,7 @@
 import http from 'http';
 import app from './app';
 import { initializeKafka,disconnectKafka } from './kafka/kafkaManager';
-import { initializeConsumer } from './kafka/consumerEvents';
+import { startConsumer } from './kafka/consumer';
 
 const PORT = process.env.PORT || 6000;
 
@@ -13,7 +13,7 @@ const startServer = async()=>{
     await initializeKafka();
     console.log("Kafka initialized successfully");
 
-    await initializeConsumer();
+  await startConsumer();
     console.log("Consumer initialized successfully");
 
     server.listen(PORT, () => {

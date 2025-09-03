@@ -16,9 +16,9 @@ datasource db {
 
 model User {
   id               Int      @id
-  fullName         String
+  fullName         String?
   email            String   @unique
-  profilePic       String   @default("")
+  profilePic       String?   @default("")
   jobTitle         String?
   phoneNumber      String?
   workEmail        String?

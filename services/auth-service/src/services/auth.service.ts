@@ -17,7 +17,7 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-export const CreateUserService = async ({email,password,fullName}: CreateUser) => {
+export const CreateUserService = async ({email,password}: CreateUser) => {
     return await prisma.$transaction(async (tx) => {
         // Check if user exists
         const isUserExists = await tx.user.findUnique({
@@ -30,21 +30,14 @@ export const CreateUserService = async ({email,password,fullName}: CreateUser) =
 
         // Hash password and create user
         const hashedPassword = await hashPassword(password);
-        const idx = Math.floor(Math.random() * 100) + 1;
-        const randomAvatar = `https://avatar.iran.liara.run/public/${idx}.png`;
-
         const user = await tx.user.create({
             data: {
                 email,
                 password: hashedPassword,
-                fullName,
-                profilePic: randomAvatar
             },
             select:{
                 id: true,
                 email: true,
-                fullName: true,
-                profilePic: true
             }
         });
 
@@ -53,8 +46,6 @@ export const CreateUserService = async ({email,password,fullName}: CreateUser) =
             await eventPublisher.publishUserRegistered({
                 userId: user.id,
                 email: user.email,
-                fullName: user.fullName,
-                profilePic: user.profilePic
             });
         } catch (eventError) {
             console.error(`❌ Failed to publish event for ${email}:`, eventError);
