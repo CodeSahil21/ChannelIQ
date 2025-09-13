@@ -8,6 +8,7 @@ import { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import { isKafkaHealthy } from './kafka/kafkaManager';
 import prisma from './db';
+import userManagementRouter from './routes/user-management.routes';
 
 const app = express();
 
@@ -28,7 +29,7 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
-
+app.use('/api/v1/user-management', userManagementRouter);
 app.get('/health', async (_req, res) => {
   try {
     const kafkaStatus = await isKafkaHealthy();

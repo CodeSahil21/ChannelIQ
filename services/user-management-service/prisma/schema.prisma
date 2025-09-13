@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../node_modules/.prisma/client"
@@ -14,18 +8,85 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Simple enum for user status
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
 model User {
-  id               Int      @id
+  id               Int         @id
   fullName         String?
-  email            String   @unique
-  profilePic       String?   @default("")
+  email            String      @unique
+  profilePic       String?     @default("")
   jobTitle         String?
+  department       String?
   phoneNumber      String?
-  workEmail        String?
-  isActive         Boolean  @default(true)
-  skills           String[] @default([])
+  workEmail        String?     @unique
+  status           UserStatus  @default(ACTIVE)
+  
+  // Profile completion tracking
+  profileCreated   Boolean     @default(false)
+
+  // Simple arrays for skills and languages (no separate tables needed)
+  skills           String[]    @default([])
+  languages        String[]    @default([])
+  
+  // Basic bio for corporate introduction
   bio              String?
-  languages        String[] @default([])
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  
+  // Location for distributed teams
+  location         String?
+  timezone         String?     @default("UTC")
+  
+  // Simple manager relationship
+  managerId        Int?
+  managerName      String?     // Just store manager name instead of complex relation
+  
+  // Professional social links (simple approach)
+  linkedinUrl      String?
+  githubUrl        String?
+  portfolioUrl     String?     // Personal website/portfolio
+  twitterUrl       String?
+  
+  // Chat-specific fields
+  isOnline         Boolean     @default(false)
+  lastSeen         DateTime?
+  
+  // Connection relationships
+  sentConnections     Connection[] @relation("ConnectionSender")
+  receivedConnections Connection[] @relation("ConnectionReceiver")
+
+  // Timestamps
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  
+  @@map("users")
+}
+
+enum ConnectionStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  BLOCKED
+}
+
+model Connection {
+  id          Int              @id @default(autoincrement())
+  senderId    Int
+  receiverId  Int
+  status      ConnectionStatus @default(PENDING)
+  message     String?          // Optional message when sending connection request
+  
+  // Relationships
+  sender      User             @relation("ConnectionSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver    User             @relation("ConnectionReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  
+  // Ensure unique connection between two users
+  @@unique([senderId, receiverId])
+  @@map("connections")
 }

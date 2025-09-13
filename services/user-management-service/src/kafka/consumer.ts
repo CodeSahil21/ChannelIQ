@@ -1,5 +1,5 @@
 import { kafkaConsumer } from './kafkaManager';
-import { CreateUserService } from '../services/user-management.service';
+import { CreateUserService } from '../services/profile.service';
 
 export const startConsumer = async (): Promise<void> => {
   try {
