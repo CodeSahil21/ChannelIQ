@@ -174,3 +174,37 @@ export type ConnectionWithUsers = {
         lastSeen: Date | null;
     };
 };
+
+
+// Event type definitions
+export type UserRegisteredEvent = {
+  eventType: 'USER_REGISTERED';
+  userId: number;
+  email: string;
+  timestamp: Date;
+};
+
+export type UserLoggedInEventType = {
+  eventType: 'USER_LOGGED_IN';
+  userId: number;
+  email: string;
+  timestamp: Date;
+};
+
+export type UserLoggedOutEventType = {
+  eventType: 'USER_LOGGED_OUT';
+  userId: number;
+  email: string;
+  timestamp: Date;
+};
+
+export interface BaseEvent{
+    eventType: string;
+    timestamp: Date;
+}
+
+export interface UserDeletedEventType extends BaseEvent{
+    eventType: 'USER_DELETED';
+    userId: number;
+    email: string;
+}
