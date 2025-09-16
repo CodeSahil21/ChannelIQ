@@ -4,6 +4,7 @@ import { generateToken, comparePassword,isOTPExpired,generateOTP,getOTPExpiratio
 import { CreateUserService,sendOTPEmail } from '../services/auth.service';
 import { AuthenticatedRequest } from '../utils/types';
 import prisma from '../db/db';
+import { eventPublisher } from '../kafka/publisher';
 
 export const createUserController = async(req: Request, res: Response): Promise<void> => {
     try {
@@ -167,7 +168,7 @@ export const loginuserController = async(req: Request, res: Response): Promise<v
 
         // Generate token
         const token = generateToken(user.id);
-
+       
         // Set secure cookie
         res.cookie("token", token, {
             maxAge: 7 * 24 * 60 * 60 * 1000,
@@ -176,6 +177,17 @@ export const loginuserController = async(req: Request, res: Response): Promise<v
             secure: process.env.NODE_ENV === 'production',
             path: '/'
         });
+        
+        // Publish login event
+        try {
+            await eventPublisher.publishUserLoggedIn({
+                userId: user.id,
+                email:user.email
+            });
+        } catch (eventError) {
+            console.error('❌ Failed to publish login event:', eventError);
+            // Don't fail the login if event publishing fails
+        }
 
         // Return user data without password
         const { password: _, ...userWithoutPassword } = user;
@@ -278,7 +290,18 @@ export const logoutUserController = async(_req:AuthenticatedRequest,res:Response
             secure: process.env.NODE_ENV === 'production',
             path: '/'
         });
-
+        // Publish logout event
+        try {
+            if (_req.user) {
+            await eventPublisher.publishUserLoggedOut({
+                userId: _req.user.id,
+                email: _req.user.email
+            });
+            }
+        } catch (eventError) {
+            console.error('❌ Failed to publish logout event:', eventError);
+            // Don't fail the logout if event publishing fails
+        }
         res.status(200).json({
             success: true,
             message: "Logged out successfully"

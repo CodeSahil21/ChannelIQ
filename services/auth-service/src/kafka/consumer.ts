@@ -1,21 +1,25 @@
 import { kafkaConsumer } from './kafkaManager';
 
-
 export const startConsumer = async (): Promise<void> => {
   try {
     console.log('🔄 Starting Kafka consumer...');
 
-    // subscribe accepts { topic: string, fromBeginning?: boolean }
     await kafkaConsumer.subscribe({
       topic: 'user-management-events',
       fromBeginning: false
     });
 
     await kafkaConsumer.run({
-      eachMessage: async ({ topic, partition, message }) => {
+      eachMessage: async ({ topic, partition, message, heartbeat }) => {
         try {
+          // Add heartbeat at the start
+          await heartbeat();
+          
           const value = message.value?.toString();
-          if (!value) return;
+          if (!value) {
+            await heartbeat(); // Even for empty messages
+            return;
+          }
 
           const parsedMessage = JSON.parse(value);
 
@@ -26,12 +30,22 @@ export const startConsumer = async (): Promise<void> => {
           });
 
           if (topic === 'user-management-events') {
+            // Add heartbeat before processing
+            await heartbeat();
             await handleUserManagementEvent(parsedMessage);
+            // Add heartbeat after processing
+            await heartbeat();
           }
-
 
         } catch (error) {
           console.error(`❌ Error processing message from ${topic}:`, error);
+          // Still call heartbeat on error to maintain session
+          try {
+            await heartbeat();
+          } catch (hbError) {
+            console.error('❌ Heartbeat failed:', hbError);
+          }
+          // Don't throw - let consumer continue with next message
         }
       }
     });

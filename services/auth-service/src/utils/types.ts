@@ -23,3 +23,13 @@ export interface UserRegistrationEvent extends BaseEvent {
     userId: number;
     email: string;
 }
+
+export interface UserLoggedInEvent extends BaseEvent {
+    userId:number;
+    email:string;
+}
+
+export interface UserLoggedOutEvent extends BaseEvent {
+    userId: number;
+    email: string;
+}
