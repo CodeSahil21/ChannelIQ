@@ -6,7 +6,7 @@ import {
     UpdateUserProfile,
     UserSearchResult,
 } from '../utils/types';
-
+import { eventPublisher } from '../kafka/publisher';
 
 // Create a new user
 export const CreateUserService = async ({userId, email}: CreateUser) => {
@@ -100,19 +100,27 @@ export const updateUserProfile = async(id:number,data:UpdateUserProfile):Promise
 }
 
 export const deleteUserProfile = async (id: number): Promise<void> => {
-    const user = await prisma.user.findUnique({
-        where: { id: id },
-        select: { profileCreated: true }
-    });
+    await prisma.$transaction(async (tx) => {
+        const user = await tx.user.findUnique({
+            where: { id: id },
+            select: { profileCreated: true, email: true, id: true }
+        });
 
-    if (!user) {
-        throw new Error("User does not exist");
-    } else if (!user.profileCreated) {
-        throw new Error("Profile not created yet");
-    }
+        if (!user) {
+            throw new Error("User does not exist");
+        } else if (!user.profileCreated) {
+            throw new Error("Profile not created yet");
+        }
 
-    await prisma.user.delete({
-        where: { id: id }
+        await tx.user.delete({
+            where: { id: id }
+        });
+
+        // Publish user deleted event
+        await eventPublisher.publishUserDeleted({
+            userId: user.id,
+            email: user.email
+        });
     });
 }
 
