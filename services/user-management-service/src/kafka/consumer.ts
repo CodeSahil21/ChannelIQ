@@ -1,6 +1,7 @@
 import { kafkaConsumer } from './kafkaManager';
 import { CreateUserService } from '../services/profile.service';
 import {handleUserLoggedInEvent,handleUserLoggedOutEvent} from '../services/events.service';
+import { UserLoggedInEventType,UserLoggedOutEventType,UserRegisteredEvent } from '../utils/types';
 
 export const startConsumer = async (): Promise<void> => {
   try {
@@ -76,27 +77,7 @@ export const startConsumer = async (): Promise<void> => {
   }
 };
 
-// Event type definitions
-type UserRegisteredEvent = {
-  eventType: 'USER_REGISTERED';
-  userId: number;
-  email: string;
-  timestamp: Date;
-};
 
-type UserLoggedInEventType = {
-  eventType: 'USER_LOGGED_IN';
-  userId: number;
-  email: string;
-  timestamp: Date;
-};
-
-type UserLoggedOutEventType = {
-  eventType: 'USER_LOGGED_OUT';
-  userId: number;
-  email: string;
-  timestamp: Date;
-};
 
 const handleUserRegisteredEvent = async (event: UserRegisteredEvent): Promise<void> => {
     try {
