@@ -99,3 +99,9 @@ export const sendOTPEmail = async (email: string, otp: string): Promise<void> =>
         throw new Error('Failed to send OTP email');
     }
 };
+
+export const deleteUserById = async (userId: number) => {
+    return await prisma.user.delete({
+        where: { id: userId }
+    });
+};

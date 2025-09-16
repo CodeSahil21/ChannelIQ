@@ -79,6 +79,30 @@ app.use('/api/users', createProxyMiddleware({
     }
 }));
 
+// Add this new proxy for connections
+app.use('/api/connections', createProxyMiddleware({
+    target: 'http://localhost:3002',
+    changeOrigin: true,
+    pathRewrite: {
+        '^/api/connections': '/api/v1/connections'
+    },
+    onProxyReq: (proxyReq, req) => {
+        console.log(`→ Connections: ${req.method} ${req.path} → /api/v1/connections${req.path.replace('/api/connections', '')}`);
+    },
+    onProxyRes: (proxyRes, req) => {
+        console.log(`← Connections: ${proxyRes.statusCode}`);
+    },
+    onError: (err, req, res) => {
+        console.error(`❌ Connections proxy error:`, err.message);
+        if (!res.headersSent) {
+            res.status(502).json({ 
+                success: false, 
+                message: 'Connection service unavailable' 
+            });
+        }
+    }
+}));
+
 // Catch-all
 app.use('*', (req, res) => {
     res.status(404).json({

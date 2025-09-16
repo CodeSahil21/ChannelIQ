@@ -108,9 +108,7 @@ export const deleteUserProfile = async (id: number): Promise<void> => {
 
         if (!user) {
             throw new Error("User does not exist");
-        } else if (!user.profileCreated) {
-            throw new Error("Profile not created yet");
-        }
+        } 
 
         await tx.user.delete({
             where: { id: id }

@@ -1,5 +1,5 @@
 import { kafkaConsumer } from './kafkaManager';
-
+import { deleteUserById } from '../services/auth.service';
 export const startConsumer = async (): Promise<void> => {
   try {
     console.log('🔄 Starting Kafka consumer...');
@@ -58,38 +58,28 @@ export const startConsumer = async (): Promise<void> => {
 };
 
 
-type UserManagementEvent = {
-  type: 'USER_UPDATED' | 'USER_DELETED'; // Only these two events
-  data: {
+type UserDeletedEvent = {
+    eventType: string;
     userId: number;
-    service?: string;
-    timestamp?: string;
-    email?: string;
-  };
+    email: string;
+    timestamp: Date;
 };
 
-const handleUserManagementEvent = async (event: UserManagementEvent): Promise<void> => {
+const handleUserManagementEvent = async (event: UserDeletedEvent): Promise<void> => {
   try {
-    console.log(`🔄 Processing user management event: ${event.type}`);
-    
-    switch (event.type) {
-      case 'USER_UPDATED':
-        console.log('📝 User profile updated:', event.data.userId);
-        // Handle user update logic here
-        // e.g., sync user data, update cache, etc.
-        break;
-        
-      case 'USER_DELETED':
-        console.log('🗑️ User account deleted:', event.data.userId);
-        // Handle user deletion logic here  
-        // e.g., clean up user sessions, invalidate tokens, etc.
-        break;
-        
-      default:
-        console.warn(`⚠️ Unhandled user management event type: ${event.type}`);
+    if (event.eventType === 'USER_DELETED') {
+      const userId = event.userId;
+      if (typeof userId === 'number') {
+        await deleteUserById(userId);
+        console.log(`🗑️ User with ID ${userId} deleted successfully.`);
+      } else {
+        console.warn('⚠️ USER_DELETED event missing valid userId:', event);
+      }
+    } else {
+      console.warn(`⚠️ Unhandled user management event type: ${event.eventType}`);
     }
   } catch (error) {
-    console.error(`❌ Error handling user management event ${event.type}:`, error);
+    console.error(`❌ Error handling USER_DELETED event:`, error);
     throw error;
   }
 };
