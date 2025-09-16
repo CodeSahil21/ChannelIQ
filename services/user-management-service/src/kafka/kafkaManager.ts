@@ -6,53 +6,52 @@ process.env.KAFKAJS_NO_PARTITIONER_WARNING = '1';
 const kafka = new Kafka({
   clientId: process.env.KAFKA_CLIENT_ID || "user-management-service",
   brokers: [process.env.KAFKA_BROKER || "localhost:9092"],
-  retry:{
+  retry: {
     initialRetryTime: parseInt(process.env.KAFKA_RETRY_INITIAL || "100"),
-    retries: parseInt(process.env.KAFKA_RETRY_COUNT || "5"),
-    maxRetryTime:parseInt(process.env.KAFKA_MAX_RETRY_TIME || "30000"),
-    factor:2,
+    retries: parseInt(process.env.KAFKA_RETRY_COUNT || "3"), // Reduced from 5
+    maxRetryTime: parseInt(process.env.KAFKA_MAX_RETRY_TIME || "25000"), // Reduced
+    factor: 2,
     multiplier: 1.5,
     restartOnFailure: async (error) => {
       console.error("Restarting Kafka consumer due to error:", error);
       return true; 
     },
   },
-  requestTimeout: parseInt(process.env.KAFKA_REQUEST_TIMEOUT || "30000"),
-  connectionTimeout: parseInt(process.env.KAFKA_CONNECTION_TIMEOUT || "10000"),
+  requestTimeout: parseInt(process.env.KAFKA_REQUEST_TIMEOUT || "25000"), // Reduced
+  connectionTimeout: parseInt(process.env.KAFKA_CONNECTION_TIMEOUT || "8000"), // Reduced
   enforceRequestTimeout: true
 });
 
 const IDMPOTENT_ENABLED = (process.env.KAFKA_IDEMPOTENT || 'false').toLowerCase() === 'true';
 
-export const kafkaProducer:Producer = kafka.producer({
-
-  createPartitioner:Partitioners.LegacyPartitioner,
-
-  maxInFlightRequests:5,
+// ...existing code...
+export const kafkaProducer: Producer = kafka.producer({
+  createPartitioner: Partitioners.LegacyPartitioner,
+  maxInFlightRequests: 3, // Reduced from 5
   idempotent: IDMPOTENT_ENABLED,
-  transactionTimeout:30000,
-
-  allowAutoTopicCreation:false,
-  retry:{
-    initialRetryTime:100,
-    retries:5,
-    maxRetryTime:30000,
+  transactionTimeout: 25000, // Reduced
+  allowAutoTopicCreation: false,
+  retry: {
+    initialRetryTime: 100,
+    retries: 3, // Reduced from 5
+    maxRetryTime: 25000, // Reduced
   }
 });
 
-export const kafkaConsumer:Consumer = kafka.consumer({
-  groupId:process.env.KAFKA_CONSUMER_GROUP_ID || "user-management-service-group",
-  sessionTimeout:30000,
-  rebalanceTimeout:60000,
-  heartbeatInterval:3000,
-  maxBytesPerPartition:1024*1024,
-  minBytes:1,
-  maxBytes:1024*1024*5,
-  maxWaitTimeInMs:100,
+// ...existing code...
+export const kafkaConsumer: Consumer = kafka.consumer({
+  groupId: process.env.KAFKA_CONSUMER_GROUP_ID || "user-management-service-group",
+  sessionTimeout: 25000, // Reduced from 30000
+  rebalanceTimeout: 50000, // Reduced from 60000
+  heartbeatInterval: 3000,
+  maxBytesPerPartition: 1024 * 1024,
+  minBytes: 1,
+  maxBytes: 1024 * 1024 * 5,
+  maxWaitTimeInMs: 100,
   retry: {
     initialRetryTime: 100,
-    retries: 8,
-    maxRetryTime: 30000,
+    retries: 3, // Reduced from 8
+    maxRetryTime: 25000, // Reduced
     restartOnFailure: async (err) => {
       console.error('Consumer restart on failure:', err);
       return true;

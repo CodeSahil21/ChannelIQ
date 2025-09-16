@@ -43,3 +43,16 @@ export const UpdateUserProfileSchema = z.object({
 export const fetchUserProfileSchema = z.object({
     userId: z.number().min(1, "Invalid user ID")
 });
+
+export const sendConnectionRequestSchema = z.object({
+    receiverId: z.number().int().positive('Receiver ID must be a positive integer'),
+    message:z.string().optional()
+});
+
+export const connectionIdParamSchema = z.object({
+    connectionId: z.string().regex(/^\d+$/, 'Connection ID must be a valid number').transform(Number)
+});
+
+export const userIdParamSchema = z.object({
+    userId: z.string().regex(/^\d+$/, 'User ID must be a valid number').transform(Number)
+});

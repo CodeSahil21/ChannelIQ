@@ -286,43 +286,56 @@ export const blockUser = async (senderId: number, receiverId: number): Promise<v
         throw new Error('Cannot block yourself');
     }
 
-    // Remove any existing connection between the users
-    await prisma.connection.deleteMany({
-        where: {
-            OR: [
-                { senderId, receiverId },
-                { senderId: receiverId, receiverId: senderId }
-            ]
-        }
+    // Check if user exists before blocking
+    const userExists = await prisma.user.findUnique({
+        where: { id: receiverId },
+        select: { id: true }
     });
 
-    // Create a new block connection
-    await prisma.connection.create({
-        data: {
-            senderId,
-            receiverId,
-            status: ConnectionStatus.BLOCKED
-        }
+    if (!userExists) {
+        throw new Error('User not found');
+    }
+
+    // Use transaction for data consistency
+    await prisma.$transaction(async (tx) => {
+        // Remove any existing connection between the users
+        await tx.connection.deleteMany({
+            where: {
+                OR: [
+                    { senderId, receiverId },
+                    { senderId: receiverId, receiverId: senderId }
+                ]
+            }
+        });
+
+        // Create a new block connection
+        await tx.connection.create({
+            data: {
+                senderId,
+                receiverId,
+                status: ConnectionStatus.BLOCKED
+            }
+        });
     });
 };
-
 
 export const unblockUser = async (senderId: number, receiverId: number): Promise<void> => {
     if (senderId === receiverId) {
         throw new Error('Cannot unblock yourself');
     }
-    try {
-      await prisma.connection.deleteMany({
+
+    const deletedConnection = await prisma.connection.deleteMany({
         where: {
-          senderId,
-          receiverId,
-          status: ConnectionStatus.BLOCKED
+            senderId,
+            receiverId,
+            status: ConnectionStatus.BLOCKED
         }
-      });
-    } catch (error) {
-      throw error;
+    });
+
+    if (deletedConnection.count === 0) {
+        throw new Error('No blocked connection found');
     }
-}   
+};
 
 export const removeConnection = async (userId1: number, userId2: number): Promise<void> => {
     if (userId1 === userId2) {

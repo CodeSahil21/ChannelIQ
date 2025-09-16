@@ -88,5 +88,9 @@ model Connection {
   
   // Ensure unique connection between two users
   @@unique([senderId, receiverId])
+  @@index([senderId, status])
+  @@index([receiverId, status])
+  @@index([status])
+  @@index([updatedAt])
   @@map("connections")
 }

@@ -3,7 +3,7 @@ import app from './app';
 import { initializeKafka,disconnectKafka } from './kafka/kafkaManager';
 import { startConsumer } from './kafka/consumer';
 
-const PORT = process.env.PORT || 6000;
+const PORT = process.env.PORT || 3002;
 
 const server = http.createServer(app);
 
