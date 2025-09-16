@@ -5,7 +5,7 @@ class EventPublisher {
     //Topic name for all user-related events
     private readonly  USER_MANAGEMENT_EVENTS_TOPIC = 'user-management-events';
 
-     async publishUserDeleted(p0: string, userData: {
+     async publishUserDeleted( userData: {
     userId: number;
     email: string;
 }): Promise<void> {
