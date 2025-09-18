@@ -12,6 +12,30 @@ datasource db {
 enum UserStatus {
   ACTIVE
   INACTIVE
+  SUSPENDED
+  DELETED   // For soft delete support
+}
+
+enum ConnectionStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  BLOCKED
+}
+
+// For audit trail and compliance
+enum ActivityType {
+  LOGIN
+  LOGOUT
+  PROFILE_UPDATE
+  CONNECTION_REQUEST
+  CONNECTION_ACCEPTED
+  CONNECTION_DECLINED
+  PASSWORD_CHANGE
+  ACCOUNT_DEACTIVATION
+  USER_BLOCKED
+  USER_UNBLOCKED
+  CONNECTION_REMOVED
 }
 
 model User {
@@ -25,8 +49,14 @@ model User {
   workEmail        String?     @unique
   status           UserStatus  @default(ACTIVE)
   
+  // Soft delete support
+  isDeleted        Boolean     @default(false)
+  deletedAt        DateTime?
+  deletedBy        Int?        // Who deleted this user
+  
   // Profile completion tracking
   profileCreated   Boolean     @default(false)
+  profileCompletionPercentage Int @default(0) // 0-100
 
   // Simple arrays for skills and languages (no separate tables needed)
   skills           String[]    @default([])
@@ -53,22 +83,46 @@ model User {
   isOnline         Boolean     @default(false)
   lastSeen         DateTime?
   
+  // Search optimization - Full-text search support
+  searchVector     Unsupported("tsvector")? // Computed field for full-text search
+
+  // Activity tracking
+  lastLoginAt      DateTime?
+  loginCount       Int         @default(0)
+  lastPasswordChangeAt DateTime?
+  
   // Connection relationships
   sentConnections     Connection[] @relation("ConnectionSender")
   receivedConnections Connection[] @relation("ConnectionReceiver")
+  
+  // Activity logs
+  activities       UserActivity[]
+
+  // User preferences (relation field for UserPreference)
+  preference       UserPreference?
 
   // Timestamps
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
   
+  // Strategic indexes for performance
+  @@index([email])
+  @@index([workEmail])
+  @@index([status])
+  @@index([isDeleted])
+  @@index([department])
+  @@index([isOnline])
+  @@index([lastSeen])
+  @@index([createdAt])
+  @@index([updatedAt])
+  @@index([status, isDeleted]) // Composite index for active users
+  @@index([department, status]) // For department-wise queries
+  @@index([managerId, status]) // For manager-team queries
+  
+  // Full-text search index (PostgreSQL specific)
+  @@index([searchVector], type: Gin)
+  
   @@map("users")
-}
-
-enum ConnectionStatus {
-  PENDING
-  ACCEPTED
-  DECLINED
-  BLOCKED
 }
 
 model Connection {
@@ -78,7 +132,16 @@ model Connection {
   status      ConnectionStatus @default(PENDING)
   message     String?          // Optional message when sending connection request
   
-  // Relationships
+  // Soft delete support
+  isDeleted   Boolean          @default(false)
+  deletedAt   DateTime?
+  
+  // Activity tracking
+  acceptedAt  DateTime?
+  declinedAt  DateTime?
+  blockedAt   DateTime?
+  
+  // Relationships with proper cascading
   sender      User             @relation("ConnectionSender", fields: [senderId], references: [id], onDelete: Cascade)
   receiver    User             @relation("ConnectionReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
   
@@ -88,9 +151,92 @@ model Connection {
   
   // Ensure unique connection between two users
   @@unique([senderId, receiverId])
+  
+  // Strategic indexes for performance
   @@index([senderId, status])
   @@index([receiverId, status])
   @@index([status])
   @@index([updatedAt])
+  @@index([isDeleted])
+  @@index([createdAt])
+  @@index([senderId, isDeleted]) // Active connections by sender
+  @@index([receiverId, isDeleted]) // Active connections by receiver
+  @@index([status, isDeleted]) // Active connections by status
+  
   @@map("connections")
+}
+
+// For audit trail and compliance tracking
+model UserActivity {
+  id          Int          @id @default(autoincrement())
+  userId      Int
+  type        ActivityType
+  description String?
+  metadata    Json?        // Store additional data as JSON
+  ipAddress   String?
+  userAgent   String?
+  
+  // Soft delete support
+  isDeleted   Boolean      @default(false)
+  deletedAt   DateTime?
+  
+  // Relationships
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt   DateTime     @default(now())
+  
+  // Strategic indexes for performance and compliance queries
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+  @@index([userId, type])
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
+  @@index([isDeleted])
+  
+  @@map("user_activities")
+}
+
+// For storing user preferences and settings
+model UserPreference {
+  id                    Int     @id @default(autoincrement())
+  userId                Int     @unique
+  
+  // Notification preferences
+  emailNotifications    Boolean @default(true)
+  pushNotifications     Boolean @default(true)
+  connectionRequests    Boolean @default(true)
+  profileViews          Boolean @default(true)
+  
+  // Privacy settings
+  profileVisibility     String  @default("PUBLIC") // PUBLIC, CONNECTIONS_ONLY, PRIVATE
+  showOnlineStatus      Boolean @default(true)
+  showLastSeen          Boolean @default(true)
+  
+  // Display preferences
+  theme                 String  @default("LIGHT") // LIGHT, DARK, AUTO
+  language              String  @default("en")
+  timezone              String  @default("UTC")
+  
+  // Search and discovery
+  appearInSearch        Boolean @default(true)
+  showSuggestions       Boolean @default(true)
+  
+  // Soft delete support
+  isDeleted             Boolean @default(false)
+  deletedAt             DateTime?
+  
+  // Relationships
+  user                  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  // Indexes
+  @@index([userId])
+  @@index([isDeleted])
+  
+  @@map("user_preferences")
 }

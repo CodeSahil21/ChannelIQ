@@ -4,8 +4,13 @@ import {
     getProfileController, 
     updateProfileController,
     fetchUserProfileController,
-    deleteProfileController
+    deleteProfileController,
+    restoreUserController
 } from '../controllers/profile.controller';
+import {
+    getUserPreferenceController,
+    updateUserPreferenceController
+} from '../controllers/preference.controller';
 import { protectRoute } from '../middleware/middleware';
 
 const userManagementRouter = express.Router();
@@ -16,5 +21,10 @@ userManagementRouter.put('/update-profile', protectRoute, updateProfileControlle
 userManagementRouter.get('/get-profile', protectRoute, getProfileController);   
 userManagementRouter.get('/fetch-profile/:userId', protectRoute, fetchUserProfileController);
 userManagementRouter.delete('/delete-profile', protectRoute, deleteProfileController);
+userManagementRouter.post('/restore-user/:userId', protectRoute, restoreUserController);
+
+// User preferences routes
+userManagementRouter.get('/preferences', protectRoute, getUserPreferenceController);
+userManagementRouter.put('/preferences', protectRoute, updateUserPreferenceController);
 
 export default userManagementRouter;

@@ -1,10 +1,12 @@
-import prisma from '../db/index'
+import prisma from '../db/index';
 import {
     ConnectionRequest,
     ConnectionResponse, 
     ConnectionStatus,
-     ConnectionStats,
+    ConnectionStats,
+    ActivityType
 } from '../utils/types';
+import { logUserActivity } from './activity.service';
 
 
 
@@ -281,7 +283,7 @@ export const declineConnectionRequest = async (connectionId: number, userId: num
 }
 
 
-export const blockUser = async (senderId: number, receiverId: number): Promise<void> => {
+export const blockUser = async (senderId: number, receiverId: number, userAgent?: string, ipAddress?: string): Promise<void> => {
     if (senderId === receiverId) {
         throw new Error('Cannot block yourself');
     }
@@ -298,13 +300,19 @@ export const blockUser = async (senderId: number, receiverId: number): Promise<v
 
     // Use transaction for data consistency
     await prisma.$transaction(async (tx) => {
-        // Remove any existing connection between the users
-        await tx.connection.deleteMany({
+        // Soft delete any existing connection between the users
+        await tx.connection.updateMany({
             where: {
                 OR: [
                     { senderId, receiverId },
                     { senderId: receiverId, receiverId: senderId }
-                ]
+                ],
+                isDeleted: false
+            },
+            data: {
+                isDeleted: true,
+                deletedAt: new Date()
+                // deletedBy field is not in the schema
             }
         });
 
@@ -317,39 +325,86 @@ export const blockUser = async (senderId: number, receiverId: number): Promise<v
             }
         });
     });
+    
+    // Log the activity
+    await logUserActivity(
+        senderId,
+        ActivityType.USER_BLOCKED,
+        'User blocked',
+        { blockedUserId: receiverId },
+        ipAddress,
+        userAgent
+    );
 };
 
-export const unblockUser = async (senderId: number, receiverId: number): Promise<void> => {
+export const unblockUser = async (senderId: number, receiverId: number, userAgent?: string, ipAddress?: string): Promise<void> => {
     if (senderId === receiverId) {
         throw new Error('Cannot unblock yourself');
     }
 
-    const deletedConnection = await prisma.connection.deleteMany({
+    const updatedConnection = await prisma.connection.updateMany({
         where: {
             senderId,
             receiverId,
-            status: ConnectionStatus.BLOCKED
+            status: ConnectionStatus.BLOCKED,
+            isDeleted: false
+        },
+        data: {
+            isDeleted: true,
+            deletedAt: new Date()
+            // deletedBy field is not in the schema
         }
     });
 
-    if (deletedConnection.count === 0) {
+    if (updatedConnection.count === 0) {
         throw new Error('No blocked connection found');
     }
+    
+    // Log the activity
+    await logUserActivity(
+        senderId,
+        ActivityType.USER_UNBLOCKED,
+        'User unblocked',
+        { unblockedUserId: receiverId },
+        ipAddress,
+        userAgent
+    );
 };
 
-export const removeConnection = async (userId1: number, userId2: number): Promise<void> => {
+export const removeConnection = async (
+    userId1: number, 
+    userId2: number, 
+    userAgent?: string, 
+    ipAddress?: string
+): Promise<void> => {
     if (userId1 === userId2) {
         throw new Error('Cannot remove connection with yourself');
     }
-
-    await prisma.connection.deleteMany({
+    
+    await prisma.connection.updateMany({
         where: {
             OR: [
                 { senderId: userId1, receiverId: userId2 },
                 { senderId: userId2, receiverId: userId1 }
-            ]
+            ],
+            isDeleted: false
+        },
+        data: {
+            isDeleted: true,
+            deletedAt: new Date()
+            // deletedBy field is not in the schema
         }
     });
+    
+    // Log the activity
+    await logUserActivity(
+        userId1,
+        ActivityType.CONNECTION_REMOVED,
+        'Connection removed',
+        { otherUserId: userId2 },
+        ipAddress,
+        userAgent
+    );
 } 
 
 export const getPendingRequests = async (userId: number): Promise<ConnectionResponse[]> => {
@@ -357,7 +412,8 @@ export const getPendingRequests = async (userId: number): Promise<ConnectionResp
         const connections = await prisma.connection.findMany({
             where: {
                 receiverId: userId,
-                status: ConnectionStatus.PENDING
+                status: ConnectionStatus.PENDING,
+                isDeleted: false
             },
             include: {
                 sender: {
@@ -416,7 +472,8 @@ export const getSentRequests = async (userId: number): Promise<ConnectionRespons
         const connections = await prisma.connection.findMany({
             where: {
                 senderId: userId,
-                status: ConnectionStatus.PENDING
+                status: ConnectionStatus.PENDING,
+                isDeleted: false
             },
             include: {
                 sender: {
@@ -479,6 +536,7 @@ export const getConnections = async (userId: number): Promise<ConnectionResponse
         const connections = await prisma.connection.findMany({
             where: {
                 status: ConnectionStatus.ACCEPTED,
+                isDeleted: false,
                 OR: [
                     { senderId: userId },
                     { receiverId: userId }

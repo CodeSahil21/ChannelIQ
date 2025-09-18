@@ -1,6 +1,6 @@
 import { Response } from 'express';
-import { CreateUserProfileSchema,UpdateUserProfileSchema} from '../utils/schema';
-import { createProfile, updateUserProfile,getUserProfile,deleteUserProfile } from '../services/profile.service';
+import { CreateUserProfileSchema, UpdateUserProfileSchema } from '../utils/schema';
+import { createProfile, updateUserProfile, getUserProfile, deleteUserProfile, restoreUser } from '../services/profile.service';
 import { AuthenticatedRequest, CreateUserProfile } from '../utils/types';
 
 export const createProfileController = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -227,7 +227,11 @@ export const fetchUserProfileController = async (req: AuthenticatedRequest, res:
 export const deleteProfileController = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
         const userId = req.user!.id;
-        await deleteUserProfile(userId);
+        const userAgent = req.headers['user-agent'];
+        const ipAddress = req.ip || req.connection.remoteAddress;
+        
+        await deleteUserProfile(userId, userId, userAgent, ipAddress as string);
+        
         res.status(200).json({
             success: true,
             message: "Profile deleted successfully"
@@ -254,3 +258,29 @@ export const deleteProfileController = async (req: AuthenticatedRequest, res: Re
         });
     }
 }
+
+export const restoreUserController = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+        const userId = parseInt(req.params.userId || '0');
+        
+        if (isNaN(userId) || userId <= 0) {
+            res.status(400).json({
+                success: false,
+                message: "Invalid user ID"
+            });
+            return;
+        }
+        
+        const userAgent = req.headers['user-agent'];
+        const ipAddress = req.ip || req.connection.remoteAddress;
+        
+        await restoreUser(userId, userAgent, ipAddress as string);
+        
+        res.status(200).json({ success: true, message: "User restored successfully" });
+    } catch (error: any) {
+        console.error('Error restoring user:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+
