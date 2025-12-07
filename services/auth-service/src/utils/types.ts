@@ -9,7 +9,7 @@ interface User{
     email:string,
 }
 export interface AuthenticatedRequest extends Request {
-    cookies: any;
+    cookies: Record<string, string>;
     user?: User;
     sessionJti?: string;
 }

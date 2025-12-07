@@ -17,7 +17,7 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-export const CreateUserService = async ({email,password}: CreateUser) => {
+export const CreateUserService = async ({email,password}: CreateUser): Promise<{ id: number; email: string }> => {
     return await prisma.$transaction(async (tx) => {
         // Check if user exists
         const isUserExists = await tx.user.findUnique({
@@ -100,8 +100,8 @@ export const sendOTPEmail = async (email: string, otp: string): Promise<void> =>
     }
 };
 
-export const deleteUserById = async (userId: number) => {
-    return await prisma.user.delete({
+export const deleteUserById = async (userId: number): Promise<void> => {
+    await prisma.user.delete({
         where: { id: userId }
     });
 };

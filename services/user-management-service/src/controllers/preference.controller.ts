@@ -21,7 +21,7 @@ export const getUserPreferenceController = async (req: AuthenticatedRequest, res
             success: true,
             data: preferences
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error fetching user preferences:', error);
         res.status(500).json({
             success: false,
@@ -50,7 +50,7 @@ export const updateUserPreferenceController = async (req: AuthenticatedRequest, 
             message: "Preferences updated successfully",
             data: updatedPreferences
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error updating user preferences:', error);
         res.status(500).json({
             success: false,

@@ -59,28 +59,29 @@ export const sendConnectionRequestController = async (req: AuthenticatedRequest,
             message: 'Connection request sent successfully',
             data: connection
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const err = error as { message?: string; code?: string };
 // Handle specific business logic errors
-        if (error.message.includes('Cannot send connection request to yourself')) {
+        if (err.message?.includes('Cannot send connection request to yourself')) {
             res.status(400).json({
                 success: false,
-                message: error.message
+                message: err.message
             });
             return;
         }
         
-        if (error.message.includes('already pending') || 
-            error.message.includes('already connected') ||
-            error.message.includes('blocked user')) {
+        if (err.message?.includes('already pending') || 
+            err.message?.includes('already connected') ||
+            err.message?.includes('blocked user')) {
             res.status(409).json({
                 success: false,
-                message: error.message
+                message: err.message
             });
             return;
         }
 
         // Handle database errors
-        if (error.code?.startsWith('P') || error.message.includes('Database error')) {
+        if (err.code?.startsWith('P') || err.message?.includes('Database error')) {
             res.status(503).json({
                 success: false,
                 message: "Database service temporarily unavailable"
@@ -88,10 +89,10 @@ export const sendConnectionRequestController = async (req: AuthenticatedRequest,
             return;
         }
         
-        if (error.message === "One or both users not found") {
+        if (err.message === "One or both users not found") {
             res.status(404).json({
                 success: false,
-                message: error.message
+                message: err.message
             });
             return;
         }
@@ -136,21 +137,22 @@ export const acceptConnectionRequestController = async (req: AuthenticatedReques
             message: 'Connection request accepted successfully',
             data: connection
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const err = error as { message?: string };
         console.error('Error accepting connection:', error);
         
-        if (error.message === "Connection request not found") {
+        if (err.message === "Connection request not found") {
             res.status(404).json({
                 success: false,
-                message: error.message
+                message: err.message
             });
             return;
         }
         
-        if (error.message.includes('not authorized') || error.message.includes('not pending')) {
+        if (err.message?.includes('not authorized') || err.message?.includes('not pending')) {
             res.status(403).json({
                 success: false,
-                message: error.message
+                message: err.message
             });
             return;
         }
@@ -195,21 +197,22 @@ export const declineConnectionRequestController = async (req: AuthenticatedReque
             message: 'Connection request declined successfully',
             data: connection
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const err = error as { message?: string };
         console.error('Error declining connection:', error);
         
-        if (error.message === "Connection request not found") {
+        if (err.message === "Connection request not found") {
             res.status(404).json({
                 success: false,
-                message: error.message
+                message: err.message
             });
             return;
         }
         
-        if (error.message.includes('not authorized') || error.message.includes('not pending')) {
+        if (err.message?.includes('not authorized') || err.message?.includes('not pending')) {
             res.status(403).json({
                 success: false,
-                message: error.message
+                message: err.message
             });
             return;
         }
@@ -258,21 +261,22 @@ export const blockUserController = async (req: AuthenticatedRequest, res: Respon
             success: true,
             message: 'User blocked successfully'
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const err = error as { message?: string };
         console.error('Error blocking user:', error);
         
-        if (error.message === 'User not found') {
+        if (err.message === 'User not found') {
             res.status(404).json({
                 success: false,
-                message: error.message
+                message: err.message
             });
             return;
         }
         
-        if (error.message.includes('Cannot block yourself')) {
+        if (err.message?.includes('Cannot block yourself')) {
             res.status(400).json({
                 success: false,
-                message: error.message
+                message: err.message
             });
             return;
         }
@@ -319,21 +323,22 @@ export const unblockUserController = async (req: AuthenticatedRequest, res: Resp
             success: true,
             message: 'User unblocked successfully'
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const err = error as { message?: string };
         console.error('Error unblocking user:', error);
         
-        if (error.message === 'No blocked connection found') {
+        if (err.message === 'No blocked connection found') {
             res.status(404).json({
                 success: false,
-                message: error.message
+                message: err.message
             });
             return;
         }
         
-        if (error.message.includes('Cannot unblock yourself')) {
+        if (err.message?.includes('Cannot unblock yourself')) {
             res.status(400).json({
                 success: false,
-                message: error.message
+                message: err.message
             });
             return;
         }
@@ -381,13 +386,14 @@ export const removeConnectionController = async (req: AuthenticatedRequest, res:
             success: true,
             message: 'Connection removed successfully'
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const err = error as { message?: string };
         console.error('Error removing connection:', error);
         
-        if (error.message.includes('Cannot remove connection with yourself')) {
+        if (err.message?.includes('Cannot remove connection with yourself')) {
             res.status(400).json({
                 success: false,
-                message: error.message
+                message: err.message
             });
             return;
         }
@@ -416,10 +422,11 @@ export const getPendingRequestsController = async (req: AuthenticatedRequest, re
             message: 'Pending requests retrieved successfully',
             data: pendingRequests
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const err = error as { message?: string };
         res.status(500).json({
             success: false,
-            error: error.message
+            error: err.message || 'Internal server error'
         });
     }
 };
@@ -441,10 +448,11 @@ export const getSentRequestsController = async (req: AuthenticatedRequest, res: 
             message: 'Sent requests retrieved successfully',
             data: sentRequests
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const err = error as { message?: string };
         res.status(500).json({
             success: false,
-            error: error.message
+            error: err.message || 'Internal server error'
         });
     }
 };
@@ -466,10 +474,11 @@ export const getConnectionsController = async (req: AuthenticatedRequest, res: R
             message: 'Connections retrieved successfully',
             data: connections
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const err = error as { message?: string };
         res.status(500).json({
             success: false,
-            error: error.message
+            error: err.message || 'Internal server error'
         });
     }
 };
@@ -491,10 +500,11 @@ export const getBlockedUsersController = async (req: AuthenticatedRequest, res: 
             message: 'Blocked users retrieved successfully',
             data: blockedUsers
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const err = error as { message?: string };
         res.status(500).json({
             success: false,
-            error: error.message
+            error: err.message || 'Internal server error'
         });
     }
 };
@@ -531,10 +541,11 @@ export const getConnectionStatusController = async (req: AuthenticatedRequest, r
             message: 'Connection status retrieved successfully',
             data: { status }
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const err = error as { message?: string };
         res.status(500).json({
             success: false,
-            error: error.message
+            error: err.message || 'Internal server error'
         });
     }
 };
@@ -556,10 +567,11 @@ export const getConnectionStatsController = async (req: AuthenticatedRequest, re
             message: 'Connection statistics retrieved successfully',
             data: stats
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const err = error as { message?: string };
         res.status(500).json({
             success: false,
-            error: error.message
+            error: err.message || 'Internal server error'
         });
     }
 };
@@ -581,10 +593,11 @@ export const getConnectedUsersController = async (req: AuthenticatedRequest, res
             message: 'Connected users retrieved successfully',
             data: connectedUsers
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const err = error as { message?: string };
         res.status(500).json({
             success: false,
-            error: error.message
+            error: err.message || 'Internal server error'
         });
     }
 };

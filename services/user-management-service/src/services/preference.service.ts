@@ -7,7 +7,7 @@ import prisma from '../db/index';
  * @throws Error if the user does not exist
  * @returns The user's preferences or null if not found
  */
-export const getUserPreference = async (userId: number) => {
+export const getUserPreference = async (userId: number): Promise<unknown | null> => {
     // Check if user exists first
     const userExists = await prisma.user.findFirst({
         where: { 
@@ -41,7 +41,7 @@ export const getUserPreference = async (userId: number) => {
  * @throws Error if user does not exist, preferences don't exist, or invalid data
  * @returns Updated preference object
  */
-export const updateUserPreference = async (userId: number, data: any) => {
+export const updateUserPreference = async (userId: number, data: Record<string, unknown>): Promise<unknown> => {
     // Validate user exists
     const userExists = await prisma.user.findFirst({
         where: { 
@@ -69,7 +69,7 @@ export const updateUserPreference = async (userId: number, data: any) => {
     }
 
     // Ensure we're only updating valid preference fields with proper validation
-    const validData: any = {};
+    const validData: Record<string, unknown> = {};
     
     try {
         // Notification preferences - validate booleans
@@ -102,8 +102,8 @@ export const updateUserPreference = async (userId: number, data: any) => {
         }
         
         // Privacy settings
-        if (data.profileVisibility !== undefined) {
-            if (!['PUBLIC', 'CONNECTIONS_ONLY', 'PRIVATE'].includes(data.profileVisibility)) {
+        if (data.profileVisibility !== undefined && data.profileVisibility !== null) {
+            if (typeof data.profileVisibility !== 'string' || !['PUBLIC', 'CONNECTIONS_ONLY', 'PRIVATE'].includes(data.profileVisibility)) {
                 throw new Error('profileVisibility must be one of: PUBLIC, CONNECTIONS_ONLY, PRIVATE');
             }
             validData.profileVisibility = data.profileVisibility;
@@ -124,8 +124,8 @@ export const updateUserPreference = async (userId: number, data: any) => {
         }
         
         // Display preferences
-        if (data.theme !== undefined) {
-            if (!['LIGHT', 'DARK', 'SYSTEM'].includes(data.theme)) {
+        if (data.theme !== undefined && data.theme !== null) {
+            if (typeof data.theme !== 'string' || !['LIGHT', 'DARK', 'SYSTEM'].includes(data.theme)) {
                 throw new Error('theme must be one of: LIGHT, DARK, SYSTEM');
             }
             validData.theme = data.theme;
@@ -188,7 +188,7 @@ export const updateUserPreference = async (userId: number, data: any) => {
  * @throws Error if user does not exist or if creating preferences fails
  * @returns The created preference object
  */
-export const createDefaultPreferences = async (userId: number) => {
+export const createDefaultPreferences = async (userId: number): Promise<unknown> => {
     try {
         // Check if user exists
         const userExists = await prisma.user.findFirst({
@@ -253,7 +253,7 @@ export const createDefaultPreferences = async (userId: number) => {
  * @throws Error if preferences don't exist or deletion fails
  * @returns The updated preference object
  */
-export const softDeletePreference = async (userId: number) => {
+export const softDeletePreference = async (userId: number): Promise<unknown> => {
     try {
         // Check if preferences exist
         const preferencesExist = await prisma.userPreference.findFirst({

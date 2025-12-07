@@ -301,7 +301,6 @@ export const logoutUserController = async(_req:AuthenticatedRequest,res:Response
         });
 
         // Revoke session in Redis
-        // @ts-ignore
         const jti: string | undefined = _req.sessionJti;
         if (jti) {
             await delSession(jti);

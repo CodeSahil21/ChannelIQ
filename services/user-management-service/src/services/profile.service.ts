@@ -14,7 +14,7 @@ import { calculateProfileCompletion, buildSearchVector } from '../utils/profileU
 import { eventPublisher } from '../kafka/publisher';
 
 // Create a new user
-export const CreateUserService = async ({userId, email}: CreateUser) => {
+export const CreateUserService = async ({userId, email}: CreateUser): Promise<{ id: number; email: string; profileCreated: boolean; status: UserStatus; isDeleted: boolean; createdAt: Date; updatedAt: Date }> => {
     // Check if user exists
     const isUserExists = await prisma.user.findUnique({
         where: { email: email }
@@ -145,7 +145,7 @@ export const checkProfileCompletion = async (id: number): Promise<boolean> => {
     return user?.profileCreated || false;
 }
 
-export const updateUserProfile = async(id:number, data:UpdateUserProfile, userAgent?: string, ipAddress?: string):Promise<UserProfileResponse>=>{
+export const updateUserProfile = async(id:number, data:UpdateUserProfile):Promise<UserProfileResponse>=>{
     const user = await prisma.user.findFirst({
         where: { 
             id: id, 
@@ -193,9 +193,7 @@ export const updateUserProfile = async(id:number, data:UpdateUserProfile, userAg
         id,
         ActivityType.PROFILE_UPDATE,
         'Profile updated',
-        { fields: Object.keys(data) },
-        ipAddress,
-        userAgent
+        { fields: Object.keys(data) }
     );
     
     return updatedProfile as UserProfileResponse;

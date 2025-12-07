@@ -63,6 +63,7 @@ interface User{
 }
 
 export interface AuthenticatedRequest extends Request {
+    cookies: Record<string, string>;
     user?: User;
 }
 

@@ -59,10 +59,11 @@ export const createProfileController = async (req: AuthenticatedRequest, res: Re
             data: newProfile
         });
        
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const err = error as { message?: string };
         console.error('Error creating profile:', error);
         
-        if (error.message === "User does not exist") {
+        if (err.message === "User does not exist") {
             res.status(404).json({
                 success: false,
                 message: "User not found"
@@ -70,7 +71,7 @@ export const createProfileController = async (req: AuthenticatedRequest, res: Re
             return;
         }
 
-        if (error.message === "Profile already completed") {
+        if (err.message === "Profile already completed") {
             res.status(400).json({
                 success: false,
                 message: "Profile has already been created"
@@ -145,10 +146,11 @@ export const updateProfileController = async (req: AuthenticatedRequest, res: Re
         data: updatedProfile
         });
 
-   }catch(error:any){
+   }catch(error:unknown){
+    const err = error as { message?: string };
     console.error('Error creating profile:', error);
 
-            if (error.message === "User does not exist") {
+            if (err.message === "User does not exist") {
             res.status(404).json({
                 success: false,
                 message: "User not found"
@@ -156,7 +158,7 @@ export const updateProfileController = async (req: AuthenticatedRequest, res: Re
             return;
         }
 
-        if (error.message === "Profile not created yet") {
+        if (err.message === "Profile not created yet") {
             res.status(400).json({
                 success: false,
                 message: "Profile not created yet"
@@ -180,7 +182,7 @@ export const getProfileController = async (req: AuthenticatedRequest, res: Respo
             success: true,
             data: profile
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error fetching profile:', error);
         res.status(500).json({
             success: false,
@@ -215,7 +217,7 @@ export const fetchUserProfileController = async (req: AuthenticatedRequest, res:
             success: true,
             data: profile
         });
-    }catch (error: any) {
+    }catch (error: unknown) {
         console.error('Error fetching profile:', error);
         res.status(500).json({
             success: false,
@@ -235,16 +237,17 @@ export const deleteProfileController = async (req: AuthenticatedRequest, res: Re
             success: true,
             message: "Profile deleted successfully"
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const err = error as { message?: string };
         console.error('Error deleting profile:', error);
-        if (error.message === "User does not exist") {
+        if (err.message === "User does not exist") {
             res.status(404).json({
                 success: false,
                 message: "User not found"
             });
             return;
         }
-        if (error.message === "Profile not created yet") {
+        if (err.message === "Profile not created yet") {
             res.status(400).json({
                 success: false,
                 message: "Profile not created yet"
@@ -276,9 +279,10 @@ export const restoreUserController = async (req: AuthenticatedRequest, res: Resp
         await restoreUser(userId, userAgent, ipAddress as string);
         
         res.status(200).json({ success: true, message: "User restored successfully" });
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const err = error as { message?: string };
         console.error('Error restoring user:', error);
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({ success: false, message: err.message || 'Internal server error' });
     }
 };
 
@@ -300,7 +304,7 @@ export const searchUsersController = async (req: AuthenticatedRequest, res: Resp
             return;
         }
 
-        const { query, limit } = validationResult.data;
+        const { query, limit = 10 } = validationResult.data;
         const currentUserId = req.user!.id;
         
         const users = await searchUsers(query, currentUserId, limit);
@@ -309,7 +313,7 @@ export const searchUsersController = async (req: AuthenticatedRequest, res: Resp
             success: true,
             data: users
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Error searching users:', error);
         res.status(500).json({
             success: false,

@@ -13,7 +13,7 @@ export const redis = createClient({
 redis.on('error', (err) => console.error('Redis Client Error', err));
 
 let initialized = false;
-export const connectRedis = async () => {
+export const connectRedis = async (): Promise<void> => {
   if (!initialized) {
     await redis.connect();
     initialized = true;
@@ -24,7 +24,7 @@ export const connectRedis = async () => {
 const sessionKey = (jti: string) => `auth:session:${jti}`;
 const blacklistKey = (jti: string) => `auth:blacklist:${jti}`;
 
-export const setSession = async (jti: string, data: any, ttlSec: number) => {
+export const setSession = async (jti: string, data: Record<string, unknown>, ttlSec: number): Promise<void> => {
   await connectRedis();
   await redis.set(sessionKey(jti), JSON.stringify(data), { EX: Math.max(ttlSec - 30, 1) }); // skew-safe
 };
@@ -35,12 +35,12 @@ export const getSession = async <T = any>(jti: string): Promise<T | null> => {
   return raw ? JSON.parse(raw) as T : null;
 };
 
-export const delSession = async (jti: string) => {
+export const delSession = async (jti: string): Promise<void> => {
   await connectRedis();
   await redis.del(sessionKey(jti));
 };
 
-export const blacklist = async (jti: string, ttlSec: number) => {
+export const blacklist = async (jti: string, ttlSec: number): Promise<void> => {
   await connectRedis();
   await redis.set(blacklistKey(jti), '1', { EX: ttlSec });
 };

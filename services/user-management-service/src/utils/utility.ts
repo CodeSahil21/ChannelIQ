@@ -1,4 +1,4 @@
-export function calculateProfileCompletion(profile: any): number {
+export function calculateProfileCompletion(profile: Record<string, unknown>): number {
     const fields = [
         'fullName', 'profilePic', 'jobTitle', 'department', 'phoneNumber', 'workEmail',
         'bio', 'location', 'timezone', 'skills', 'languages', 'managerId', 'managerName',

@@ -12,7 +12,7 @@ export const redis = createClient({
 redis.on('error', (err) => console.error('Redis Client Error', err));
 
 let initialized = false;
-export const connectRedis = async () => {
+export const connectRedis = async (): Promise<void> => {
   if (!initialized) {
     await redis.connect();
     initialized = true;

@@ -8,10 +8,10 @@ export const logUserActivity = async (
     userId: number, 
     type: ActivityType, 
     description?: string, 
-    metadata?: any, 
+    metadata?: Record<string, unknown>, 
     ipAddress?: string, 
     userAgent?: string
-) => {
+): Promise<void> => {
     try {
         await prisma.userActivity.create({
             data: {
@@ -32,7 +32,7 @@ export const logUserActivity = async (
 /**
  * Get activities for a specific user
  */
-export const getUserActivities = async (userId: number, limit: number = 20, offset: number = 0) => {
+export const getUserActivities = async (userId: number, limit: number = 20, offset: number = 0): Promise<unknown[]> => {
     return await prisma.userActivity.findMany({
         where: {
             userId,
@@ -49,7 +49,7 @@ export const getUserActivities = async (userId: number, limit: number = 20, offs
 /**
  * Get activities by type
  */
-export const getActivitiesByType = async (type: ActivityType, limit: number = 20, offset: number = 0) => {
+export const getActivitiesByType = async (type: ActivityType, limit: number = 20, offset: number = 0): Promise<unknown[]> => {
     return await prisma.userActivity.findMany({
         where: {
             type: type as any,
@@ -66,7 +66,7 @@ export const getActivitiesByType = async (type: ActivityType, limit: number = 20
 /**
  * Soft delete an activity
  */
-export const softDeleteActivity = async (id: number) => {
+export const softDeleteActivity = async (id: number): Promise<void> => {
     await prisma.userActivity.update({
         where: { id },
         data: {

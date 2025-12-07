@@ -38,8 +38,6 @@ export const protectRoute = async (req: AuthenticatedRequest, res: Response, nex
             return;
         }
          req.user = { id: session.id, email: session.email || '' };
-
-        // @ts-ignore - extend type to include sessionJti if needed
         req.sessionJti = decoded.jti;
         next();
     } catch (error: any) {
