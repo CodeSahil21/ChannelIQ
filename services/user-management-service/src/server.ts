@@ -30,6 +30,9 @@ const startServer = async()=>{
 //graceful shutdown
 process.on('SIGINT', async () => {
   console.log("Gracefully shutting down...");
+  server.close(() => {
+    console.log("HTTP server closed");
+  });
   await disconnectKafka();
   process.exit(0);
 });

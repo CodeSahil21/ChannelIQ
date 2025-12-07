@@ -11,6 +11,7 @@ interface User{
 export interface AuthenticatedRequest extends Request {
     cookies: any;
     user?: User;
+    sessionJti?: string;
 }
 //base event interface: all events must implement this
 export interface BaseEvent{

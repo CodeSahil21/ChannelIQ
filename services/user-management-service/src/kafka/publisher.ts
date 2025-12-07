@@ -1,9 +1,10 @@
 import {kafkaProducer } from './kafkaManager';
-import {createUserDeletedEvent} from './userEvents';
+import {createUserDeletedEvent,createUserProfileCreatedEvent} from './userEvents';
 
 class EventPublisher {
     //Topic name for all user-related events
     private readonly  USER_MANAGEMENT_EVENTS_TOPIC = 'user-management-events';
+    private readonly  CHAT_EVENTS_TOPIC = 'chat-events';
 
      async publishUserDeleted( userData: {
     userId: number;
@@ -31,6 +32,35 @@ class EventPublisher {
             throw error;
         }
     }
+
+async publishUserProfileCreated(userData: {
+    userId: number;
+    email: string;
+    fullName: string;
+    profilePic: string;
+}): Promise<void> {
+    try {
+        const event = createUserProfileCreatedEvent(userData);
+        await kafkaProducer.send({
+            topic: this.CHAT_EVENTS_TOPIC,  
+            messages: [{
+                key: userData.userId.toString(),
+                value: JSON.stringify(event),
+                headers: {
+                    eventType: 'USER_PROFILE_CREATED',
+                    source: 'user-management-service',
+                    targetService: 'chat-service',  
+                    version: '1.0'
+                }
+            }]
+        });
+
+        console.log(`Published USER_PROFILE_CREATED event for user ${userData.userId} to chat service`);
+    } catch (error) {
+        console.error('Failed to publish user profile created event:', error);
+        throw error;
+    }
+}
 }
 
 export const eventPublisher = new EventPublisher();

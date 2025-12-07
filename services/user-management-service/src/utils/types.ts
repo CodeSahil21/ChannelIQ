@@ -108,6 +108,19 @@ export interface ConnectionUser {
     isOnline?: boolean;
     lastSeen?: Date;
 }
+
+// Simplified connection response for listing connections
+export interface ConnectedUser {
+    id: number;
+    fullName: string;
+    profilePic?: string;
+    jobTitle?: string;
+    department?: string;
+    isOnline: boolean;
+    lastSeen?: Date;
+    connectionId: number;
+    connectedAt: Date;
+}
 export interface ConnectionResponse {
   id: number;
   senderId: number;
@@ -221,4 +234,12 @@ export enum ActivityType {
     USER_BLOCKED = 'USER_BLOCKED',
     USER_UNBLOCKED = 'USER_UNBLOCKED',
     CONNECTION_REMOVED = 'CONNECTION_REMOVED'
+}
+
+export interface createUserProfileCreatedEventType extends BaseEvent{
+    eventType: 'USER_PROFILE_CREATED';
+    userId: number;
+    email: string;
+    fullName: string;
+    profilePic: string;
 }

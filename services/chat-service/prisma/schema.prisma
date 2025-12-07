@@ -1,12 +1,8 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// This schema belongs to the 'chat-service' microservice
+// It references User IDs from the 'user-management-service' but does not manage the User model itself.
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../node_modules/.prisma/client"
 }
 
 datasource db {
@@ -14,11 +10,190 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id               Int      @id
-  fullName         String
-  email            String   @unique
-  profilePic       String   @default("")
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+// Simple enum for different chat types
+enum ChatType {
+  ONE_TO_ONE
+  GROUP
+}
+
+// Roles for group members
+enum GroupMemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+// Status of a chat message
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+  DELETED // For soft-delete
+}
+
+// Types of content in a message
+enum MessageContentType {
+  TEXT
+  FILE
+  POLL
+  ANNOUNCEMENT
+}
+
+model Chat {
+  id              Int             @id @default(autoincrement())
+  type            ChatType
+  name            String?
+  description     String?
+  profilePicUrl   String?
+  isDeleted       Boolean         @default(false)
+  
+  // Relations
+  members         ChatMember[]
+  messages        Message[]
+  
+  // Timestamps
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Indexes
+  @@index([type])
+  @@index([isDeleted])
+  @@index([createdAt])
+  @@map("chats")
+}
+
+model ChatMember {
+  id              Int             @id @default(autoincrement())
+  chatId          Int
+  userId          Int             // ID from the user-management-service
+  role            GroupMemberRole @default(MEMBER)
+  joinedAt        DateTime        @default(now())
+  lastReadMessageId Int?
+  isMuted         Boolean         @default(false)
+  isPinned        Boolean         @default(false)
+  isArchived      Boolean         @default(false)
+  isDeleted       Boolean         @default(false)
+  deletedAt       DateTime?
+
+  // Relations
+  chat            Chat            @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user            UserCache       @relation(fields: [userId], references: [id])
+
+  // Ensures a user can only be in a chat once
+  @@unique([chatId, userId])
+
+  // Indexes
+  @@index([userId])
+  @@index([chatId])
+  @@index([isDeleted])
+  @@map("chat_members")
+}
+
+model Message {
+  id              Int                 @id @default(autoincrement())
+  chatId          Int
+  senderId        Int                 // ID from the user-management-service
+  content         String
+  contentType     MessageContentType  @default(TEXT)
+  
+  // File details
+  fileUrl         String?
+  fileName        String?
+  fileSize        Int?
+  fileType        String?
+
+  // Polling data (stored as JSON)
+  pollOptions     Json?
+  pollVotes       Json?
+
+  // Announcements
+  isAnnouncement  Boolean             @default(false)
+
+  // Status and features
+  status          MessageStatus       @default(SENT)
+  isPinned        Boolean             @default(false)
+  isEdited        Boolean             @default(false)
+  deletedAt       DateTime?
+  
+  // Reactions and mentions
+  reactions       Reaction[]
+  mentions        Mention[]
+
+  // Replies
+  replyToId       Int?
+  replyTo         Message?            @relation("MessageReply", fields: [replyToId], references: [id])
+  replies         Message[]           @relation("MessageReply")
+
+  // Relations
+  chat            Chat                @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender          UserCache           @relation("MessageSender", fields: [senderId], references: [id])
+  
+  // Timestamps
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  // Indexes
+  @@index([chatId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@index([status])
+  @@map("messages")
+}
+
+model Reaction {
+  id          Int             @id @default(autoincrement())
+  messageId   Int
+  userId      Int             // ID from the user-management-service
+  emoji       String
+  
+  // Relations
+  message     Message         @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user        UserCache       @relation("ReactionUser", fields: [userId], references: [id])
+
+  // Ensures a user can't add the same reaction to a message twice
+  @@unique([messageId, userId, emoji])
+
+  // Indexes
+  @@index([userId])
+  @@index([messageId])
+  @@map("reactions")
+}
+
+model Mention {
+  id          Int          @id @default(autoincrement())
+  messageId   Int
+  userId      Int
+  
+  // Relations
+  message     Message     @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user        UserCache   @relation("MentionUser", fields: [userId], references: [id])
+
+  // Ensures a user is mentioned once per message
+  @@unique([messageId, userId])
+  
+  // Indexes
+  @@index([userId])
+  @@index([messageId])
+  @@map("mentions")
+}
+
+// UserCache model replaces User model
+// This is a local cache of user data from user-management-service
+model UserCache {
+  id          Int         @id // Matches ID from user-management-service
+  fullName    String
+  email       String      @unique
+  profilePic  String      @default("")
+  lastSynced  DateTime    @default(now()) // Tracks when user data was last synchronized
+
+  // Relationships back to other chat models
+  chatMembers ChatMember[]
+  messages    Message[]   @relation("MessageSender")
+  reactions   Reaction[]  @relation("ReactionUser")
+  mentions    Mention[]   @relation("MentionUser")
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("user_cache")
 }

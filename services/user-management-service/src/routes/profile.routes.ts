@@ -5,7 +5,8 @@ import {
     updateProfileController,
     fetchUserProfileController,
     deleteProfileController,
-    restoreUserController
+    restoreUserController,
+    searchUsersController
 } from '../controllers/profile.controller';
 import {
     getUserPreferenceController,
@@ -26,5 +27,8 @@ userManagementRouter.post('/restore-user/:userId', protectRoute, restoreUserCont
 // User preferences routes
 userManagementRouter.get('/preferences', protectRoute, getUserPreferenceController);
 userManagementRouter.put('/preferences', protectRoute, updateUserPreferenceController);
+
+// User search route
+userManagementRouter.get('/search', protectRoute, searchUsersController);
 
 export default userManagementRouter;

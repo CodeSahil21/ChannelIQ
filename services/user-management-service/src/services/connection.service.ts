@@ -4,6 +4,7 @@ import {
     ConnectionResponse, 
     ConnectionStatus,
     ConnectionStats,
+    ConnectedUser,
     ActivityType
 } from '../utils/types';
 import { logUserActivity } from './activity.service';
@@ -17,7 +18,23 @@ export const sendConnectionRequest = async (request: ConnectionRequest): Promise
         throw new Error("Cannot send connection request to yourself");
     }
 
-    // ✅ ADD THIS - Check for existing connection
+    // Check if both users exist
+    const [senderExists, receiverExists] = await Promise.all([
+        prisma.user.findUnique({
+            where: { id: senderId, isDeleted: false },
+            select: { id: true }
+        }),
+        prisma.user.findUnique({
+            where: { id: receiverId, isDeleted: false },
+            select: { id: true }
+        })
+    ]);
+
+    if (!senderExists || !receiverExists) {
+        throw new Error("One or both users not found");
+    }
+
+    // Check for any existing connection (including soft-deleted)
     const existingConnection = await prisma.connection.findFirst({
         where: {
             OR: [
@@ -28,6 +45,66 @@ export const sendConnectionRequest = async (request: ConnectionRequest): Promise
     });
 
     if (existingConnection) {
+        // If connection exists but is soft-deleted, reactivate it
+        if (existingConnection.isDeleted) {
+            const reactivatedConnection = await prisma.connection.update({
+                where: { id: existingConnection.id },
+                data: {
+                    isDeleted: false,
+                    deletedAt: null,
+                    status: ConnectionStatus.PENDING,
+                    message: message ?? null,
+                    senderId,
+                    receiverId
+                },
+                include: {
+                    sender: {
+                        select: {
+                            id: true,
+                            fullName: true,
+                            profilePic: true,
+                            jobTitle: true,
+                            department: true
+                        }
+                    },
+                    receiver: {
+                        select: {
+                            id: true,
+                            fullName: true,
+                            profilePic: true,
+                            jobTitle: true,
+                            department: true
+                        }
+                    }
+                }
+            });
+            
+            return {
+                id: reactivatedConnection.id,
+                senderId: reactivatedConnection.senderId,
+                receiverId: reactivatedConnection.receiverId,
+                status: reactivatedConnection.status as ConnectionStatus,
+                message: reactivatedConnection.message ?? "",
+                sender: {
+                    id: reactivatedConnection.sender.id,
+                    fullName: reactivatedConnection.sender.fullName ?? "",
+                    ...(reactivatedConnection.sender.profilePic ? { profilePic: reactivatedConnection.sender.profilePic } : {}),
+                    ...(reactivatedConnection.sender.jobTitle ? { jobTitle: reactivatedConnection.sender.jobTitle } : {}),
+                    ...(reactivatedConnection.sender.department ? { department: reactivatedConnection.sender.department } : {})
+                },
+                receiver: {
+                    id: reactivatedConnection.receiver.id,
+                    fullName: reactivatedConnection.receiver.fullName ?? "",
+                    ...(reactivatedConnection.receiver.profilePic ? { profilePic: reactivatedConnection.receiver.profilePic } : {}),
+                    ...(reactivatedConnection.receiver.jobTitle ? { jobTitle: reactivatedConnection.receiver.jobTitle } : {}),
+                    ...(reactivatedConnection.receiver.department ? { department: reactivatedConnection.receiver.department } : {})
+                },
+                createdAt: reactivatedConnection.createdAt,
+                updatedAt: reactivatedConnection.updatedAt
+            };
+        }
+        
+        // If active connection exists, check status
         if (existingConnection.status === ConnectionStatus.BLOCKED) {
             throw new Error("Cannot send connection request to blocked user");
         }
@@ -39,9 +116,8 @@ export const sendConnectionRequest = async (request: ConnectionRequest): Promise
         }
     }
 
-
-    // ...existing connection creation code...
-    const connection = await prisma.connection.create({
+    try {
+        const connection = await prisma.connection.create({
         data: {
             senderId,
             receiverId,
@@ -96,6 +172,13 @@ export const sendConnectionRequest = async (request: ConnectionRequest): Promise
     };
 
     return response;
+    } catch (error: any) {
+        console.error('Error creating connection:', error);
+        if (error.code?.startsWith('P')) {
+            throw new Error('Database error occurred');
+        }
+        throw error;
+    }
 }
 
 // Accept connection request
@@ -298,33 +381,38 @@ export const blockUser = async (senderId: number, receiverId: number, userAgent?
         throw new Error('User not found');
     }
 
-    // Use transaction for data consistency
-    await prisma.$transaction(async (tx) => {
-        // Soft delete any existing connection between the users
-        await tx.connection.updateMany({
-            where: {
-                OR: [
-                    { senderId, receiverId },
-                    { senderId: receiverId, receiverId: senderId }
-                ],
-                isDeleted: false
-            },
+    // Check for existing connection (including soft-deleted)
+    const existingConnection = await prisma.connection.findFirst({
+        where: {
+            OR: [
+                { senderId, receiverId },
+                { senderId: receiverId, receiverId: senderId }
+            ]
+        }
+    });
+
+    if (existingConnection) {
+        // Update existing connection to BLOCKED
+        await prisma.connection.update({
+            where: { id: existingConnection.id },
             data: {
-                isDeleted: true,
-                deletedAt: new Date()
-                // deletedBy field is not in the schema
+                isDeleted: false,
+                deletedAt: null,
+                status: ConnectionStatus.BLOCKED,
+                senderId,
+                receiverId
             }
         });
-
-        // Create a new block connection
-        await tx.connection.create({
+    } else {
+        // Create new block connection if none exists
+        await prisma.connection.create({
             data: {
                 senderId,
                 receiverId,
                 status: ConnectionStatus.BLOCKED
             }
         });
-    });
+    }
     
     // Log the activity
     await logUserActivity(
@@ -566,12 +654,10 @@ export const getConnections = async (userId: number): Promise<ConnectionResponse
                     }
                 }
             },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { updatedAt: 'desc' }
         });
 
-        // Map connections to show the connected user (not the current user)
         return connections.map((connection: any) => {
-            // Determine which user is the "other" user (the connected person)
             const connectedUser = connection.senderId === userId ? connection.receiver : connection.sender;
             
             return {
@@ -580,22 +666,78 @@ export const getConnections = async (userId: number): Promise<ConnectionResponse
                 receiverId: connection.receiverId,
                 status: connection.status as ConnectionStatus,
                 message: connection.message ?? "",
-                // Put the connected user's info in sender field for consistency
                 sender: {
                     id: connectedUser.id,
                     fullName: connectedUser.fullName ?? "",
-                    ...(connectedUser.profilePic !== null && connectedUser.profilePic !== undefined ? { profilePic: connectedUser.profilePic } : {}),
-                    ...(connectedUser.jobTitle !== null && connectedUser.jobTitle !== undefined ? { jobTitle: connectedUser.jobTitle } : {}),
-                    ...(connectedUser.department !== null && connectedUser.department !== undefined ? { department: connectedUser.department } : {}),
-                    ...(connectedUser.isOnline !== undefined ? { isOnline: connectedUser.isOnline } : {}),
-                    ...(connectedUser.lastSeen !== undefined ? { lastSeen: connectedUser.lastSeen } : {})
+                    profilePic: connectedUser.profilePic || undefined,
+                    jobTitle: connectedUser.jobTitle || undefined,
+                    department: connectedUser.department || undefined
                 },
                 receiver: {
                     id: userId,
-                    fullName: "", // You can populate this if needed
+                    fullName: ""
                 },
                 createdAt: connection.createdAt,
                 updatedAt: connection.updatedAt
+            };
+        });
+    } catch (error) {
+        throw error;
+    }
+}
+
+// New function to get simplified connected users list
+export const getConnectedUsers = async (userId: number): Promise<ConnectedUser[]> => {
+    try {
+        const connections = await prisma.connection.findMany({
+            where: {
+                status: ConnectionStatus.ACCEPTED,
+                isDeleted: false,
+                OR: [
+                    { senderId: userId },
+                    { receiverId: userId }
+                ]
+            },
+            include: {
+                sender: {
+                    select: {
+                        id: true,
+                        fullName: true,
+                        profilePic: true,
+                        jobTitle: true,
+                        department: true,
+                        isOnline: true,
+                        lastSeen: true
+                    }
+                },
+                receiver: {
+                    select: {
+                        id: true,
+                        fullName: true,
+                        profilePic: true,
+                        jobTitle: true,
+                        department: true,
+                        isOnline: true,
+                        lastSeen: true
+                    }
+                }
+            },
+            orderBy: { updatedAt: 'desc' }
+        });
+
+        return connections.map((connection: any) => {
+            const connectedUser = connection.senderId === userId ? connection.receiver : connection.sender;
+            
+            return {
+                id: connectedUser.id,
+                fullName: connectedUser.fullName ?? "",
+                profilePic: connectedUser.profilePic || undefined,
+                jobTitle: connectedUser.jobTitle || undefined,
+                department: connectedUser.department || undefined,
+                isOnline: connectedUser.isOnline ?? false,
+                lastSeen: connectedUser.lastSeen || undefined,
+                connectionId: connection.id,
+                connectedAt: connection.updatedAt
             };
         });
     } catch (error) {
@@ -609,7 +751,8 @@ export const getBlockedUsers = async (userId: number): Promise<ConnectionRespons
     const connections = await prisma.connection.findMany({
         where: {
             senderId: userId,
-            status: ConnectionStatus.BLOCKED
+            status: ConnectionStatus.BLOCKED,
+            isDeleted: false
         },
         include: {
             sender: {
@@ -664,6 +807,7 @@ export const getConnectionStatus = async (userId: number, targetUserId: number):
     try {
         const connection = await prisma.connection.findFirst({
             where: {
+                isDeleted: false,
                 OR: [
                     { senderId: userId, receiverId: targetUserId },
                     { senderId: targetUserId, receiverId: userId }
@@ -687,6 +831,7 @@ export const getConnectionStats = async (userId: number): Promise<ConnectionStat
         const totalAccepted = await prisma.connection.count({
             where: {
                 status: ConnectionStatus.ACCEPTED,
+                isDeleted: false,
                 OR: [
                     { senderId: userId },
                     { receiverId: userId }
@@ -698,6 +843,7 @@ export const getConnectionStats = async (userId: number): Promise<ConnectionStat
         const totalPending = await prisma.connection.count({
             where: {
                 status: ConnectionStatus.PENDING,
+                isDeleted: false,
                 OR: [
                     { senderId: userId },
                     { receiverId: userId }

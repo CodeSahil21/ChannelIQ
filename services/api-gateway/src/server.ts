@@ -39,9 +39,18 @@ app.use('/api/auth', createProxyMiddleware({
         '^/api/auth': '/api/v1/auth'
     },
     onProxyReq: (proxyReq, req) => {
+        // remove conditional request headers to avoid downstream 304 responses
+        try {
+            proxyReq.removeHeader?.('if-none-match');
+            proxyReq.removeHeader?.('if-modified-since');
+        } catch (e) { /* ignore if not supported */ }
+
         console.log(`→ Auth: ${req.method} ${req.path} → /api/v1/auth${req.path.replace('/api/auth', '')}`);
     },
     onProxyRes: (proxyRes, req) => {
+        // remove ETag / caching headers to avoid conditional 304 responses
+        delete proxyRes.headers['etag'];
+        proxyRes.headers['cache-control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate';
         console.log(`← Auth: ${proxyRes.statusCode}`);
     },
     onError: (err, req, res) => {
@@ -60,12 +69,18 @@ app.use('/api/users', createProxyMiddleware({
     target: 'http://localhost:3002',
     changeOrigin: true,
     pathRewrite: {
-        '^/api/users': '/api/v1/user-management' // Match your actual route
+        '^/api/users': '/api/v1/user-management'
     },
     onProxyReq: (proxyReq, req) => {
+        try {
+            proxyReq.removeHeader?.('if-none-match');
+            proxyReq.removeHeader?.('if-modified-since');
+        } catch (e) {}
         console.log(`→ Users: ${req.method} ${req.path} → /api/v1/user-management${req.path.replace('/api/users', '')}`);
     },
     onProxyRes: (proxyRes, req) => {
+        delete proxyRes.headers['etag'];
+        proxyRes.headers['cache-control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate';
         console.log(`← Users: ${proxyRes.statusCode}`);
     },
     onError: (err, req, res) => {
@@ -87,9 +102,15 @@ app.use('/api/connections', createProxyMiddleware({
         '^/api/connections': '/api/v1/connections'
     },
     onProxyReq: (proxyReq, req) => {
+        try {
+            proxyReq.removeHeader?.('if-none-match');
+            proxyReq.removeHeader?.('if-modified-since');
+        } catch (e) {}
         console.log(`→ Connections: ${req.method} ${req.path} → /api/v1/connections${req.path.replace('/api/connections', '')}`);
     },
     onProxyRes: (proxyRes, req) => {
+        delete proxyRes.headers['etag'];
+        proxyRes.headers['cache-control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate';
         console.log(`← Connections: ${proxyRes.statusCode}`);
     },
     onError: (err, req, res) => {

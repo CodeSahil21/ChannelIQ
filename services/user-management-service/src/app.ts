@@ -10,6 +10,7 @@ import { isKafkaHealthy } from './kafka/kafkaManager';
 import prisma from './db';
 import userManagementRouter from './routes/profile.routes';
 import connectionrouter from './routes/connection.routes';
+import { connectRedis } from './redis';
 
 const app = express();
 
@@ -32,6 +33,9 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use('/api/v1/user-management', userManagementRouter);
 app.use('/api/v1/connections', connectionrouter);
+// Initialize Redis on startup
+connectRedis().catch(err => console.error('Failed to connect to Redis:', err));
+
 app.get('/health', async (_req, res) => {
   try {
     const kafkaStatus = await isKafkaHealthy();

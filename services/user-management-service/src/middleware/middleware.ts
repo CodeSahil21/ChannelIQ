@@ -1,50 +1,41 @@
 import { Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import jwt,{JwtPayload} from 'jsonwebtoken';
 import prisma from '../db';
 import { AuthenticatedRequest } from '../utils/types';
-
+import { getSession, isBlacklisted } from '../redis';
 
 export const protectRoute = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
         const token = req.cookies.token;
 
         if (!token) {
-            res.status(401).json({ 
-                success: false,
-                message: "Unauthorized - No token provided" 
-            });
+            res.status(401).json({ success: false, message: "Unauthorized - No token provided" });
             return;
         }
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {id:number};
+        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload & { id?: number; jti?: string };
 
-        if (!decoded || !decoded.id) {
-            res.status(401).json({ 
-                success: false,
-                message: "Unauthorized - Invalid token" 
-            });
+        if (!decoded || !decoded.id || !decoded.jti) {
+            res.status(401).json({ success: false, message: "Unauthorized - Invalid token" });
             return;
         }
 
-        // Find user by ID using Prisma
-        const user = await prisma.user.findUnique({
-            where: { id: decoded.id },
-            select: {
-                id: true,
-                email: true,
-            }
-        });
-
-        if (!user) {
-            res.status(401).json({ 
-                success: false,
-                message: "Unauthorized - User not found" 
-            });
+        // Check blacklist
+        const blacklisted = await isBlacklisted(decoded.jti);
+        if (blacklisted) {
+            res.status(401).json({ success: false, message: "Unauthorized - Token revoked" });
             return;
         }
 
-        // Attach user to request object
-        req.user = user;
+        // Check session presence in Redis
+        const session = await getSession<{ id: number; email?: string }>(decoded.jti);
+        if (!session || session.id !== decoded.id) {
+            res.status(401).json({ success: false, message: "Unauthorized - Session expired" });
+            return;
+        }
+
+        
+        req.user = { id: session.id, email: session.email || '' };
 
         next();
     } catch (error: any) {

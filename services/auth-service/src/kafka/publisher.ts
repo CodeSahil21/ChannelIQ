@@ -19,7 +19,7 @@ class EventPublisher {
     await kafkaProducer.send({
         topic:this.USER_EVENTS_TOPIC,
         messages: [{
-            key:userData.userId.toString(),// Partition key for ordering
+            key:userData.userId.toString(),
             value:JSON.stringify(event),
             headers:{
                 eventType: 'USER_REGISTERED',

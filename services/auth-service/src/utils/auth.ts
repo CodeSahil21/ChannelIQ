@@ -14,9 +14,14 @@ export const comparePassword = async (password:string,hashedPassword:string ): P
 }
 
 //to generate token
-export const generateToken  = (userId:number): string => {
-    return jwt.sign({id:userId},process.env.JWT_SECRET as string,{expiresIn:'7d'});
-}
+export const generateToken  = (userId:number, expiresIn: string = '7d'): string => {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+        throw new Error('JWT_SECRET is not defined');
+    }
+    const jti = crypto.randomUUID();
+    return jwt.sign({ id: userId, jti }, secret as jwt.Secret, { expiresIn } as jwt.SignOptions);
+};
 
 export const generateOTP = (): string => {
     return crypto.randomInt(100000, 999999).toString();
@@ -29,4 +34,9 @@ export const getOTPExpirationTime = (): Date => {
 
 export const isOTPExpired = (expiresAt: Date): boolean => {
     return new Date() > expiresAt;
+};
+
+export const decodeJwtUnsafe = (token: string): { exp?: number; jti?: string } => {
+    const decoded = jwt.decode(token) as { exp?: number; jti?: string } | null;
+    return decoded || {};
 };

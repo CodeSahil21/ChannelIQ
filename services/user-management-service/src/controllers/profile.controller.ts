@@ -1,6 +1,6 @@
 import { Response } from 'express';
-import { CreateUserProfileSchema, UpdateUserProfileSchema } from '../utils/schema';
-import { createProfile, updateUserProfile, getUserProfile, deleteUserProfile, restoreUser } from '../services/profile.service';
+import { CreateUserProfileSchema, UpdateUserProfileSchema, searchUsersSchema } from '../utils/schema';
+import { createProfile, updateUserProfile, getUserProfile, deleteUserProfile, restoreUser, searchUsers } from '../services/profile.service';
 import { AuthenticatedRequest, CreateUserProfile } from '../utils/types';
 
 export const createProfileController = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -31,7 +31,7 @@ export const createProfileController = async (req: AuthenticatedRequest, res: Re
         // Create sanitized profile data
         const sanitizedProfileData: CreateUserProfile = {
             fullName: profileData.fullName,
-            profilePic: profileData.profilePic || randomAvatar,
+            profilePic:  randomAvatar,
             timezone: profileData.timezone || "UTC",
             skills: profileData.skills || [],
             languages: profileData.languages || [],
@@ -211,7 +211,6 @@ export const fetchUserProfileController = async (req: AuthenticatedRequest, res:
             return;
         }
 
-        // ✅ ADD MISSING RESPONSE - This was completely missing!
         res.status(200).json({
             success: true,
             data: profile
@@ -280,6 +279,42 @@ export const restoreUserController = async (req: AuthenticatedRequest, res: Resp
     } catch (error: any) {
         console.error('Error restoring user:', error);
         res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const searchUsersController = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+        const validationResult = searchUsersSchema.safeParse(req.query);
+        
+        if (!validationResult.success) {
+            const fieldErrors = validationResult.error.issues.map(error => ({
+                field: error.path.join('.'),
+                message: error.message
+            }));
+
+            res.status(400).json({
+                success: false,
+                message: "Validation failed",
+                errors: fieldErrors
+            });
+            return;
+        }
+
+        const { query, limit } = validationResult.data;
+        const currentUserId = req.user!.id;
+        
+        const users = await searchUsers(query, currentUserId, limit);
+        
+        res.status(200).json({
+            success: true,
+            data: users
+        });
+    } catch (error: any) {
+        console.error('Error searching users:', error);
+        res.status(500).json({
+            success: false,
+            message: "Internal server error"
+        });
     }
 };
 

@@ -105,6 +105,16 @@ export const createKafkaTopics = async (): Promise<void> => {
           { name: 'cleanup.policy', value: 'delete' },
           { name: 'compression.type', value: 'gzip' },
         ]
+      },
+      {
+        topic: 'chat-events',
+        numPartitions: parseInt(process.env.KAFKA_CHAT_EVENTS_PARTITIONS || "4"),
+        replicationFactor,
+        configEntries: [
+          { name: 'retention.ms', value: '604800000' },
+          { name: 'cleanup.policy', value: 'delete' },
+          { name: 'compression.type', value: 'gzip' }, 
+        ]
       }
     ];
 

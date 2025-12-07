@@ -9,6 +9,7 @@ import {
     getPendingRequestsController,
     getSentRequestsController,
     getConnectionsController,
+    getConnectedUsersController,
     getBlockedUsersController,
     getConnectionStatusController,
     getConnectionStatsController
@@ -36,6 +37,7 @@ connectionrouter.delete('/remove/:userId', removeConnectionController);
 connectionrouter.get('/pending', getPendingRequestsController);
 connectionrouter.get('/sent', getSentRequestsController);
 connectionrouter.get('/list', getConnectionsController);
+connectionrouter.get('/users', getConnectedUsersController);
 connectionrouter.get('/blocked', getBlockedUsersController);
 connectionrouter.get('/status/:userId', getConnectionStatusController);
 connectionrouter.get('/stats', getConnectionStatsController);

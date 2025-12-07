@@ -5,6 +5,8 @@ import { CreateUserService,sendOTPEmail } from '../services/auth.service';
 import { AuthenticatedRequest } from '../utils/types';
 import prisma from '../db/db';
 import { eventPublisher } from '../kafka/publisher';
+import { setSession, delSession, blacklist } from '../redis';
+import { decodeJwtUnsafe } from '../utils/auth';
 
 export const createUserController = async(req: Request, res: Response): Promise<void> => {
     try {
@@ -36,6 +38,10 @@ export const createUserController = async(req: Request, res: Response): Promise<
 
         // Generate a token for the user
         const token = generateToken(user.id);
+        const { exp, jti } = decodeJwtUnsafe(token);
+        const ttl = exp ? exp - Math.floor(Date.now() / 1000) : 7 * 24 * 60 * 60;
+        await setSession(jti!, { id: user.id, email: user.email }, ttl);
+
 
         // Set the token as a secure cookie
         res.cookie("token", token, {
@@ -168,6 +174,9 @@ export const loginuserController = async(req: Request, res: Response): Promise<v
 
         // Generate token
         const token = generateToken(user.id);
+        const { exp, jti } = decodeJwtUnsafe(token);
+        const ttl = exp ? exp - Math.floor(Date.now() / 1000) : 7 * 24 * 60 * 60;
+        await setSession(jti!, { id: user.id, email: user.email }, ttl);
        
         // Set secure cookie
         res.cookie("token", token, {
@@ -290,6 +299,15 @@ export const logoutUserController = async(_req:AuthenticatedRequest,res:Response
             secure: process.env.NODE_ENV === 'production',
             path: '/'
         });
+
+        // Revoke session in Redis
+        // @ts-ignore
+        const jti: string | undefined = _req.sessionJti;
+        if (jti) {
+            await delSession(jti);
+            // Optional: also add to blacklist to cover race windows
+            await blacklist(jti, 60 * 5);
+        }
         // Publish logout event
         try {
             if (_req.user) {

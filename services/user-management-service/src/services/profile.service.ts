@@ -11,6 +11,7 @@ import { UserStatus } from '../utils/prismaTypes';
 import { logUserActivity } from './activity.service';
 import { createDefaultPreferences } from './preference.service';
 import { calculateProfileCompletion, buildSearchVector } from '../utils/profileUtils';
+import { eventPublisher } from '../kafka/publisher';
 
 // Create a new user
 export const CreateUserService = async ({userId, email}: CreateUser) => {
@@ -50,7 +51,7 @@ export const CreateUserService = async ({userId, email}: CreateUser) => {
 export const createProfile = async (id: number, profileData: CreateUserProfile): Promise<UserProfileResponse> => {
     const isUserExists = await prisma.user.findUnique({
         where: { id: id, isDeleted: false },
-        select: { profileCreated: true }
+        select: { profileCreated: true, email: true }
     });
     
     if (!isUserExists) {
@@ -74,32 +75,55 @@ export const createProfile = async (id: number, profileData: CreateUserProfile):
     
     // Use raw SQL to handle tsvector since Prisma doesn't support it directly
     const searchText = buildSearchVector(profileData);
-    const profile = await prisma.$transaction(async (tx) => {
-        // First update the user with the profile data
-        const updatedUser = await tx.user.update({
-            where: { id: id },
-            data: updatedData
+    
+    try {
+        // Use a transaction for atomicity - all operations succeed or fail together
+        const updatedUser = await prisma.$transaction(async (tx) => {
+            // First update the user with the profile data
+            const user = await tx.user.update({
+                where: { id: id },
+                data: updatedData
+            });
+            
+            // Then update the search vector using raw SQL
+            if (searchText) {
+                await tx.$executeRaw`UPDATE "users" SET "searchVector" = to_tsvector('english', ${searchText}) WHERE "id" = ${id}`;
+            }
+            
+            // Log the activity within the transaction
+            await logUserActivity(
+                id,
+                ActivityType.PROFILE_UPDATE,
+                'Profile created',
+                { fields: Object.keys(profileData) }
+            );
+            
+            // Publish event within the transaction - if this fails, transaction rolls back
+            try {
+                await eventPublisher.publishUserProfileCreated({
+                    userId: user.id,
+                    email: user.email,
+                    fullName: user.fullName || '',
+                    profilePic: user.profilePic || ''
+                });
+                
+                console.log(`Published USER_PROFILE_CREATED event for user ${user.id}`);
+            } catch (eventError) {
+                console.error(`❌ Failed to publish profile event for user ${id}:`, eventError);
+                // Just throw - transaction will automatically roll back profile update
+                throw new Error("Failed to publish profile event. Please try again later.");
+            }
+            
+            return user;
         });
         
-        // Then update the search vector using raw SQL
-        if (searchText) {
-            await tx.$executeRaw`UPDATE "users" SET "searchVector" = to_tsvector('english', ${searchText}) WHERE "id" = ${id}`;
-        }
+        return updatedUser as UserProfileResponse;
         
-        return updatedUser;
-    });
-    
-    // Log the activity
-    await logUserActivity(
-        id,
-        ActivityType.PROFILE_UPDATE,
-        'Profile created',
-        { fields: Object.keys(profileData) }
-    );
-    
-    return profile as UserProfileResponse;
+    } catch (error: any) {
+        console.error('Error creating user profile:', error);
+        throw new Error(`Failed to create profile: ${error.message || 'Unknown error'}`);
+    }
 }
-
 // Get user profile by ID
 export const getUserProfile = async (id: number): Promise<UserProfileResponse | null> => {
     const profile = await prisma.user.findFirst({
