@@ -1,374 +1,991 @@
-# User Management Service API Docs
+# User Management Service API Documentation
 
-Base URL via API Gateway:
-- Users: `http://localhost:4000/api/users` → rewrites to `http://localhost:3002/api/v1/user-management`
-- Connections: `http://localhost:4000/api/connections` → rewrites to `http://localhost:3002/api/v1/connections`
+## Overview
+Microservice for managing user profiles, connections, preferences, and social features.
 
-Authentication
-- Cookie: `token` (JWT). All endpoints require authentication.
-- Middleware: [`middleware.protectRoute`](src/middleware/middleware.ts)
+**Base URL:** `http://localhost:3002/api/v1`
+
+**Tech Stack:** Node.js, Express, TypeScript, Prisma, PostgreSQL, Redis, Kafka
 
 ---
 
-## Global API Types (Frontend)
-Use these in your frontend to type API calls.
+## Table of Contents
+- [Authentication](#authentication)
+- [Profile Management](#profile-management)
+- [Connection Management](#connection-management)
+- [User Preferences](#user-preferences)
+- [Error Handling](#error-handling)
 
-```ts
-export type ApiSuccess<T> = { success: true; message?: string; data: T };
-export type ApiError = { success: false; message?: string; error?: string; errors?: { field: string; message: string }[] };
-export type ApiResponse<T> = ApiSuccess<T> | ApiError;
+---
+
+## Authentication
+
+All endpoints require authentication via JWT token in HTTP-only cookie.
+
+**Cookie Name:** `token`
+
+**Unauthorized Response:** `401 Unauthorized`
+```json
+{
+  "success": false,
+  "message": "Unauthorized - No token provided"
+}
 ```
 
 ---
 
-## Health
-- GET `/health`
-  - Request: No body
-  - Response 200:
-    ```json
-    { "status": "healthy", "services": { "kafka": "connected", "database": "connected" }, "timestamp": "2025-01-01T00:00:00.000Z" }
-    ```
-  - Response 503:
-    ```json
-    { "status": "degraded", "services": { "kafka": "disconnected", "database": "connected" }, "timestamp": "2025-01-01T00:00:00.000Z" }
-    ```
+## Profile Management
 
----
+Base path: `/user-management`
 
-## Profiles
-Routes: [`routes/profile.routes.ts`](src/routes/profile.routes.ts)  
-Schemas: [`CreateUserProfileSchema`, `UpdateUserProfileSchema`, `fetchUserProfileSchema`](src/utils/schema.ts)  
-Controller: [`profile.controller`](src/controllers/profile.controller.ts)  
-Types: [`UserProfileResponse`, `CreateUserProfile`](src/utils/types.ts)
+### 1. Create Profile
 
-### POST `/create-profile`
-- Validation: [`CreateUserProfileSchema`](src/utils/schema.ts)
-- Request body (TypeScript):
-  ```ts
-  export type CreateProfileRequest = {
-    fullName: string;
-    profilePic?: string;
-    jobTitle?: string;
-    department?: string;
-    phoneNumber?: string;
-    workEmail?: string;
-    bio?: string;
-    location?: string;
-    timezone?: string;
-    skills?: string[];
-    languages?: string[];
-    managerId?: number;
-    managerName?: string;
-    linkedinUrl?: string;
-    githubUrl?: string;
-    portfolioUrl?: string;
-    twitterUrl?: string;
-  };
-  ```
-- Example request:
-  ```json
-  { "fullName": "Jane Doe", "timezone": "UTC", "skills": ["TS","React"], "languages": ["en"] }
-  ```
-- Response 201 (TypeScript):
-  ```ts
-  export type CreateProfileApiResponse = ApiResponse<UserProfileResponse>;
-  ```
-- Example response:
-  ```json
-  { "success": true, "message": "Profile created successfully", "data": { "id": 1, "fullName": "Jane Doe", "email": "jane@corp.com", "profilePic": "https://avatar.iran.liara.run/public/42", "jobTitle": null, "department": null, "phoneNumber": null, "workEmail": null, "profileCreated": true, "bio": null, "location": null, "timezone": "UTC", "skills": ["TS","React"], "languages": ["en"], "managerId": null, "managerName": null, "linkedinUrl": null, "githubUrl": null, "portfolioUrl": null, "twitterUrl": null, "status": "ACTIVE", "isOnline": false, "lastSeen": null, "createdAt": "2025-01-01T00:00:00.000Z", "updatedAt": "2025-01-01T00:00:00.000Z" } }
-  ```
-- Errors: 400 validation, 404 user not found, 400 profile already created, 500 internal
+Create user profile (one-time setup after registration).
 
-### PUT `/update-profile`
-- Validation: [`UpdateUserProfileSchema`](src/utils/schema.ts)
-- Request body (TypeScript):
-  ```ts
-  export type UpdateProfileRequest = Partial<CreateProfileRequest>;
-  ```
-- Example request:
-  ```json
-  { "jobTitle": "Engineer", "location": "NYC", "skills": ["TS","React","Node"] }
-  ```
-- Response 200 (TypeScript):
-  ```ts
-  export type UpdateProfileApiResponse = ApiResponse<UserProfileResponse>;
-  ```
-- Errors: 400 validation, 404 user not found, 400 not created yet, 500 internal
+**Endpoint:** `POST /user-management/create-profile`
 
-### GET `/get-profile`
-- Request: No body
-- Response 200 (TypeScript):
-  ```ts
-  export type GetProfileApiResponse = ApiResponse<UserProfileResponse>;
-  ```
-- Example response:
-  ```json
-  { "success": true, "data": { /* UserProfileResponse */ } }
-  ```
+**Authentication:** Required
 
-### GET `/fetch-profile/:userId`
-- Validation: [`fetchUserProfileSchema`](src/utils/schema.ts)
-- Params: `{ userId: number }`
-- Request: No body
-- Response 200 (TypeScript):
-  ```ts
-  export type FetchProfileApiResponse = ApiResponse<UserProfileResponse>;
-  ```
-- Errors: 400 invalid id, 404 not found, 500 internal
-
-### DELETE `/delete-profile`
-- Request: No body
-- Response 200:
-  ```json
-  { "success": true, "message": "Profile deleted successfully" }
-  ```
-- TypeScript:
-  ```ts
-  export type DeleteProfileApiResponse = ApiResponse<{ message: string }>;
-  ```
-
-### POST `/restore-user/:userId`
-- Params: `{ userId: number }`
-- Request: No body
-- Response 200:
-  ```json
-  { "success": true, "message": "User restored successfully" }
-  ```
-- TypeScript:
-  ```ts
-  export type RestoreUserApiResponse = ApiResponse<{ message: string }>;
-  ```
-
----
-
-## Preferences
-Controller: [`preference.controller`](src/controllers/preference.controller.ts)  
-Service validation: [`updateUserPreference`](src/services/preference.service.ts)  
-Server types: [`UserPreferenceUpdate`](src/utils/prismaTypes.ts)
-
-### GET `/preferences`
-- Request: No body
-- Response 200 (TypeScript):
-  ```ts
-  export type UserPreferenceResponse = {
-    id: number; userId: number; createdAt: string; updatedAt: string;
-    emailNotifications?: boolean; pushNotifications?: boolean;
-    connectionRequests?: boolean; profileViews?: boolean;
-    profileVisibility?: 'PUBLIC' | 'CONNECTIONS_ONLY' | 'PRIVATE';
-    showOnlineStatus?: boolean; showLastSeen?: boolean;
-    theme?: string; language?: string; timezone?: string;
-    appearInSearch?: boolean; showSuggestions?: boolean;
-  };
-  export type GetPreferencesApiResponse = ApiResponse<UserPreferenceResponse>;
-  ```
-- Example response:
-  ```json
-  { "success": true, "data": { "id": 1, "userId": 1, "theme": "dark", "language": "en", "timezone": "UTC", "emailNotifications": true, "createdAt": "2025-01-01T00:00:00.000Z", "updatedAt": "2025-01-01T00:00:00.000Z" } }
-  ```
-- Errors: 404 not found, 500 internal
-
-### PUT `/preferences`
-- Request body (validated keys only):
-  ```ts
-  export type UpdatePreferencesRequest = {
-    emailNotifications?: boolean;
-    pushNotifications?: boolean;
-    connectionRequests?: boolean;
-    profileViews?: boolean;
-    profileVisibility?: 'PUBLIC' | 'CONNECTIONS_ONLY' | 'PRIVATE';
-    showOnlineStatus?: boolean;
-    showLastSeen?: boolean;
-    theme?: string;
-    language?: string;
-    timezone?: string;
-    appearInSearch?: boolean;
-    showSuggestions?: boolean;
-  };
-  ```
-- Example request:
-  ```json
-  { "theme": "dark", "language": "en", "emailNotifications": true }
-  ```
-- Response 200 (TypeScript):
-  ```ts
-  export type UpdatePreferencesApiResponse = ApiResponse<UserPreferenceResponse>;
-  ```
-- Errors: 400 validation, 400 no valid fields, 500 internal
-
----
-
-## Connections
-Router: [`routes/connection.routes.ts`](src/routes/connection.routes.ts)  
-Schemas: [`sendConnectionRequestSchema`, `connectionIdParamSchema`, `userIdParamSchema`](src/utils/schema.ts)  
-Controller: [`connection.controller`](src/controllers/connection.controller.ts)  
-Types: [`ConnectionResponse`, `ConnectionStatus`](src/utils/types.ts)
-
-Common types:
-```ts
-export type SendConnectionRequestBody = { receiverId: number; message?: string };
-export type ConnectionIdParam = { connectionId: number };
-export type UserIdParam = { userId: number };
-
-export type ConnectionUser = {
-  id: number; fullName: string;
-  profilePic?: string; jobTitle?: string; department?: string;
-};
-
-export type ConnectionStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'BLOCKED';
-
-export type ConnectionResponse = {
-  id: number; senderId: number; receiverId: number;
-  status: ConnectionStatus; message?: string;
-  sender?: ConnectionUser; receiver?: ConnectionUser;
-  createdAt: string; updatedAt: string;
-};
+**Request Body:**
+```json
+{
+  "fullName": "John Doe",
+  "jobTitle": "Software Engineer",
+  "department": "Engineering",
+  "phoneNumber": "+1234567890",
+  "workEmail": "john.doe@company.com",
+  "bio": "Passionate developer",
+  "location": "San Francisco, CA",
+  "timezone": "America/Los_Angeles",
+  "skills": ["JavaScript", "TypeScript", "React"],
+  "languages": ["English", "Spanish"],
+  "managerId": 5,
+  "managerName": "Jane Smith",
+  "linkedinUrl": "https://linkedin.com/in/johndoe",
+  "githubUrl": "https://github.com/johndoe",
+  "portfolioUrl": "https://johndoe.dev",
+  "twitterUrl": "https://twitter.com/johndoe"
+}
 ```
 
-### POST `/request`
-- Validation: [`sendConnectionRequestSchema`](src/utils/schema.ts)
-- Request body (TypeScript):
-  ```ts
-  export type SendConnectionRequestRequest = SendConnectionRequestBody;
-  ```
-- Example request:
-  ```json
-  { "receiverId": 12, "message": "Let’s connect" }
-  ```
-- Response 201 (TypeScript):
-  ```ts
-  export type SendConnectionApiResponse = ApiResponse<ConnectionResponse>;
-  ```
-- Errors: 400 validation/self, 409 pending/connected/blocked, 503 DB unavailable, 500 internal
+**Required Fields:**
+- `fullName`: String (min 1 character)
 
-### PUT `/request/:connectionId/accept`
-- Validation: [`connectionIdParamSchema`](src/utils/schema.ts)
-- Params: `{ connectionId: number }`
-- Request: No body
-- Response 200 (TypeScript):
-  ```ts
-  export type AcceptConnectionApiResponse = ApiResponse<ConnectionResponse>;
-  ```
-- Errors: 400 validation or business logic, 401 unauthorized
+**Optional Fields:**
+- All other fields are optional
+- `workEmail`: Must be valid email format if provided
+- Social URLs: Must be valid URLs if provided
 
-### PUT `/request/:connectionId/decline`
-- Params: `{ connectionId: number }`
-- Request: No body
-- Response 200 (TypeScript):
-  ```ts
-  export type DeclineConnectionApiResponse = ApiResponse<ConnectionResponse>;
-  ```
+**Success Response:** `201 Created`
+```json
+{
+  "success": true,
+  "message": "Profile created successfully",
+  "data": {
+    "id": 1,
+    "fullName": "John Doe",
+    "email": "user@example.com",
+    "profilePic": "https://avatar.iran.liara.run/public/42",
+    "jobTitle": "Software Engineer",
+    "department": "Engineering",
+    "profileCreated": true,
+    "profileCompletionPercentage": 75,
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T10:30:00.000Z"
+  }
+}
+```
 
-### POST `/block/:userId`
-- Validation: [`userIdParamSchema`](src/utils/schema.ts)
-- Params: `{ userId: number }`
-- Request: No body
-- Response 200:
-  ```ts
-  export type BlockUserApiResponse = ApiResponse<{ message: string }>;
-  ```
-- Errors: 400 validation, 401 unauthorized
+**Error Responses:**
 
-### DELETE `/block/:userId`
-- Params: `{ userId: number }`
-- Request: No body
-- Response 200:
-  ```ts
-  export type UnblockUserApiResponse = ApiResponse<{ message: string }>;
-  ```
-
-### DELETE `/remove/:userId`
-- Params: `{ userId: number }`
-- Request: No body
-- Response 200:
-  ```ts
-  export type RemoveConnectionApiResponse = ApiResponse<{ message: string }>;
-  ```
-
-### GET `/pending`
-- Request: No body
-- Response 200:
-  ```ts
-  export type PendingRequestsApiResponse = ApiResponse<ConnectionResponse[]>;
-  ```
-
-### GET `/sent`
-- Request: No body
-- Response 200:
-  ```ts
-  export type SentRequestsApiResponse = ApiResponse<ConnectionResponse[]>;
-  ```
-
-### GET `/list`
-- Request: No body
-- Response 200:
-  ```ts
-  export type ConnectionsListApiResponse = ApiResponse<ConnectionResponse[]>;
-  ```
-
-### GET `/blocked`
-- Request: No body
-- Response 200:
-  ```ts
-  export type BlockedUsersApiResponse = ApiResponse<ConnectionResponse[]>;
-  ```
-
-### GET `/status/:userId`
-- Validation: [`userIdParamSchema`](src/utils/schema.ts)
-- Params: `{ userId: number }`
-- Request: No body
-- Response 200:
-  ```ts
-  export type ConnectionStatusString = 'SELF' | 'BLOCKED' | 'PENDING' | 'CONNECTED' | 'NONE';
-  export type ConnectionStatusApiResponse = ApiResponse<{ status: ConnectionStatusString }>;
-  ```
-
-### GET `/stats`
-- Request: No body
-- Response 200:
-  ```ts
-  export type ConnectionStatsResponse = { totalAcceptedConnections: number; totalPendingConnections: number };
-  export type ConnectionStatsApiResponse = ApiResponse<ConnectionStatsResponse>;
-  ```
-
----
-
-## Example Frontend Usage
-
-```ts
-// GET profile
-const res = await fetch('/api/users/get-profile', { credentials: 'include' });
-const json = (await res.json()) as GetProfileApiResponse;
-if (!json.success) throw new Error(json.message || json.error || 'Failed');
-const profile = json.data;
-
-// Create profile
-const createRes = await fetch('/api/users/create-profile', {
-  method: 'POST',
-  credentials: 'include',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ fullName: 'Jane Doe', timezone: 'UTC' } satisfies CreateProfileRequest),
-});
-const createJson = (await createRes.json()) as CreateProfileApiResponse;
+`400 Bad Request` - Profile already exists
+```json
+{
+  "success": false,
+  "message": "Profile has already been created"
+}
 ```
 
 ---
 
-## Data Types
-- [`utils/types.ts`](src/utils/types.ts):
-  - [`UserProfileResponse`](src/utils/types.ts)
-  - [`ConnectionResponse`](src/utils/types.ts)
-  - [`ConnectionStatus`](src/utils/types.ts)
-- Schemas: [`utils/schema.ts`](src/utils/schema.ts):
-  - [`CreateUserProfileSchema`](src/utils/schema.ts)
-  - [`UpdateUserProfileSchema`](src/utils/schema.ts)
-  - [`sendConnectionRequestSchema`](src/utils/schema.ts)
-  - [`connectionIdParamSchema`](src/utils/schema.ts)
-  - [`userIdParamSchema`](src/utils/schema.ts)
+### 2. Update Profile
 
-## Common Errors
-- 401 `{ error: 'Unauthorized' }`
-- 400 `{ success:false, message:string, errors?:[{field,message}] }`
-- 404 `{ success:false, message:string }`
-- 409 `{ success:false, message:string }`
-- 500 `{ success:false, message:'Internal server error' }`
-- 503 `{ success:false, message:'Database service temporarily unavailable' }`
+Update existing user profile.
+
+**Endpoint:** `PUT /user-management/update-profile`
+
+**Authentication:** Required
+
+**Request Body:** (All fields optional)
+```json
+{
+  "fullName": "John Doe Updated",
+  "jobTitle": "Senior Software Engineer",
+  "bio": "Updated bio"
+}
+```
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Profile updated successfully",
+  "data": {
+    "id": 1,
+    "fullName": "John Doe Updated",
+    "profileCompletionPercentage": 80
+  }
+}
+```
+
+**Error Responses:**
+
+`400 Bad Request` - No fields to update
+```json
+{
+  "success": false,
+  "message": "No valid fields provided for update"
+}
+```
+
+---
+
+### 3. Get Own Profile
+
+Retrieve authenticated user's profile.
+
+**Endpoint:** `GET /user-management/get-profile`
+
+**Authentication:** Required
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "fullName": "John Doe",
+    "email": "user@example.com",
+    "profilePic": "https://avatar.iran.liara.run/public/42",
+    "jobTitle": "Software Engineer",
+    "department": "Engineering",
+    "phoneNumber": "+1234567890",
+    "workEmail": "john.doe@company.com",
+    "bio": "Passionate developer",
+    "location": "San Francisco, CA",
+    "timezone": "America/Los_Angeles",
+    "skills": ["JavaScript", "TypeScript"],
+    "languages": ["English"],
+    "profileCreated": true,
+    "profileCompletionPercentage": 75,
+    "status": "ACTIVE",
+    "isOnline": true,
+    "lastSeen": "2024-01-15T10:30:00.000Z",
+    "preference": {
+      "emailNotifications": true,
+      "pushNotifications": true,
+      "theme": "LIGHT"
+    }
+  }
+}
+```
+
+---
+
+### 4. Get User Profile by ID
+
+Fetch another user's profile.
+
+**Endpoint:** `GET /user-management/fetch-profile/:userId`
+
+**Authentication:** Required
+
+**Path Parameters:**
+- `userId`: Integer (user ID)
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "id": 2,
+    "fullName": "Jane Smith",
+    "profilePic": "https://avatar.iran.liara.run/public/15",
+    "jobTitle": "Product Manager",
+    "department": "Product"
+  }
+}
+```
+
+**Error Responses:**
+
+`400 Bad Request` - Invalid user ID
+```json
+{
+  "success": false,
+  "message": "Invalid user ID"
+}
+```
+
+`404 Not Found` - User not found
+```json
+{
+  "success": false,
+  "message": "User not found"
+}
+```
+
+---
+
+### 5. Delete Profile
+
+Soft delete user profile (deactivate account).
+
+**Endpoint:** `DELETE /user-management/delete-profile`
+
+**Authentication:** Required
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Profile deleted successfully"
+}
+```
+
+---
+
+### 6. Restore User
+
+Restore a soft-deleted user account.
+
+**Endpoint:** `POST /user-management/restore-user/:userId`
+
+**Authentication:** Required
+
+**Path Parameters:**
+- `userId`: Integer (user ID to restore)
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "User restored successfully"
+}
+```
+
+---
+
+### 7. Search Users
+
+Search for users by name, email, job title, or department.
+
+**Endpoint:** `GET /user-management/search`
+
+**Authentication:** Required
+
+**Query Parameters:**
+- `query`: String (search term, min 1 char, max 100 chars) - Required
+- `limit`: String (number of results, default: 10) - Optional
+
+**Example:**
+```
+GET /user-management/search?query=john&limit=20
+```
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "fullName": "John Doe",
+      "email": "john@example.com",
+      "profilePic": "https://avatar.iran.liara.run/public/42",
+      "jobTitle": "Software Engineer",
+      "department": "Engineering"
+    }
+  ]
+}
+```
+
+---
+
+## Connection Management
+
+Base path: `/connections`
+
+### Connection Status Types
+- `PENDING`: Request sent, awaiting response
+- `ACCEPTED`: Connection established
+- `DECLINED`: Request declined
+- `BLOCKED`: User blocked
+
+---
+
+### 1. Send Connection Request
+
+Send a connection request to another user.
+
+**Endpoint:** `POST /connections/request`
+
+**Authentication:** Required
+
+**Request Body:**
+```json
+{
+  "receiverId": 5,
+  "message": "Hi! Let's connect"
+}
+```
+
+**Validation:**
+- `receiverId`: Positive integer (required)
+- `message`: String (optional)
+
+**Success Response:** `201 Created`
+```json
+{
+  "success": true,
+  "message": "Connection request sent successfully",
+  "data": {
+    "id": 10,
+    "senderId": 1,
+    "receiverId": 5,
+    "status": "PENDING",
+    "message": "Hi! Let's connect",
+    "sender": {
+      "id": 1,
+      "fullName": "John Doe",
+      "profilePic": "https://avatar.iran.liara.run/public/42",
+      "jobTitle": "Software Engineer"
+    },
+    "receiver": {
+      "id": 5,
+      "fullName": "Jane Smith",
+      "profilePic": "https://avatar.iran.liara.run/public/15"
+    },
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T10:30:00.000Z"
+  }
+}
+```
+
+**Error Responses:**
+
+`400 Bad Request` - Cannot send to yourself
+```json
+{
+  "success": false,
+  "message": "Cannot send connection request to yourself"
+}
+```
+
+`409 Conflict` - Request already exists
+```json
+{
+  "success": false,
+  "message": "Connection request already pending"
+}
+```
+
+---
+
+### 2. Accept Connection Request
+
+Accept a pending connection request.
+
+**Endpoint:** `PUT /connections/request/:connectionId/accept`
+
+**Authentication:** Required
+
+**Path Parameters:**
+- `connectionId`: Integer (connection request ID)
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Connection request accepted successfully",
+  "data": {
+    "id": 10,
+    "status": "ACCEPTED"
+  }
+}
+```
+
+**Error Responses:**
+
+`403 Forbidden` - Not authorized
+```json
+{
+  "success": false,
+  "message": "You are not authorized to accept this connection request"
+}
+```
+
+`404 Not Found` - Request not found
+```json
+{
+  "success": false,
+  "message": "Connection request not found"
+}
+```
+
+---
+
+### 3. Decline Connection Request
+
+Decline a pending connection request.
+
+**Endpoint:** `PUT /connections/request/:connectionId/decline`
+
+**Authentication:** Required
+
+**Path Parameters:**
+- `connectionId`: Integer
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Connection request declined successfully",
+  "data": {
+    "id": 10,
+    "status": "DECLINED"
+  }
+}
+```
+
+---
+
+### 4. Block User
+
+Block a user (prevents all interactions).
+
+**Endpoint:** `POST /connections/block/:userId`
+
+**Authentication:** Required
+
+**Path Parameters:**
+- `userId`: Integer (user to block)
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "User blocked successfully"
+}
+```
+
+**Error Responses:**
+
+`400 Bad Request` - Cannot block yourself
+```json
+{
+  "success": false,
+  "message": "Cannot block yourself"
+}
+```
+
+---
+
+### 5. Unblock User
+
+Unblock a previously blocked user.
+
+**Endpoint:** `DELETE /connections/block/:userId`
+
+**Authentication:** Required
+
+**Path Parameters:**
+- `userId`: Integer
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "User unblocked successfully"
+}
+```
+
+---
+
+### 6. Remove Connection
+
+Remove an existing connection.
+
+**Endpoint:** `DELETE /connections/remove/:userId`
+
+**Authentication:** Required
+
+**Path Parameters:**
+- `userId`: Integer (connected user to remove)
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Connection removed successfully"
+}
+```
+
+---
+
+### 7. Get Pending Requests
+
+Get connection requests received by the user.
+
+**Endpoint:** `GET /connections/pending`
+
+**Authentication:** Required
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Pending requests retrieved successfully",
+  "data": [
+    {
+      "id": 10,
+      "senderId": 5,
+      "receiverId": 1,
+      "status": "PENDING",
+      "message": "Let's connect!",
+      "sender": {
+        "id": 5,
+        "fullName": "Jane Smith",
+        "profilePic": "https://avatar.iran.liara.run/public/15",
+        "jobTitle": "Product Manager"
+      },
+      "createdAt": "2024-01-15T10:30:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+### 8. Get Sent Requests
+
+Get connection requests sent by the user.
+
+**Endpoint:** `GET /connections/sent`
+
+**Authentication:** Required
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Sent requests retrieved successfully",
+  "data": [
+    {
+      "id": 11,
+      "senderId": 1,
+      "receiverId": 6,
+      "status": "PENDING",
+      "receiver": {
+        "id": 6,
+        "fullName": "Bob Johnson"
+      },
+      "createdAt": "2024-01-15T10:30:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+### 9. Get All Connections
+
+Get all accepted connections.
+
+**Endpoint:** `GET /connections/list`
+
+**Authentication:** Required
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Connections retrieved successfully",
+  "data": [
+    {
+      "id": 12,
+      "status": "ACCEPTED",
+      "sender": {
+        "id": 5,
+        "fullName": "Jane Smith",
+        "profilePic": "https://avatar.iran.liara.run/public/15",
+        "jobTitle": "Product Manager",
+        "department": "Product"
+      },
+      "connectedAt": "2024-01-15T10:30:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+### 10. Get Connected Users
+
+Get simplified list of connected users.
+
+**Endpoint:** `GET /connections/users`
+
+**Authentication:** Required
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Connected users retrieved successfully",
+  "data": [
+    {
+      "id": 5,
+      "fullName": "Jane Smith",
+      "profilePic": "https://avatar.iran.liara.run/public/15",
+      "jobTitle": "Product Manager",
+      "department": "Product",
+      "isOnline": true,
+      "lastSeen": "2024-01-15T10:30:00.000Z",
+      "connectionId": 12,
+      "connectedAt": "2024-01-15T10:30:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+### 11. Get Blocked Users
+
+Get list of blocked users.
+
+**Endpoint:** `GET /connections/blocked`
+
+**Authentication:** Required
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Blocked users retrieved successfully",
+  "data": [
+    {
+      "id": 13,
+      "status": "BLOCKED",
+      "receiver": {
+        "id": 7,
+        "fullName": "Blocked User"
+      }
+    }
+  ]
+}
+```
+
+---
+
+### 12. Get Connection Status
+
+Check connection status with a specific user.
+
+**Endpoint:** `GET /connections/status/:userId`
+
+**Authentication:** Required
+
+**Path Parameters:**
+- `userId`: Integer
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Connection status retrieved successfully",
+  "data": {
+    "status": "CONNECTED"
+  }
+}
+```
+
+**Possible Status Values:**
+- `NONE`: No connection
+- `SENT`: Request sent by current user
+- `RECEIVED`: Request received from other user
+- `CONNECTED`: Connection established
+- `BLOCKED`: User is blocked
+
+---
+
+### 13. Get Connection Statistics
+
+Get user's connection statistics.
+
+**Endpoint:** `GET /connections/stats`
+
+**Authentication:** Required
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Connection statistics retrieved successfully",
+  "data": {
+    "totalAcceptedConnections": 25,
+    "totalPendingConnections": 3
+  }
+}
+```
+
+---
+
+## User Preferences
+
+Base path: `/user-management/preferences`
+
+### 1. Get Preferences
+
+Retrieve user preferences.
+
+**Endpoint:** `GET /user-management/preferences`
+
+**Authentication:** Required
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "userId": 1,
+    "emailNotifications": true,
+    "pushNotifications": true,
+    "connectionRequests": true,
+    "profileViews": true,
+    "profileVisibility": "PUBLIC",
+    "showOnlineStatus": true,
+    "showLastSeen": true,
+    "theme": "LIGHT",
+    "language": "en",
+    "timezone": "UTC",
+    "appearInSearch": true,
+    "showSuggestions": true
+  }
+}
+```
+
+---
+
+### 2. Update Preferences
+
+Update user preferences.
+
+**Endpoint:** `PUT /user-management/preferences`
+
+**Authentication:** Required
+
+**Request Body:** (All fields optional)
+```json
+{
+  "emailNotifications": false,
+  "pushNotifications": true,
+  "theme": "DARK",
+  "profileVisibility": "CONNECTIONS_ONLY"
+}
+```
+
+**Field Types:**
+- **Booleans:** `emailNotifications`, `pushNotifications`, `connectionRequests`, `profileViews`, `showOnlineStatus`, `showLastSeen`, `appearInSearch`, `showSuggestions`
+- **Enums:**
+  - `profileVisibility`: `PUBLIC`, `CONNECTIONS_ONLY`, `PRIVATE`
+  - `theme`: `LIGHT`, `DARK`, `SYSTEM`
+- **Strings:** `language`, `timezone`
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Preferences updated successfully",
+  "data": {
+    "userId": 1,
+    "theme": "DARK",
+    "emailNotifications": false
+  }
+}
+```
+
+**Error Responses:**
+
+`400 Bad Request` - Invalid value
+```json
+{
+  "success": false,
+  "message": "theme must be one of: LIGHT, DARK, SYSTEM"
+}
+```
+
+---
+
+## Error Handling
+
+### Standard Error Response
+```json
+{
+  "success": false,
+  "message": "Error description"
+}
+```
+
+### HTTP Status Codes
+
+| Code | Description |
+|------|-------------|
+| 200 | Success |
+| 201 | Created |
+| 400 | Bad Request - Validation error |
+| 401 | Unauthorized - Authentication required |
+| 403 | Forbidden - Not authorized for action |
+| 404 | Not Found - Resource doesn't exist |
+| 409 | Conflict - Resource conflict |
+| 500 | Internal Server Error |
+| 503 | Service Unavailable |
+
+---
+
+## Health Check
+
+**Endpoint:** `GET /health`
+
+**Response:** `200 OK`
+```json
+{
+  "status": "healthy",
+  "services": {
+    "kafka": "connected",
+    "database": "connected"
+  },
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+---
+
+## Event Publishing (Kafka)
+
+### USER_PROFILE_CREATED
+Published when user creates profile.
+```json
+{
+  "eventType": "USER_PROFILE_CREATED",
+  "userId": 1,
+  "email": "user@example.com",
+  "fullName": "John Doe",
+  "profilePic": "https://avatar.iran.liara.run/public/42",
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+### USER_DELETED
+Published when user deletes account.
+```json
+{
+  "eventType": "USER_DELETED",
+  "userId": 1,
+  "email": "user@example.com",
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+---
+
+## Environment Variables
+
+```env
+# Server
+PORT=3002
+NODE_ENV=development
+
+# Database
+DATABASE_URL=postgresql://user:password@localhost:5432/user_management_db
+
+# JWT
+JWT_SECRET=your-secret-key
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_USERNAME=
+REDIS_PASSWORD=
+
+# Kafka
+KAFKA_BROKER=localhost:9092
+KAFKA_CLIENT_ID=user-management-service
+KAFKA_CONSUMER_GROUP_ID=user-management-service-group
+
+# Frontend
+FRONTEND_URLS=http://localhost:3000,http://localhost:5173
+```
+
+---
+
+## Development
+
+### Install Dependencies
+```bash
+npm install
+```
+
+### Run Migrations
+```bash
+npm run prisma:migrate
+```
+
+### Generate Prisma Client
+```bash
+npm run prisma:generate
+```
+
+### Start Development Server
+```bash
+npm run dev
+```
+
+### Build for Production
+```bash
+npm run build
+npm start
+```
+
+---
+
+## Testing with cURL
+
+### Create Profile
+```bash
+curl -X POST http://localhost:3002/api/v1/user-management/create-profile \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{"fullName":"John Doe","jobTitle":"Engineer"}'
+```
+
+### Send Connection Request
+```bash
+curl -X POST http://localhost:3002/api/v1/connections/request \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{"receiverId":5,"message":"Let'\''s connect!"}'
+```
+
+### Search Users
+```bash
+curl -X GET "http://localhost:3002/api/v1/user-management/search?query=john&limit=10" \
+  -b cookies.txt
+```
+
+---
+
+## Support
+
+For issues or questions, please contact the development team.

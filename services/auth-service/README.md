@@ -1,220 +1,481 @@
-# Auth Service
-
-Comprehensive documentation for the Auth Service that powers registration, authentication, password recovery, and user session management. This service runs behind the API Gateway and publishes user lifecycle events to Kafka.
-
-**Base URL (via API Gateway)**
-- Development: `http://localhost:4000/api/auth`
-
-**Internal Service Base**
-- Service routes mounted at: `http://localhost:3001/api/v1/auth`
-- Health: `http://localhost:3001/health`
-
-**Key Files**
-- App bootstrap: `src/app.ts`
-- HTTP server: `src/server.ts`
-- Routes: `src/routes/auth.routes.ts`
-- Controllers: `src/controllers/auth.controller.ts`
-- Middleware: `src/middleware/middleware.ts`
-- DB client: `src/db/db.ts`
-- Auth utils: `src/utils/auth.ts`
-- Validation schemas: `src/utils/schema.ts`
-- Kafka manager: `src/kafka/kafkaManager.ts`
-- Kafka consumer: `src/kafka/consumer.ts`
-- Kafka publisher: `src/kafka/publisher.ts`
-- Kafka event factory: `src/kafka/userEvents.ts`
+# Auth Service API Documentation
 
 ## Overview
-- Provides user registration, login, logout, profile retrieval, and password reset via OTP.
-- Uses JWT stored in an HttpOnly cookie named `token`.
-- Publishes user lifecycle events to Kafka topic(s) for other services.
-- Uses Prisma for data access and validation via Zod.
+Authentication microservice handling user registration, login, session management, and password recovery.
 
-## Environment Variables
-Set these in `services/auth-service/.env`:
-- `DATABASE_URL`: Prisma database connection string.
-- `JWT_SECRET`: Secret for signing JWT.
-- Email (if OTP emailing is enabled): `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASS`.
-- Kafka: `KAFKA_CLIENT_ID`, `KAFKA_BROKER` (comma-separated), `KAFKA_CONSUMER_GROUP_ID`. Optional tuning keys may exist in code.
+**Base URL:** `http://localhost:3001/api/v1/auth`
 
-## Security
-- Password hashing: `utils/auth.ts` (hash/compare using a secure algorithm).
-- JWT generation and verification: `utils/auth.ts`.
-- OTP generation/expiry helpers: `utils/auth.ts`.
-- Protected routes require `protectRoute` middleware to validate the cookie and attach `req.user`.
+**Tech Stack:** Node.js, Express, TypeScript, Prisma, PostgreSQL, Redis, Kafka
 
-## Validation
-- Zod schemas in `utils/schema.ts`:
-	- `CreateUserSchema`
-	- `LoginUserSchema`
-	- `ForgotPasswordSchema`
-	- `VerifyOTPSchema`
-	- `ResetPasswordSchema`
+---
 
-## API Gateway
-- Proxies `/api/auth/*` to Auth Service `/api/v1/auth/*`.
-- Ensure CORS allows credentials and forwards cookies.
-	- Gateway implementation: `services/api-gateway/src/server.ts`.
+## Table of Contents
+- [Authentication](#authentication)
+- [Endpoints](#endpoints)
+- [Error Handling](#error-handling)
+- [Rate Limiting](#rate-limiting)
+
+---
+
+## Authentication
+
+### Cookie-Based Authentication
+All protected endpoints require a valid JWT token stored in an HTTP-only cookie named `token`.
+
+**Cookie Properties:**
+- Name: `token`
+- HttpOnly: `true`
+- SameSite: `none` (production) / `strict` (development)
+- Secure: `true` (production only)
+- Max-Age: 7 days
+
+---
 
 ## Endpoints
 
-All examples use the Gateway base: `http://localhost:4000/api/auth`.
+### 1. Register User
 
-### POST `/register`
-- Registers a new user and sets a JWT cookie.
-- Publishes `USER_REGISTERED` to Kafka.
-- Body:
-	- `email` (string, valid email)
-	- `password` (string, min 6)
-- Success 201:
-```
+Create a new user account.
+
+**Endpoint:** `POST /register`
+
+**Request Body:**
+```json
 {
-	"success": true,
-	"message": "User created successfully",
-	"data": { "user": { "id": <number>, "email": "user@example.com" } }
-}
-```
-- Errors: 400 (validation), 409 (email exists), 503 (dependency), 500 (server)
-
-### POST `/login`
-- Logs in user and sets JWT cookie.
-- Publishes `USER_LOGGED_IN` to Kafka.
-- Body:
-	- `email` (string)
-	- `password` (string)
-- Success 200:
-```
-{
-	"success": true,
-	"message": "Login successful",
-	"data": { "user": { "id": <number>, "email": "user@example.com" } }
-}
-```
-- Errors: 400 (validation), 401 (invalid credentials), 503, 500
-
-### GET `/get-profile` (authenticated)
-- Returns the authenticated user's profile.
-- Requires cookie `token` and `protectRoute` middleware.
-- Success 200:
-```
-{
-	"success": true,
-	"message": "Profile retrieved successfully",
-	"data": { "user": { "id": <number>, "email": "user@example.com" } }
-}
-```
-- Errors: 401, 500
-
-### POST `/logout` (authenticated)
-- Clears the JWT cookie and publishes `USER_LOGGED_OUT`.
-- Success 200:
-```
-{ "success": true, "message": "Logged out successfully" }
-```
-- Errors: 500
-
-### POST `/forgot-password`
-- Generates a 6-digit OTP, stores expiry (+10 minutes), and emails the OTP.
-- Body:
-	- `email` (string)
-- Success 200:
-```
-{ "success": true, "message": "OTP sent to your email address" }
-```
-- Errors: 400, 503, 500
-
-### POST `/verify-otp`
-- Verifies OTP for an email. Does not change the password.
-- Body:
-	- `email` (string)
-	- `otp` (string length 6)
-- Success 200:
-```
-{ "success": true, "message": "OTP verified successfully" }
-```
-- Errors: 400 (invalid/expired), 503, 500
-
-### POST `/reset-password`
-- Resets password if OTP is valid and not expired.
-- Body:
-	- `email` (string)
-	- `otp` (string length 6)
-	- `newPassword` (string min 8)
-- Success 200:
-```
-{ "success": true, "message": "Password reset successfully" }
-```
-- Errors: 400 (invalid/expired OTP), 503, 500
-
-### GET `/health` (service direct)
-- Health probe (not through gateway), returns status for Kafka and DB.
-- Success 200 or 503:
-```
-{
-	"status": "healthy" | "degraded",
-	"services": { "kafka": "connected" | "disconnected", "database": "connected" | "disconnected" },
-	"timestamp": "<ISO string>"
+  "email": "user@example.com",
+  "password": "password123"
 }
 ```
 
-## Cookies
-- Name: `token`
-- Attributes:
-	- `HttpOnly: true`
-	- `SameSite`: `none` in production, `strict` in development
-	- `Secure`: `true` in production
-	- `Path`: `/`
+**Validation Rules:**
+- `email`: Valid email format (required)
+- `password`: Minimum 6 characters (required)
 
-## Kafka
-- Initialization: `kafka/kafkaManager.ts` sets up admin, producer, consumer, and topics.
-- Topics:
-	- `user-events` (published): user registered, logged in, logged out
-	- `user-management-events` (consumed): e.g., `USER_DELETED` leading to local deletion
-- Publisher: `kafka/publisher.ts`
-- Consumer: `kafka/consumer.ts`
-- Event builders: `kafka/userEvents.ts`
-- Health checks: `kafka/kafkaManager.ts`
+**Success Response:** `201 Created`
+```json
+{
+  "success": true,
+  "message": "User created successfully",
+  "data": {
+    "user": {
+      "id": 1,
+      "email": "user@example.com"
+    }
+  }
+}
+```
 
-## Prisma
-- Client setup: `src/db/db.ts`
-- Schema: `prisma/schema.prisma`
-- Typical operations: `findUnique`, `create`, `update`, `delete` in services/controllers.
+**Error Responses:**
+
+`400 Bad Request` - Validation failed
+```json
+{
+  "success": false,
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "email",
+      "message": "Invalid email format"
+    }
+  ]
+}
+```
+
+`409 Conflict` - Email already registered
+```json
+{
+  "success": false,
+  "message": "Email already registered"
+}
+```
+
+---
+
+### 2. Login
+
+Authenticate user and create session.
+
+**Endpoint:** `POST /login`
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+```
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "data": {
+    "user": {
+      "id": 1,
+      "email": "user@example.com"
+    }
+  }
+}
+```
+
+**Error Responses:**
+
+`401 Unauthorized` - Invalid credentials
+```json
+{
+  "success": false,
+  "message": "Invalid credentials"
+}
+```
+
+---
+
+### 3. Get Profile
+
+Retrieve authenticated user's profile.
+
+**Endpoint:** `GET /get-profile`
+
+**Authentication:** Required
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Profile retrieved successfully",
+  "data": {
+    "user": {
+      "id": 1,
+      "email": "user@example.com"
+    }
+  }
+}
+```
+
+**Error Responses:**
+
+`401 Unauthorized` - No token or invalid token
+```json
+{
+  "success": false,
+  "message": "Unauthorized - No token provided"
+}
+```
+
+---
+
+### 4. Logout
+
+Terminate user session.
+
+**Endpoint:** `POST /logout`
+
+**Authentication:** Required
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Logged out successfully"
+}
+```
+
+---
+
+### 5. Forgot Password
+
+Request OTP for password reset.
+
+**Endpoint:** `POST /forgot-password`
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "OTP sent to your email address"
+}
+```
+
+**Note:** Returns success even if email doesn't exist (security best practice).
+
+---
+
+### 6. Verify OTP
+
+Verify the OTP sent to email.
+
+**Endpoint:** `POST /verify-otp`
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "otp": "123456"
+}
+```
+
+**Validation Rules:**
+- `otp`: Exactly 6 digits (required)
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "OTP verified successfully"
+}
+```
+
+**Error Responses:**
+
+`400 Bad Request` - Invalid or expired OTP
+```json
+{
+  "success": false,
+  "message": "Invalid or expired OTP"
+}
+```
+
+---
+
+### 7. Reset Password
+
+Reset password using verified OTP.
+
+**Endpoint:** `POST /reset-password`
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "otp": "123456",
+  "newPassword": "newpassword123"
+}
+```
+
+**Validation Rules:**
+- `newPassword`: Minimum 8 characters (required)
+
+**Success Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Password reset successfully"
+}
+```
+
+**Error Responses:**
+
+`400 Bad Request` - Invalid or expired OTP
+```json
+{
+  "success": false,
+  "message": "OTP has expired"
+}
+```
+
+---
 
 ## Error Handling
-- Consistent response envelope with `success`, `message`, optional `data`.
-- Validation errors return 400 with per-field details.
-- Auth failures return 401.
-- Dependency errors (DB/email/Kafka) return 503.
-- Unhandled exceptions return 500.
 
-## Local Development
-
-### Install dependencies
-```powershell
-Push-Location "c:\Sahil Singh Personal\OneDrive\Desktop\Projects\CorporateChat\services\auth-service"; npm install; Pop-Location
+### Standard Error Response Format
+```json
+{
+  "success": false,
+  "message": "Error description"
+}
 ```
 
-### Run the service (dev)
-```powershell
-Push-Location "c:\Sahil Singh Personal\OneDrive\Desktop\Projects\CorporateChat\services\auth-service"; npm run dev; Pop-Location
+### HTTP Status Codes
+
+| Code | Description |
+|------|-------------|
+| 200 | Success |
+| 201 | Created |
+| 400 | Bad Request - Validation error |
+| 401 | Unauthorized - Authentication required |
+| 409 | Conflict - Resource already exists |
+| 500 | Internal Server Error |
+| 503 | Service Unavailable - Database/External service error |
+
+---
+
+## Rate Limiting
+
+Rate limiting is applied per IP address:
+- **Default:** 100 requests per 15 minutes
+- **Response:** `429 Too Many Requests`
+
+---
+
+## Health Check
+
+**Endpoint:** `GET /health`
+
+**Response:** `200 OK`
+```json
+{
+  "status": "healthy",
+  "services": {
+    "kafka": "connected",
+    "database": "connected"
+  },
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
 ```
 
-### Run the API Gateway (dev)
-```powershell
-Push-Location "c:\Sahil Singh Personal\OneDrive\Desktop\Projects\CorporateChat\services\api-gateway"; npm run dev; Pop-Location
+---
+
+## Event Publishing (Kafka)
+
+The service publishes the following events:
+
+### USER_REGISTERED
+Published when a new user registers.
+```json
+{
+  "eventType": "USER_REGISTERED",
+  "userId": 1,
+  "email": "user@example.com",
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
 ```
 
-### Prisma migrations
-```powershell
-Push-Location "c:\Sahil Singh Personal\OneDrive\Desktop\Projects\CorporateChat\services\auth-service"; npx prisma migrate dev; Pop-Location
+### USER_LOGGED_IN
+Published when a user logs in.
+```json
+{
+  "eventType": "USER_LOGGED_IN",
+  "userId": 1,
+  "email": "user@example.com",
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
 ```
 
-### Try it quickly
-```powershell
-Invoke-RestMethod -Method Post -Uri "http://localhost:4000/api/auth/register" -Body (@{ email = "user@example.com"; password = "secret123" } | ConvertTo-Json) -ContentType "application/json"
+### USER_LOGGED_OUT
+Published when a user logs out.
+```json
+{
+  "eventType": "USER_LOGGED_OUT",
+  "userId": 1,
+  "email": "user@example.com",
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
 ```
 
-## Notes
-- All client requests should hit Gateway endpoints (`/api/auth/*`).
-- Ensure the gateway forwards cookies and CORS allows credentials.
-- Use HTTPS in production so `Secure` cookies work properly.
+---
 
+## Environment Variables
+
+```env
+# Server
+PORT=3001
+NODE_ENV=development
+
+# Database
+DATABASE_URL=postgresql://user:password@localhost:5432/auth_db
+
+# JWT
+JWT_SECRET=your-secret-key
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_USERNAME=
+REDIS_PASSWORD=
+
+# Kafka
+KAFKA_BROKER=localhost:9092
+KAFKA_CLIENT_ID=auth-service
+KAFKA_CONSUMER_GROUP_ID=auth-service-group
+
+# Email (SMTP)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=your-app-password
+
+# Frontend
+FRONTEND_URLS=http://localhost:3000,http://localhost:5173
+```
+
+---
+
+## Security Features
+
+- **Password Hashing:** bcrypt with salt rounds
+- **JWT Tokens:** Signed with HS256 algorithm
+- **Session Management:** Redis-based with blacklisting
+- **CSRF Protection:** SameSite cookie attribute
+- **Rate Limiting:** Express rate limiter
+- **Helmet:** Security headers
+- **CORS:** Configurable origins
+- **Input Validation:** Zod schema validation
+
+---
+
+## Development
+
+### Install Dependencies
+```bash
+npm install
+```
+
+### Run Migrations
+```bash
+npm run prisma:migrate
+```
+
+### Generate Prisma Client
+```bash
+npm run prisma:generate
+```
+
+### Start Development Server
+```bash
+npm run dev
+```
+
+### Build for Production
+```bash
+npm run build
+npm start
+```
+
+---
+
+## Testing with cURL
+
+### Register
+```bash
+curl -X POST http://localhost:3001/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password123"}'
+```
+
+### Login
+```bash
+curl -X POST http://localhost:3001/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -c cookies.txt \
+  -d '{"email":"test@example.com","password":"password123"}'
+```
+
+### Get Profile
+```bash
+curl -X GET http://localhost:3001/api/v1/auth/get-profile \
+  -b cookies.txt
+```
+
+---
+
+## Support
+
+For issues or questions, please contact the development team.
