@@ -9,6 +9,7 @@ import helmet from 'helmet';
 import authRouter from './routes/auth.routes'; 
 import { isKafkaHealthy } from './kafka/kafkaManager';
 import prisma from './db/db';
+import { connectRedis } from './redis';
 
 const app = express();
 
@@ -29,6 +30,8 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
+// Initialize Redis on startup
+connectRedis().catch(err => console.error('Failed to connect to Redis:', err));
 
 app.get('/health', async (_req, res) => {
   try {

@@ -89,6 +89,14 @@ Create a new user account.
 }
 ```
 
+`429 Too Many Requests` - Rate limit exceeded
+```json
+{
+  "success": false,
+  "message": "Too many registration attempts. Please try again later"
+}
+```
+
 ---
 
 ### 2. Login
@@ -126,6 +134,22 @@ Authenticate user and create session.
 {
   "success": false,
   "message": "Invalid credentials"
+}
+```
+
+`429 Too Many Requests` - Rate limit exceeded
+```json
+{
+  "success": false,
+  "message": "Too many login attempts. Please try again later"
+}
+```
+
+`429 Too Many Requests` - Too many failed attempts
+```json
+{
+  "success": false,
+  "message": "Too many failed attempts. Please try again after 15 minutes"
 }
 ```
 
@@ -302,16 +326,68 @@ Reset password using verified OTP.
 | 400 | Bad Request - Validation error |
 | 401 | Unauthorized - Authentication required |
 | 409 | Conflict - Resource already exists |
+| 429 | Too Many Requests - Rate limit exceeded |
 | 500 | Internal Server Error |
 | 503 | Service Unavailable - Database/External service error |
 
 ---
 
-## Rate Limiting
+## Rate Limiting & Security Features
 
-Rate limiting is applied per IP address:
-- **Default:** 100 requests per 15 minutes
+### Rate Limiting (Per IP Address)
+
+**Login Endpoint:**
+- **Limit:** 10 attempts per 15 minutes
 - **Response:** `429 Too Many Requests`
+```json
+{
+  "success": false,
+  "message": "Too many login attempts. Please try again later"
+}
+```
+
+**Registration Endpoint:**
+- **Limit:** 3 attempts per hour
+- **Response:** `429 Too Many Requests`
+```json
+{
+  "success": false,
+  "message": "Too many registration attempts. Please try again later"
+}
+```
+
+### Failed Login Protection
+
+**Automatic Account Protection:**
+- **Limit:** 5 failed login attempts per email
+- **Lockout Duration:** 15 minutes
+- **Response:** `429 Too Many Requests`
+```json
+{
+  "success": false,
+  "message": "Too many failed attempts. Please try again after 15 minutes"
+}
+```
+
+**How it works:**
+1. Each failed login increments a counter (stored in Redis)
+2. After 5 failed attempts, the account is temporarily locked
+3. Counter automatically expires after 15 minutes
+4. Successful login clears the counter
+
+### OTP Security
+
+**OTP Storage:**
+- Stored in Redis cache (not database)
+- **Expiration:** 10 minutes
+- **Format:** 6-digit numeric code
+- Automatically deleted after successful password reset
+
+**OTP Flow:**
+1. User requests password reset → OTP generated and cached
+2. OTP sent via email
+3. User verifies OTP → Validated against cache
+4. User resets password → OTP deleted from cache
 
 ---
 
@@ -390,6 +466,7 @@ REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_USERNAME=
 REDIS_PASSWORD=
+REDIS_USE_TLS=false
 
 # Kafka
 KAFKA_BROKER=localhost:9092
@@ -410,14 +487,47 @@ FRONTEND_URLS=http://localhost:3000,http://localhost:5173
 
 ## Security Features
 
+### Authentication & Authorization
 - **Password Hashing:** bcrypt with salt rounds
-- **JWT Tokens:** Signed with HS256 algorithm
-- **Session Management:** Redis-based with blacklisting
+- **JWT Tokens:** Signed with HS256 algorithm, 7-day expiration
+- **Session Management:** Redis-based with automatic expiration
+- **Token Blacklisting:** Revoked tokens stored in Redis
 - **CSRF Protection:** SameSite cookie attribute
-- **Rate Limiting:** Express rate limiter
-- **Helmet:** Security headers
-- **CORS:** Configurable origins
-- **Input Validation:** Zod schema validation
+
+### Rate Limiting & Brute Force Protection
+- **Login Rate Limiting:** 10 attempts per 15 minutes per IP
+- **Registration Rate Limiting:** 3 attempts per hour per IP
+- **Failed Login Protection:** 5 attempts per email, 15-minute lockout
+- **Redis-Based Counters:** Automatic expiration and cleanup
+
+### Data Protection
+- **Input Validation:** Zod schema validation on all endpoints
+- **SQL Injection Prevention:** Prisma ORM with parameterized queries
+- **XSS Protection:** Helmet security headers
+- **CORS:** Configurable allowed origins
+- **Secure Cookies:** HttpOnly, Secure (production), SameSite
+
+### OTP & Password Reset
+- **OTP Storage:** Redis cache (10-minute expiration)
+- **OTP Format:** 6-digit numeric, cryptographically random
+- **Email Delivery:** SMTP with TLS
+- **One-Time Use:** OTP deleted after successful reset
+
+### Caching Strategy
+
+**Cache Keys:**
+- `auth:session:{jti}` - User sessions (7 days)
+- `auth:blacklist:{jti}` - Revoked tokens (TTL matches token expiration)
+- `auth:failed:{email}` - Failed login attempts (15 minutes)
+- `auth:otp:{email}` - Password reset OTPs (10 minutes)
+- `ratelimit:login:{ip}` - Login rate limiting (15 minutes)
+- `ratelimit:register:{ip}` - Registration rate limiting (1 hour)
+
+**Cache Benefits:**
+- Reduced database load
+- Faster authentication checks
+- Automatic expiration of sensitive data
+- Improved rate limiting accuracy
 
 ---
 

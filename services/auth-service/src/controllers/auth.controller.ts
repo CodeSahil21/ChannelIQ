@@ -7,6 +7,7 @@ import prisma from '../db/db';
 import { eventPublisher } from '../kafka/publisher';
 import { setSession, delSession, blacklist } from '../redis';
 import { decodeJwtUnsafe } from '../utils/auth';
+import { getCache, setCache, deleteCache, incrementCache } from '../utils/cache';
 
 export const createUserController = async(req: Request, res: Response): Promise<void> => {
     try {
@@ -140,6 +141,18 @@ export const loginuserController = async(req: Request, res: Response): Promise<v
         // Sanitize email input
         const sanitizedEmail = email.toLowerCase().trim();
 
+        // Check failed login attempts
+        const failedKey = `auth:failed:${sanitizedEmail}`;
+        const failedAttempts = await getCache<number>(failedKey) || 0;
+
+        if (failedAttempts >= 5) {
+            res.status(429).json({
+                success: false,
+                message: "Too many failed attempts. Please try again after 15 minutes"
+            });
+            return;
+        }
+
         // Find user by email
         const user = await prisma.user.findUnique({
             where: { email: sanitizedEmail },
@@ -165,12 +178,18 @@ export const loginuserController = async(req: Request, res: Response): Promise<v
         const isPasswordValid = await comparePassword(password, user.password);
 
         if (!isPasswordValid) {
+            // Increment failed attempts
+            await incrementCache(failedKey, 900); // 15 minutes
+            
             res.status(401).json({
                 success: false,
                 message: "Invalid credentials"
             });
             return;
         }
+
+        // Clear failed attempts on successful login
+        await deleteCache(failedKey);
 
         // Generate token
         const token = generateToken(user.id);
@@ -377,14 +396,9 @@ export const forgotPasswordController = async (req: Request, res: Response): Pro
         const otp = generateOTP();
         const otpExpiresAt = getOTPExpirationTime();
 
-        // Save OTP to database
-        await prisma.user.update({
-            where: { id: user.id },
-            data: {
-                otp,
-                otpExpiresAt
-            }
-        });
+        // Save OTP to Redis cache instead of database
+        const otpKey = `auth:otp:${sanitizedEmail}`;
+        await setCache(otpKey, { otp, expiresAt: otpExpiresAt.toISOString() }, 600); // 10 minutes
 
         // Send OTP email
         await sendOTPEmail(user.email, otp);
@@ -444,18 +458,11 @@ export const verifyOTPController = async (req: Request, res: Response): Promise<
         const { email, otp } = validationResult.data;
         const sanitizedEmail = email.toLowerCase().trim();
 
-        // Find user with OTP
-        const user = await prisma.user.findUnique({
-            where: { email: sanitizedEmail },
-            select: {
-                id: true,
-                email: true,
-                otp: true,
-                otpExpiresAt: true
-            }
-        });
+        // Get OTP from cache
+        const otpKey = `auth:otp:${sanitizedEmail}`;
+        const cachedOTP = await getCache<{ otp: string; expiresAt: string }>(otpKey);
 
-        if (!user || !user.otp || !user.otpExpiresAt) {
+        if (!cachedOTP) {
             res.status(400).json({
                 success: false,
                 message: "Invalid or expired OTP"
@@ -464,16 +471,8 @@ export const verifyOTPController = async (req: Request, res: Response): Promise<
         }
 
         // Check if OTP is expired
-        if (isOTPExpired(user.otpExpiresAt)) {
-            // Clear expired OTP
-            await prisma.user.update({
-                where: { id: user.id },
-                data: {
-                    otp: null,
-                    otpExpiresAt: null
-                }
-            });
-
+        if (isOTPExpired(new Date(cachedOTP.expiresAt))) {
+            await deleteCache(otpKey);
             res.status(400).json({
                 success: false,
                 message: "OTP has expired"
@@ -482,7 +481,7 @@ export const verifyOTPController = async (req: Request, res: Response): Promise<
         }
 
         // Verify OTP
-        if (user.otp !== otp) {
+        if (cachedOTP.otp !== otp) {
             res.status(400).json({
                 success: false,
                 message: "Invalid OTP"
@@ -535,18 +534,11 @@ export const resetPasswordController = async (req: Request, res: Response): Prom
         const { email, otp, newPassword } = validationResult.data;
         const sanitizedEmail = email.toLowerCase().trim();
 
-        // Find user with OTP
-        const user = await prisma.user.findUnique({
-            where: { email: sanitizedEmail },
-            select: {
-                id: true,
-                email: true,
-                otp: true,
-                otpExpiresAt: true
-            }
-        });
+        // Get OTP from cache
+        const otpKey = `auth:otp:${sanitizedEmail}`;
+        const cachedOTP = await getCache<{ otp: string; expiresAt: string }>(otpKey);
 
-        if (!user || !user.otp || !user.otpExpiresAt) {
+        if (!cachedOTP) {
             res.status(400).json({
                 success: false,
                 message: "Invalid or expired OTP"
@@ -555,15 +547,8 @@ export const resetPasswordController = async (req: Request, res: Response): Prom
         }
 
         // Check if OTP is expired
-        if (isOTPExpired(user.otpExpiresAt)) {
-            await prisma.user.update({
-                where: { id: user.id },
-                data: {
-                    otp: null,
-                    otpExpiresAt: null
-                }
-            });
-
+        if (isOTPExpired(new Date(cachedOTP.expiresAt))) {
+            await deleteCache(otpKey);
             res.status(400).json({
                 success: false,
                 message: "OTP has expired"
@@ -572,7 +557,7 @@ export const resetPasswordController = async (req: Request, res: Response): Prom
         }
 
         // Verify OTP
-        if (user.otp !== otp) {
+        if (cachedOTP.otp !== otp) {
             res.status(400).json({
                 success: false,
                 message: "Invalid OTP"
@@ -580,18 +565,31 @@ export const resetPasswordController = async (req: Request, res: Response): Prom
             return;
         }
 
+        // Find user to update password
+        const user = await prisma.user.findUnique({
+            where: { email: sanitizedEmail },
+            select: { id: true }
+        });
+
+        if (!user) {
+            res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
+            return;
+        }
+
         // Hash new password
         const hashedPassword = await hashPassword(newPassword);
 
-        // Update password and clear OTP
+        // Update password
         await prisma.user.update({
             where: { id: user.id },
-            data: {
-                password: hashedPassword,
-                otp: null,
-                otpExpiresAt: null
-            }
+            data: { password: hashedPassword }
         });
+
+        // Delete OTP from cache
+        await deleteCache(otpKey);
 
         res.status(200).json({
             success: true,
