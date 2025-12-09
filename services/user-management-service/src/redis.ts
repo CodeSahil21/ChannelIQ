@@ -1,9 +1,15 @@
 import { createClient } from 'redis';
 
+const useTLS = process.env.REDIS_USE_TLS === 'true';
+
 export const redis = createClient({
   username: process.env.REDIS_USERNAME || '',
   password: process.env.REDIS_PASSWORD || '',
-  socket: {
+  socket: useTLS ? {
+    host: process.env.REDIS_HOST || 'localhost',
+    port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT) : 6379,
+    tls: true,
+  } : {
     host: process.env.REDIS_HOST || 'localhost',
     port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT) : 6379,
   },

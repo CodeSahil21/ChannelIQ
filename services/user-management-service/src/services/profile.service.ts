@@ -7,6 +7,7 @@ import {
     UserSearchResult,
     ActivityType
 } from '../utils/types';
+import { getCache, setCache, deleteMultipleCache } from '../utils/cache';
 import { UserStatus } from '../utils/prismaTypes';
 import { logUserActivity } from './activity.service';
 import { createDefaultPreferences } from './preference.service';
@@ -90,14 +91,6 @@ export const createProfile = async (id: number, profileData: CreateUserProfile):
                 await tx.$executeRaw`UPDATE "users" SET "searchVector" = to_tsvector('english', ${searchText}) WHERE "id" = ${id}`;
             }
             
-            // Log the activity within the transaction
-            await logUserActivity(
-                id,
-                ActivityType.PROFILE_UPDATE,
-                'Profile created',
-                { fields: Object.keys(profileData) }
-            );
-            
             // Publish event within the transaction - if this fails, transaction rolls back
             try {
                 await eventPublisher.publishUserProfileCreated({
@@ -117,6 +110,17 @@ export const createProfile = async (id: number, profileData: CreateUserProfile):
             return user;
         });
         
+        // Log the activity after transaction completes
+        await logUserActivity(
+            id,
+            ActivityType.PROFILE_UPDATE,
+            'Profile created',
+            { fields: Object.keys(profileData) }
+        );
+        
+        // Invalidate caches
+        await deleteMultipleCache([`user:profile:${id}`, `user:profile:completion:${id}`]);
+        
         return updatedUser as UserProfileResponse;
         
     } catch (error: any) {
@@ -126,37 +130,57 @@ export const createProfile = async (id: number, profileData: CreateUserProfile):
 }
 // Get user profile by ID
 export const getUserProfile = async (id: number): Promise<UserProfileResponse | null> => {
-    const profile = await prisma.user.findFirst({
-        where: { id: id, isDeleted: false },
-        include: {
-            preference: true // Include user preferences
-        }
+    const cacheKey = `user:profile:${id}`;
+    
+    // Try cache first
+    const cached = await getCache<UserProfileResponse>(cacheKey);
+    if (cached) {
+        return cached;
+    }
+    
+    // Cache miss - fetch from DB using findUnique (index lookup) without preference
+    const profile = await prisma.user.findUnique({
+        where: { id: id }
     });
+    
+    // Check if deleted
+    if (!profile || profile.isDeleted) {
+        return null;
+    }
+    
+    // Store in cache
+    await setCache(cacheKey, profile, 1800); // 30 minutes
+    
     return profile as unknown as UserProfileResponse;
 }
 
 // Check if profile is completed
 export const checkProfileCompletion = async (id: number): Promise<boolean> => {
+    const cacheKey = `user:profile:completion:${id}`;
+    
+    const cached = await getCache<boolean>(cacheKey);
+    if (cached !== null && cached !== undefined) {
+        return cached;
+    }
+    
     const user = await prisma.user.findUnique({
         where: { id: id },
         select: { profileCreated: true }
     });
     
-    return user?.profileCreated || false;
+    const result = user?.profileCreated || false;
+    await setCache(cacheKey, result, 1800); // 30 minutes
+    
+    return result;
 }
 
 export const updateUserProfile = async(id:number, data:UpdateUserProfile):Promise<UserProfileResponse>=>{
-    const user = await prisma.user.findFirst({
-        where: { 
-            id: id, 
-            isDeleted: false 
-        },
-        select:{
-            profileCreated: true
-        }
+    const user = await prisma.user.findUnique({
+        where: { id: id },
+        select: { profileCreated: true, isDeleted: true }
     });
     
-    if (!user) {
+    if (!user || user.isDeleted) {
         throw new Error("User does not exist");
     } else if(!user.profileCreated){
         throw new Error("Profile not created yet");
@@ -196,6 +220,9 @@ export const updateUserProfile = async(id:number, data:UpdateUserProfile):Promis
         { fields: Object.keys(data) }
     );
     
+    // Invalidate caches
+    await deleteMultipleCache([`user:profile:${id}`, `user:profile:completion:${id}`]);
+    
     return updatedProfile as UserProfileResponse;
 }
 
@@ -232,6 +259,9 @@ export const deleteUserProfile = async (id: number, deletedBy?: number, userAgen
         ipAddress,
         userAgent
     );
+    
+    // Invalidate caches
+    await deleteMultipleCache([`user:profile:${id}`, `user:profile:completion:${id}`]);
 };
 
 export const restoreUser = async (id: number, userAgent?: string, ipAddress?: string): Promise<void> => {
@@ -285,6 +315,15 @@ export const searchUsers = async (
         if (query.length < 2) {
             return [];
         }
+        
+        const cacheKey = `search:users:${query}:${currentUserId}`;
+        
+        // Try cache first
+        const cached = await getCache<UserSearchResult[]>(cacheKey);
+        if (cached) {
+            return cached;
+        }
+        
         const users = await prisma.user.findMany({
             where: {
                 AND: [
@@ -315,7 +354,8 @@ export const searchUsers = async (
             skip: offset,
             orderBy: { fullName: 'asc' }
         });
-        return users.map(user => ({
+        
+        const results = users.map(user => ({
             id: user.id,
             fullName: user.fullName,
             email: user.email,
@@ -323,6 +363,11 @@ export const searchUsers = async (
             jobTitle: user.jobTitle,
             department: user.department
         }));
+        
+        // Store in cache
+        await setCache(cacheKey, results, 300); // 5 minutes
+        
+        return results;
     } catch (error) {
         throw error;
     }

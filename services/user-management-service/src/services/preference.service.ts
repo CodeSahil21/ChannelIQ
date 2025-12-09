@@ -1,4 +1,5 @@
 import prisma from '../db/index';
+import { getCache, setCache, deleteCache } from '../utils/cache';
 
 
 /**
@@ -8,27 +9,42 @@ import prisma from '../db/index';
  * @returns The user's preferences or null if not found
  */
 export const getUserPreference = async (userId: number): Promise<unknown | null> => {
-    // Check if user exists first
-    const userExists = await prisma.user.findFirst({
-        where: { 
-            id: userId,
-            isDeleted: false 
-        },
-        select: { id: true }
-    });
-
-    if (!userExists) {
-        throw new Error('User not found');
+    const cacheKey = `user:preferences:${userId}`;
+    
+    // Try cache first
+    const cached = await getCache(cacheKey);
+    if (cached) {
+        return cached;
     }
     
     try {
-        return await prisma.userPreference.findUnique({
+        const preferences = await prisma.userPreference.findUnique({
             where: { 
                 userId,
                 isDeleted: false
+            },
+            include: {
+                user: {
+                    select: { isDeleted: true }
+                }
             }
         });
-    } catch (error) {
+        
+        if (!preferences || preferences.user.isDeleted) {
+            throw new Error('User not found');
+        }
+        
+        // Remove user relation before caching/returning
+        const { user, ...result } = preferences;
+        
+        // Store in cache
+        await setCache(cacheKey, result, 1800); // 30 minutes
+        
+        return result;
+    } catch (error: any) {
+        if (error.message === 'User not found') {
+            throw error;
+        }
         console.error(`Error fetching preferences for user ${userId}:`, error);
         throw new Error('Failed to retrieve user preferences');
     }
@@ -42,32 +58,6 @@ export const getUserPreference = async (userId: number): Promise<unknown | null>
  * @returns Updated preference object
  */
 export const updateUserPreference = async (userId: number, data: Record<string, unknown>): Promise<unknown> => {
-    // Validate user exists
-    const userExists = await prisma.user.findFirst({
-        where: { 
-            id: userId,
-            isDeleted: false 
-        },
-        select: { id: true }
-    });
-
-    if (!userExists) {
-        throw new Error('User not found');
-    }
-
-    // Check if preferences exist for this user
-    const preferencesExist = await prisma.userPreference.findUnique({
-        where: { 
-            userId,
-            isDeleted: false
-        },
-        select: { userId: true }
-    });
-
-    if (!preferencesExist) {
-        throw new Error('User preferences not found. Please create preferences first.');
-    }
-
     // Ensure we're only updating valid preference fields with proper validation
     const validData: Record<string, unknown> = {};
     
@@ -166,10 +156,27 @@ export const updateUserPreference = async (userId: number, data: Record<string, 
             throw new Error('No valid preference fields provided for update');
         }
 
-        return await prisma.userPreference.update({
+        const updated = await prisma.userPreference.update({
             where: { userId },
-            data: validData
+            data: validData,
+            include: {
+                user: {
+                    select: { isDeleted: true }
+                }
+            }
         });
+        
+        if (updated.user.isDeleted) {
+            throw new Error('User not found');
+        }
+        
+        // Remove user relation before returning
+        const { user, ...result } = updated;
+        
+        // Invalidate cache
+        await deleteCache(`user:preferences:${userId}`);
+        
+        return result;
     } catch (error: any) {
         if (error.message.includes('must be')) {
             // Rethrow validation errors

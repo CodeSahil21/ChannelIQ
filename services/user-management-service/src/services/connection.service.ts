@@ -8,6 +8,7 @@ import {
     ActivityType
 } from '../utils/types';
 import { logUserActivity } from './activity.service';
+import { getCache, setCache, deleteMultipleCache } from '../utils/cache';
 
 
 
@@ -18,19 +19,16 @@ export const sendConnectionRequest = async (request: ConnectionRequest): Promise
         throw new Error("Cannot send connection request to yourself");
     }
 
-    // Check if both users exist
-    const [senderExists, receiverExists] = await Promise.all([
-        prisma.user.findUnique({
-            where: { id: senderId, isDeleted: false },
-            select: { id: true }
-        }),
-        prisma.user.findUnique({
-            where: { id: receiverId, isDeleted: false },
-            select: { id: true }
-        })
-    ]);
+    // Check if both users exist in single query
+    const users = await prisma.user.findMany({
+        where: { 
+            id: { in: [senderId, receiverId] },
+            isDeleted: false 
+        },
+        select: { id: true }
+    });
 
-    if (!senderExists || !receiverExists) {
+    if (users.length !== 2) {
         throw new Error("One or both users not found");
     }
 
@@ -171,6 +169,12 @@ export const sendConnectionRequest = async (request: ConnectionRequest): Promise
         updatedAt: connection.updatedAt
     };
 
+    // Invalidate caches
+    await deleteMultipleCache([
+        `user:sent-requests:${senderId}`,
+        `user:pending-requests:${receiverId}`
+    ]);
+    
     return response;
     } catch (error: any) {
         console.error('Error creating connection:', error);
@@ -183,28 +187,14 @@ export const sendConnectionRequest = async (request: ConnectionRequest): Promise
 
 // Accept connection request
 export const acceptConnectionRequest = async (connectionId: number, userId: number): Promise<ConnectionResponse> => {
-    // Find the connection
+    // Find and validate connection
     const connection = await prisma.connection.findUnique({
         where: { id: connectionId },
-        include: {
-            sender: {
-                select: {
-                    id: true,
-                    fullName: true,
-                    profilePic: true,
-                    jobTitle: true,
-                    department: true
-                }
-            },
-            receiver: {
-                select: {
-                    id: true,
-                    fullName: true,
-                    profilePic: true,
-                    jobTitle: true,
-                    department: true
-                }
-            }
+        select: {
+            id: true,
+            senderId: true,
+            receiverId: true,
+            status: true
         }
     });
 
@@ -220,7 +210,7 @@ export const acceptConnectionRequest = async (connectionId: number, userId: numb
         throw new Error("Connection request is not pending");
     }
 
-    // Update the connection status to ACCEPTED
+    // Update and fetch in single query
     const updatedConnection = await prisma.connection.update({
         where: { id: connectionId },
         data: { status: ConnectionStatus.ACCEPTED },
@@ -269,34 +259,30 @@ export const acceptConnectionRequest = async (connectionId: number, userId: numb
         createdAt: updatedConnection.createdAt,
         updatedAt: updatedConnection.updatedAt
     };
+    
+    // Invalidate caches
+    await deleteMultipleCache([
+        `user:connections:${connection.senderId}`,
+        `user:connections:${connection.receiverId}`,
+        `user:pending-requests:${userId}`,
+        `user:stats:${connection.senderId}`,
+        `user:stats:${connection.receiverId}`,
+        `connection:status:${connection.senderId}:${connection.receiverId}`
+    ]);
 
     return response;
 }
 
 
 export const declineConnectionRequest = async (connectionId: number, userId: number): Promise<ConnectionResponse> => {
-    // Find the connection
+    // Find and validate connection
     const connection = await prisma.connection.findUnique({
         where: { id: connectionId },
-        include: {
-            sender: {
-                select: {
-                    id: true,
-                    fullName: true,
-                    profilePic: true,
-                    jobTitle: true,
-                    department: true
-                }
-            },
-            receiver: {
-                select: {
-                    id: true,
-                    fullName: true,
-                    profilePic: true,
-                    jobTitle: true,
-                    department: true
-                }
-            }
+        select: {
+            id: true,
+            senderId: true,
+            receiverId: true,
+            status: true
         }
     });
 
@@ -312,7 +298,7 @@ export const declineConnectionRequest = async (connectionId: number, userId: num
         throw new Error("Connection request is not pending");
     }
 
-    // Update the connection status to ACCEPTED
+    // Update and fetch in single query
     const updatedConnection = await prisma.connection.update({
         where: { id: connectionId },
         data: { status: ConnectionStatus.DECLINED },
@@ -361,6 +347,12 @@ export const declineConnectionRequest = async (connectionId: number, userId: num
         createdAt: updatedConnection.createdAt,
         updatedAt: updatedConnection.updatedAt
     };
+    
+    // Invalidate caches
+    await deleteMultipleCache([
+        `user:pending-requests:${userId}`,
+        `user:sent-requests:${connection.senderId}`
+    ]);
 
     return response;
 }
@@ -369,16 +361,6 @@ export const declineConnectionRequest = async (connectionId: number, userId: num
 export const blockUser = async (senderId: number, receiverId: number, userAgent?: string, ipAddress?: string): Promise<void> => {
     if (senderId === receiverId) {
         throw new Error('Cannot block yourself');
-    }
-
-    // Check if user exists before blocking
-    const userExists = await prisma.user.findUnique({
-        where: { id: receiverId },
-        select: { id: true }
-    });
-
-    if (!userExists) {
-        throw new Error('User not found');
     }
 
     // Check for existing connection (including soft-deleted)
@@ -423,6 +405,14 @@ export const blockUser = async (senderId: number, receiverId: number, userAgent?
         ipAddress,
         userAgent
     );
+    
+    // Invalidate caches
+    await deleteMultipleCache([
+        `user:connections:${senderId}`,
+        `user:connections:${receiverId}`,
+        `user:blocked:${senderId}`,
+        `connection:status:${senderId}:${receiverId}`
+    ]);
 };
 
 export const unblockUser = async (senderId: number, receiverId: number, userAgent?: string, ipAddress?: string): Promise<void> => {
@@ -457,6 +447,12 @@ export const unblockUser = async (senderId: number, receiverId: number, userAgen
         ipAddress,
         userAgent
     );
+    
+    // Invalidate caches
+    await deleteMultipleCache([
+        `user:blocked:${senderId}`,
+        `connection:status:${senderId}:${receiverId}`
+    ]);
 };
 
 export const removeConnection = async (
@@ -493,10 +489,27 @@ export const removeConnection = async (
         ipAddress,
         userAgent
     );
+    
+    // Invalidate caches
+    await deleteMultipleCache([
+        `user:connections:${userId1}`,
+        `user:connections:${userId2}`,
+        `connection:status:${userId1}:${userId2}`,
+        `user:stats:${userId1}`,
+        `user:stats:${userId2}`
+    ]);
 } 
 
 export const getPendingRequests = async (userId: number): Promise<ConnectionResponse[]> => {
     try {
+        const cacheKey = `user:pending-requests:${userId}`;
+        
+        // Try cache first
+        const cached = await getCache<ConnectionResponse[]>(cacheKey);
+        if (cached) {
+            return cached;
+        }
+        
         const connections = await prisma.connection.findMany({
             where: {
                 receiverId: userId,
@@ -549,6 +562,10 @@ export const getPendingRequests = async (userId: number): Promise<ConnectionResp
             createdAt: connection.createdAt,
             updatedAt: connection.updatedAt
         }));
+        
+        // Store in cache
+        await setCache(cacheKey, responses, 300); // 5 minutes
+        
         return responses;
     } catch (error) {
         throw error;
@@ -557,6 +574,14 @@ export const getPendingRequests = async (userId: number): Promise<ConnectionResp
   
 export const getSentRequests = async (userId: number): Promise<ConnectionResponse[]> => {
     try {
+        const cacheKey = `user:sent-requests:${userId}`;
+        
+        // Try cache first
+        const cached = await getCache<ConnectionResponse[]>(cacheKey);
+        if (cached) {
+            return cached;
+        }
+        
         const connections = await prisma.connection.findMany({
             where: {
                 senderId: userId,
@@ -609,6 +634,9 @@ export const getSentRequests = async (userId: number): Promise<ConnectionRespons
             createdAt: connection.createdAt,
             updatedAt: connection.updatedAt
         }));
+        
+        // Store in cache
+        await setCache(cacheKey, responses, 300); // 5 minutes
 
         return responses;
     } catch (error) {
@@ -621,6 +649,14 @@ export const getSentRequests = async (userId: number): Promise<ConnectionRespons
 
 export const getConnections = async (userId: number): Promise<ConnectionResponse[]> => {
     try {
+        const cacheKey = `user:connections:${userId}`;
+        
+        // Try cache first
+        const cached = await getCache<ConnectionResponse[]>(cacheKey);
+        if (cached) {
+            return cached;
+        }
+        
         const connections = await prisma.connection.findMany({
             where: {
                 status: ConnectionStatus.ACCEPTED,
@@ -657,7 +693,7 @@ export const getConnections = async (userId: number): Promise<ConnectionResponse
             orderBy: { updatedAt: 'desc' }
         });
 
-        return connections.map((connection: any) => {
+        const results = connections.map((connection: any) => {
             const connectedUser = connection.senderId === userId ? connection.receiver : connection.sender;
             
             return {
@@ -681,6 +717,11 @@ export const getConnections = async (userId: number): Promise<ConnectionResponse
                 updatedAt: connection.updatedAt
             };
         });
+        
+        // Store in cache
+        await setCache(cacheKey, results, 600); // 10 minutes
+        
+        return results;
     } catch (error) {
         throw error;
     }
@@ -748,6 +789,14 @@ export const getConnectedUsers = async (userId: number): Promise<ConnectedUser[]
 
 // Get blocked users
 export const getBlockedUsers = async (userId: number): Promise<ConnectionResponse[]> => {
+    const cacheKey = `user:blocked:${userId}`;
+    
+    // Try cache first
+    const cached = await getCache<ConnectionResponse[]>(cacheKey);
+    if (cached) {
+        return cached;
+    }
+    
     const connections = await prisma.connection.findMany({
         where: {
             senderId: userId,
@@ -777,7 +826,7 @@ export const getBlockedUsers = async (userId: number): Promise<ConnectionRespons
         orderBy: { createdAt: 'desc' }
     });
 
-    return connections.map(connection => ({
+    const results = connections.map(connection => ({
         id: connection.id,
         senderId: connection.senderId,
         receiverId: connection.receiverId,
@@ -800,11 +849,24 @@ export const getBlockedUsers = async (userId: number): Promise<ConnectionRespons
         createdAt: connection.createdAt,
         updatedAt: connection.updatedAt
     }));
+    
+    // Store in cache
+    await setCache(cacheKey, results, 900); // 15 minutes
+    
+    return results;
 };
 
 // Check connection status between two users
 export const getConnectionStatus = async (userId: number, targetUserId: number): Promise<string> => {
     try {
+        const cacheKey = `connection:status:${userId}:${targetUserId}`;
+        
+        // Try cache first
+        const cached = await getCache<string>(cacheKey);
+        if (cached) {
+            return cached;
+        }
+        
         const connection = await prisma.connection.findFirst({
             where: {
                 isDeleted: false,
@@ -815,11 +877,17 @@ export const getConnectionStatus = async (userId: number, targetUserId: number):
             }
         });
 
-        if (!connection) return 'NONE';
-        if (connection.status === ConnectionStatus.BLOCKED) return 'BLOCKED';
-        if (connection.status === ConnectionStatus.ACCEPTED) return 'CONNECTED';
-        if (connection.senderId === userId) return 'SENT';
-        return 'RECEIVED';
+        let status: string;
+        if (!connection) status = 'NONE';
+        else if (connection.status === ConnectionStatus.BLOCKED) status = 'BLOCKED';
+        else if (connection.status === ConnectionStatus.ACCEPTED) status = 'CONNECTED';
+        else if (connection.senderId === userId) status = 'SENT';
+        else status = 'RECEIVED';
+        
+        // Store in cache
+        await setCache(cacheKey, status, 300); // 5 minutes
+        
+        return status;
     } catch (error) {
         throw error;
     }
@@ -827,6 +895,14 @@ export const getConnectionStatus = async (userId: number, targetUserId: number):
 
 export const getConnectionStats = async (userId: number): Promise<ConnectionStats> => {
     try {
+        const cacheKey = `user:stats:${userId}`;
+        
+        // Try cache first
+        const cached = await getCache<ConnectionStats>(cacheKey);
+        if (cached) {
+            return cached;
+        }
+        
         // Total accepted connections (user is sender or receiver)
         const totalAccepted = await prisma.connection.count({
             where: {
@@ -851,10 +927,15 @@ export const getConnectionStats = async (userId: number): Promise<ConnectionStat
             }
         });
 
-        return {
+        const stats = {
             totalAcceptedConnections: totalAccepted,
             totalPendingConnections: totalPending
         };
+        
+        // Store in cache
+        await setCache(cacheKey, stats, 600); // 10 minutes
+        
+        return stats;
     } catch (error) {
         throw error;
     }
