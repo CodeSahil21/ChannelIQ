@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { connectionApi } from '../api/connection.api';
 import toast from 'react-hot-toast';
+import { useDebounce } from '../utils/performance';
 import type { ConnectionResponse, ConnectionStatsResponse, ConnectionStatusString, SendConnectionRequestRequest, ConnectedUser } from '../types/connection.types';
 
 export const useConnections = () => {
@@ -112,6 +113,7 @@ export const useConnections = () => {
   }, []);
 
   const fetchPendingRequests = useCallback(async () => {
+    if (loading) return; // Prevent duplicate requests
     setLoading(true);
     try {
       const res = await connectionApi.getPendingRequests();
@@ -123,9 +125,10 @@ export const useConnections = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loading]);
 
   const fetchSentRequests = useCallback(async () => {
+    if (loading) return;
     setLoading(true);
     try {
       const res = await connectionApi.getSentRequests();
@@ -137,9 +140,10 @@ export const useConnections = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loading]);
 
   const fetchConnections = useCallback(async () => {
+    if (loading) return;
     setLoading(true);
     try {
       const res = await connectionApi.getConnectedUsers();
@@ -151,7 +155,7 @@ export const useConnections = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loading]);
 
   const fetchBlockedUsers = useCallback(async () => {
     setLoading(true);
@@ -190,13 +194,17 @@ export const useConnections = () => {
     return null;
   }, []);
 
+  // Memoize computed values
+  const memoizedStats = useMemo(() => stats, [stats]);
+  const memoizedConnections = useMemo(() => connections, [connections]);
+  
   return {
     loading,
     pendingRequests,
     sentRequests,
-    connections,
+    connections: memoizedConnections,
     blockedUsers,
-    stats,
+    stats: memoizedStats,
     sendRequest,
     acceptRequest,
     declineRequest,

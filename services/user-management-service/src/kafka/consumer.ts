@@ -1,5 +1,5 @@
 import { kafkaConsumer } from './kafkaManager';
-import { CreateUserService } from '../services/profile.service';
+import { CreateUserService, updateUserProfileImage } from '../services/profile.service';
 import {handleUserLoggedInEvent,handleUserLoggedOutEvent} from '../services/events.service';
 import { UserLoggedInEventType,UserLoggedOutEventType,UserRegisteredEvent } from '../utils/types';
 
@@ -8,7 +8,7 @@ export const startConsumer = async (): Promise<void> => {
     console.log('🔄 Starting Kafka consumer for user-events...');
 
     await kafkaConsumer.subscribe({
-      topic: 'user-events',
+      topics: ['user-events', 'media-events'],
       fromBeginning: false
     });
 
@@ -49,6 +49,18 @@ export const startConsumer = async (): Promise<void> => {
             case 'USER_LOGGED_OUT':
               await heartbeat();
               await handleUserLoggedOutEventWrapper(parsedMessage);
+              await heartbeat();
+              break;
+
+            case 'PROFILE_IMAGE_UPLOADED':
+              await heartbeat();
+              await handleProfileImageUploadedEvent(parsedMessage);
+              await heartbeat();
+              break;
+
+            case 'PROFILE_IMAGE_DELETED':
+              await heartbeat();
+              await handleProfileImageDeletedEvent(parsedMessage);
               await heartbeat();
               break;
 
@@ -108,6 +120,30 @@ const handleUserLoggedOutEventWrapper = async (event: UserLoggedOutEventType): P
         console.log(`✅ User ${event.userId} marked as offline`);
     } catch (error) {
         console.error(`❌ Failed to handle USER_LOGGED_OUT event for user ${event.userId}:`, error);
+        throw error;
+    }
+};
+
+const handleProfileImageUploadedEvent = async (event: any): Promise<void> => {
+    try {
+        console.log(`🖼️ Processing PROFILE_IMAGE_UPLOADED event for user ${event.userId}`);
+        // Extract fileName from the presigned URL or use metadata
+        const fileName = event.metadata?.fileName || event.imageUrl?.split('/').pop()?.split('?')[0];
+        await updateUserProfileImage(parseInt(event.userId), fileName);
+        console.log(`✅ Profile image updated for user ${event.userId}`);
+    } catch (error) {
+        console.error(`❌ Failed to handle PROFILE_IMAGE_UPLOADED event for user ${event.userId}:`, error);
+        throw error;
+    }
+};
+
+const handleProfileImageDeletedEvent = async (event: any): Promise<void> => {
+    try {
+        console.log(`🗑️ Processing PROFILE_IMAGE_DELETED event for user ${event.userId}`);
+        await updateUserProfileImage(parseInt(event.userId), null);
+        console.log(`✅ Profile image removed for user ${event.userId}`);
+    } catch (error) {
+        console.error(`❌ Failed to handle PROFILE_IMAGE_DELETED event for user ${event.userId}:`, error);
         throw error;
     }
 };

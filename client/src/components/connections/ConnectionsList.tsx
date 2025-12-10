@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaUserMinus, FaBan, FaUserFriends, FaEye } from 'react-icons/fa';
 import { useConnections } from '../../hooks/useConnections';
 import { useProfileContext } from '../../pages/Connections';
 
-export const ConnectionsList = () => {
+const ConnectionsListComponent = () => {
   const { connections, fetchConnections, removeConnection, blockUser, loading } = useConnections();
   const openProfile = useProfileContext();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; userId: number } | null>(null);
@@ -12,6 +12,19 @@ export const ConnectionsList = () => {
   useEffect(() => {
     fetchConnections();
   }, [fetchConnections]);
+
+  const handleRemoveConnection = useCallback((userId: number) => {
+    removeConnection(userId);
+  }, [removeConnection]);
+
+  const handleBlockUser = useCallback((userId: number) => {
+    blockUser(userId);
+  }, [blockUser]);
+
+  const handleContextMenu = useCallback((e: React.MouseEvent, userId: number) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, userId });
+  }, []);
 
   useEffect(() => {
     const handleClick = () => setContextMenu(null);
@@ -62,17 +75,17 @@ export const ConnectionsList = () => {
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ delay: index * 0.05 }}
             className="connection-card"
-            onContextMenu={(e) => {
-              e.preventDefault();
-              setContextMenu({ x: e.clientX, y: e.clientY, userId: user.id });
-            }}
+            onContextMenu={(e) => handleContextMenu(e, user.id)}
           >
             <div className="connection-card-content">
               <div className="connection-user-avatar">
                 {user.profilePic ? (
                   <img src={user.profilePic} alt={user.fullName} />
                 ) : (
-                  <div className="avatar-placeholder">{user.fullName.charAt(0)}</div>
+                  <img 
+                    src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.fullName)}&backgroundColor=2a5298`}
+                    alt={user.fullName}
+                  />
                 )}
                 {user.isOnline && <div className="online-indicator" />}
               </div>
@@ -86,7 +99,7 @@ export const ConnectionsList = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => removeConnection(user.id)}
+                onClick={() => handleRemoveConnection(user.id)}
                 className="btn-remove"
               >
                 <FaUserMinus /> Remove
@@ -94,7 +107,7 @@ export const ConnectionsList = () => {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => blockUser(user.id)}
+                onClick={() => handleBlockUser(user.id)}
                 className="btn-block"
               >
                 <FaBan /> Block
@@ -124,3 +137,5 @@ export const ConnectionsList = () => {
     </div>
   );
 };
+
+export const ConnectionsList = memo(ConnectionsListComponent);

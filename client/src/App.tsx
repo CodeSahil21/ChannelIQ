@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
+import { ErrorBoundary } from './components/ui/ErrorBoundary';
 
 import UserProtectWrapper from './components/UserProtectWrapper';
 import { Login } from './pages/Login';
@@ -59,34 +60,36 @@ function AnimatedRoutes() {
 
 function App() {
   return (
-    <Router>
-      <AnimatedRoutes />
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#fff',
-            color: '#374151',
-            borderRadius: '12px',
-            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
-            border: '1px solid #e5e7eb'
-          },
-          success: {
-            iconTheme: {
-              primary: '#059669',
-              secondary: '#fff'
+    <ErrorBoundary>
+      <Router>
+        <AnimatedRoutes />
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#fff',
+              color: '#374151',
+              borderRadius: '12px',
+              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
+              border: '1px solid #e5e7eb'
+            },
+            success: {
+              iconTheme: {
+                primary: '#059669',
+                secondary: '#fff'
+              }
+            },
+            error: {
+              iconTheme: {
+                primary: '#dc2626',
+                secondary: '#fff'
+              }
             }
-          },
-          error: {
-            iconTheme: {
-              primary: '#dc2626',
-              secondary: '#fff'
-            }
-          }
-        }}
-      />
-    </Router>
+          }}
+        />
+      </Router>
+    </ErrorBoundary>
   );
 }
 

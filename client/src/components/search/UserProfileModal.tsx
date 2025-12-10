@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { FaTimes, FaUserCircle, FaBriefcase, FaBuilding, FaMapMarkerAlt, FaLinkedin, FaGithub, FaGlobe, FaTwitter } from 'react-icons/fa';
 import { userApi } from '../../api/user.api';
 import { useConnections } from '../../hooks/useConnections';
+import { PresignedImage } from '../ui/PresignedImage';
 import type { UserProfileResponse, ConnectionStatusString } from '../../types';
 
 interface UserProfileModalProps {
@@ -77,9 +78,21 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ userId, onCl
             <div className="profile-modal-header">
               <div className="profile-modal-avatar">
                 {profile.profilePic ? (
-                  <img src={profile.profilePic} alt={profile.fullName || ''} />
+                  <PresignedImage
+                    fileName={profile.profilePic}
+                    alt={profile.fullName || ''}
+                    fallback={
+                      <img 
+                        src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(profile.fullName || profile.email)}&backgroundColor=2a5298`}
+                        alt={profile.fullName || 'Profile'}
+                      />
+                    }
+                  />
                 ) : (
-                  <FaUserCircle />
+                  <img 
+                    src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(profile.fullName || profile.email)}&backgroundColor=2a5298`}
+                    alt={profile.fullName || 'Profile'}
+                  />
                 )}
               </div>
               <div className="profile-modal-info">

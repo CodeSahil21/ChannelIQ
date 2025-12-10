@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { FaUserCircle, FaEllipsisV } from 'react-icons/fa';
 import { useState } from 'react';
+import { PresignedImage } from '../ui/PresignedImage';
 import type { ConnectionUser } from '../../types/connection.types';
 
 interface ConnectionCardProps {
@@ -24,7 +25,17 @@ export const ConnectionCard = ({ user, actions, onClick }: ConnectionCardProps) 
       <div className="flex items-center gap-4">
         <div className="relative flex-shrink-0">
           {user.profilePic ? (
-            <img src={user.profilePic} alt={user.fullName} className="w-16 h-16 rounded-2xl object-cover ring-2 ring-gray-200 dark:ring-gray-700" />
+            <PresignedImage
+              key={user.profilePic}
+              fileName={user.profilePic}
+              alt={user.fullName}
+              className="w-16 h-16 rounded-2xl object-cover ring-2 ring-gray-200 dark:ring-gray-700"
+              fallback={
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
+                  <FaUserCircle className="w-9 h-9 text-white" />
+                </div>
+              }
+            />
           ) : (
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
               <FaUserCircle className="w-9 h-9 text-white" />

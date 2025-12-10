@@ -1,5 +1,5 @@
 import prisma from '../db/index';
-import { getCache, setCache, deleteCache } from '../utils/cache';
+import { getCache, setCache, deleteMultipleCache } from '../utils/cache';
 
 
 /**
@@ -173,8 +173,12 @@ export const updateUserPreference = async (userId: number, data: Record<string, 
         // Remove user relation before returning
         const { user, ...result } = updated;
         
-        // Invalidate cache
-        await deleteCache(`user:preferences:${userId}`);
+        // Invalidate caches - preferences and search if visibility changed
+        const cacheKeys = [`user:preferences:${userId}`];
+        if (validData.appearInSearch !== undefined || validData.profileVisibility !== undefined) {
+            cacheKeys.push('search:users:*');
+        }
+        await deleteMultipleCache(cacheKeys);
         
         return result;
     } catch (error: any) {

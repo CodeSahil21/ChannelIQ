@@ -118,8 +118,15 @@ export const createProfile = async (id: number, profileData: CreateUserProfile):
             { fields: Object.keys(profileData) }
         );
         
-        // Invalidate caches
-        await deleteMultipleCache([`user:profile:${id}`, `user:profile:completion:${id}`]);
+        // Invalidate caches - profile, search, and connections
+        await deleteMultipleCache([
+            `user:profile:${id}`, 
+            `user:profile:completion:${id}`,
+            `search:users:*`, // Profile updates affect search results
+            `user:connections:${id}`,
+            `user:pending-requests:${id}`,
+            `user:sent-requests:${id}`
+        ]);
         
         return updatedUser as UserProfileResponse;
         
@@ -220,8 +227,15 @@ export const updateUserProfile = async(id:number, data:UpdateUserProfile):Promis
         { fields: Object.keys(data) }
     );
     
-    // Invalidate caches
-    await deleteMultipleCache([`user:profile:${id}`, `user:profile:completion:${id}`]);
+    // Invalidate caches - profile, search, and connections
+    await deleteMultipleCache([
+        `user:profile:${id}`, 
+        `user:profile:completion:${id}`,
+        `search:users:*`, // Profile updates affect search results
+        `user:connections:${id}`,
+        `user:pending-requests:${id}`,
+        `user:sent-requests:${id}`
+    ]);
     
     return updatedProfile as UserProfileResponse;
 }
@@ -260,8 +274,15 @@ export const deleteUserProfile = async (id: number, deletedBy?: number, userAgen
         userAgent
     );
     
-    // Invalidate caches
-    await deleteMultipleCache([`user:profile:${id}`, `user:profile:completion:${id}`]);
+    // Invalidate caches - profile, search, and connections
+    await deleteMultipleCache([
+        `user:profile:${id}`, 
+        `user:profile:completion:${id}`,
+        `search:users:*`,
+        `user:connections:${id}`,
+        `user:pending-requests:${id}`,
+        `user:sent-requests:${id}`
+    ]);
 };
 
 export const restoreUser = async (id: number, userAgent?: string, ipAddress?: string): Promise<void> => {
@@ -369,6 +390,38 @@ export const searchUsers = async (
         
         return results;
     } catch (error) {
+        throw error;
+    }
+};
+
+export const updateUserProfileImage = async (userId: number, fileName: string | null): Promise<void> => {
+    try {
+        await prisma.user.update({
+            where: { id: userId },
+            data: { profilePic: fileName }
+        });
+        
+        // Log the activity
+        await logUserActivity(
+            userId,
+            ActivityType.PROFILE_UPDATE,
+            fileName ? 'Profile image updated' : 'Profile image removed',
+            { fileName }
+        );
+        
+        // Invalidate caches - profile, search, and connections
+        await deleteMultipleCache([
+            `user:profile:${userId}`,
+            `search:users:*`, // Invalidate all search caches
+            `user:connections:${userId}`,
+            `user:pending-requests:${userId}`,
+            `user:sent-requests:${userId}`,
+            `user:blocked:${userId}`
+        ]);
+        
+        console.log(`✅ Profile image ${fileName ? 'updated' : 'removed'} for user ${userId}`);
+    } catch (error) {
+        console.error(`❌ Failed to update profile image for user ${userId}:`, error);
         throw error;
     }
 };

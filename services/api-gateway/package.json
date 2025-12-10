@@ -4,9 +4,9 @@
   "description": "API Gateway for Corporate Chat microservices",
   "main": "dist/server.js",
   "scripts": {
-    "start": "node dist/server.js",
-    "dev": "nodemon src/server.ts",
     "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "nodemon --exec \"tsc && node dist/server.js\" --watch src --ext ts",
     "clean": "rimraf dist"
   },
   "dependencies": {

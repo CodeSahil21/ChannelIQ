@@ -124,6 +124,36 @@ app.use('/api/connections', createProxyMiddleware({
     }
 }));
 
+// Media Service Proxy
+app.use('/api/media', createProxyMiddleware({
+    target: 'http://localhost:3003',
+    changeOrigin: true,
+    pathRewrite: {
+        '^/api/media': '/api/v1/media'
+    },
+    onProxyReq: (proxyReq, req) => {
+        try {
+            proxyReq.removeHeader?.('if-none-match');
+            proxyReq.removeHeader?.('if-modified-since');
+        } catch (e) {}
+        console.log(`→ Media: ${req.method} ${req.path} → /api/v1/media${req.path.replace('/api/media', '')}`);
+    },
+    onProxyRes: (proxyRes, req) => {
+        delete proxyRes.headers['etag'];
+        proxyRes.headers['cache-control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate';
+        console.log(`← Media: ${proxyRes.statusCode}`);
+    },
+    onError: (err, req, res) => {
+        console.error(`❌ Media proxy error:`, err.message);
+        if (!res.headersSent) {
+            res.status(502).json({ 
+                success: false, 
+                message: 'Media service unavailable' 
+            });
+        }
+    }
+}));
+
 // Catch-all
 app.use('*', (req, res) => {
     res.status(404).json({
@@ -139,6 +169,8 @@ app.listen(PORT, () => {
     console.log(`🔗 Proxying:`);
     console.log(`   /api/auth/* → http://localhost:3001/api/v1/auth/*`);
     console.log(`   /api/users/* → http://localhost:3002/api/v1/user-management/*`);
+    console.log(`   /api/connections/* → http://localhost:3002/api/v1/connections/*`);
+    console.log(`   /api/media/* → http://localhost:3003/api/v1/media/*`);
 });
 
 export default app;

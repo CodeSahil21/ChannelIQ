@@ -9,6 +9,7 @@ import {
 } from '../utils/types';
 import { logUserActivity } from './activity.service';
 import { getCache, setCache, deleteMultipleCache } from '../utils/cache';
+import { processProfileImages } from './image.service';
 
 
 
@@ -172,7 +173,9 @@ export const sendConnectionRequest = async (request: ConnectionRequest): Promise
     // Invalidate caches
     await deleteMultipleCache([
         `user:sent-requests:${senderId}`,
-        `user:pending-requests:${receiverId}`
+        `user:pending-requests:${receiverId}`,
+        `connection:status:${senderId}:${receiverId}`,
+        `connection:status:${receiverId}:${senderId}`
     ]);
     
     return response;
@@ -265,9 +268,11 @@ export const acceptConnectionRequest = async (connectionId: number, userId: numb
         `user:connections:${connection.senderId}`,
         `user:connections:${connection.receiverId}`,
         `user:pending-requests:${userId}`,
+        `user:sent-requests:${connection.senderId}`,
         `user:stats:${connection.senderId}`,
         `user:stats:${connection.receiverId}`,
-        `connection:status:${connection.senderId}:${connection.receiverId}`
+        `connection:status:${connection.senderId}:${connection.receiverId}`,
+        `connection:status:${connection.receiverId}:${connection.senderId}`
     ]);
 
     return response;
@@ -351,7 +356,9 @@ export const declineConnectionRequest = async (connectionId: number, userId: num
     // Invalidate caches
     await deleteMultipleCache([
         `user:pending-requests:${userId}`,
-        `user:sent-requests:${connection.senderId}`
+        `user:sent-requests:${connection.senderId}`,
+        `connection:status:${connection.senderId}:${connection.receiverId}`,
+        `connection:status:${connection.receiverId}:${connection.senderId}`
     ]);
 
     return response;
@@ -411,7 +418,14 @@ export const blockUser = async (senderId: number, receiverId: number, userAgent?
         `user:connections:${senderId}`,
         `user:connections:${receiverId}`,
         `user:blocked:${senderId}`,
-        `connection:status:${senderId}:${receiverId}`
+        `user:pending-requests:${senderId}`,
+        `user:pending-requests:${receiverId}`,
+        `user:sent-requests:${senderId}`,
+        `user:sent-requests:${receiverId}`,
+        `user:stats:${senderId}`,
+        `user:stats:${receiverId}`,
+        `connection:status:${senderId}:${receiverId}`,
+        `connection:status:${receiverId}:${senderId}`
     ]);
 };
 
@@ -451,7 +465,8 @@ export const unblockUser = async (senderId: number, receiverId: number, userAgen
     // Invalidate caches
     await deleteMultipleCache([
         `user:blocked:${senderId}`,
-        `connection:status:${senderId}:${receiverId}`
+        `connection:status:${senderId}:${receiverId}`,
+        `connection:status:${receiverId}:${senderId}`
     ]);
 };
 
@@ -495,6 +510,7 @@ export const removeConnection = async (
         `user:connections:${userId1}`,
         `user:connections:${userId2}`,
         `connection:status:${userId1}:${userId2}`,
+        `connection:status:${userId2}:${userId1}`,
         `user:stats:${userId1}`,
         `user:stats:${userId2}`
     ]);
@@ -563,10 +579,18 @@ export const getPendingRequests = async (userId: number): Promise<ConnectionResp
             updatedAt: connection.updatedAt
         }));
         
-        // Store in cache
-        await setCache(cacheKey, responses, 300); // 5 minutes
+        // Process profile images
+        const processedResponses = await processProfileImages(responses.map(r => ({ ...r.sender, ...r.receiver })));
+        const finalResponses = responses.map((response, index) => ({
+            ...response,
+            sender: processedResponses[index * 2] || response.sender,
+            receiver: processedResponses[index * 2 + 1] || response.receiver
+        }));
         
-        return responses;
+        // Store in cache
+        await setCache(cacheKey, finalResponses, 300); // 5 minutes
+        
+        return finalResponses;
     } catch (error) {
         throw error;
     }
@@ -635,10 +659,20 @@ export const getSentRequests = async (userId: number): Promise<ConnectionRespons
             updatedAt: connection.updatedAt
         }));
         
+        // Process profile images for both sender and receiver
+        const allUsers = responses.flatMap(r => [r.sender, r.receiver]);
+        const processedUsers = await processProfileImages(allUsers);
+        
+        const finalResponses = responses.map((response, index) => ({
+            ...response,
+            sender: processedUsers[index * 2],
+            receiver: processedUsers[index * 2 + 1]
+        }));
+        
         // Store in cache
-        await setCache(cacheKey, responses, 300); // 5 minutes
+        await setCache(cacheKey, finalResponses, 300); // 5 minutes
 
-        return responses;
+        return finalResponses;
     } catch (error) {
         throw error;
     }
@@ -718,10 +752,17 @@ export const getConnections = async (userId: number): Promise<ConnectionResponse
             };
         });
         
-        // Store in cache
-        await setCache(cacheKey, results, 600); // 10 minutes
+        // Process profile images
+        const processedResults = await processProfileImages(results.map(r => r.sender));
+        const finalResults = results.map((result, index) => ({
+            ...result,
+            sender: processedResults[index]
+        }));
         
-        return results;
+        // Store in cache
+        await setCache(cacheKey, finalResults, 600); // 10 minutes
+        
+        return finalResults;
     } catch (error) {
         throw error;
     }
@@ -766,7 +807,7 @@ export const getConnectedUsers = async (userId: number): Promise<ConnectedUser[]
             orderBy: { updatedAt: 'desc' }
         });
 
-        return connections.map((connection: any) => {
+        const connectedUsers = connections.map((connection: any) => {
             const connectedUser = connection.senderId === userId ? connection.receiver : connection.sender;
             
             return {
@@ -781,6 +822,8 @@ export const getConnectedUsers = async (userId: number): Promise<ConnectedUser[]
                 connectedAt: connection.updatedAt
             };
         });
+        
+        return await processProfileImages(connectedUsers);
     } catch (error) {
         throw error;
     }
@@ -850,10 +893,17 @@ export const getBlockedUsers = async (userId: number): Promise<ConnectionRespons
         updatedAt: connection.updatedAt
     }));
     
-    // Store in cache
-    await setCache(cacheKey, results, 900); // 15 minutes
+    // Process profile images for receivers (blocked users)
+    const processedReceivers = await processProfileImages(results.map(r => r.receiver));
+    const finalResults = results.map((result, index) => ({
+        ...result,
+        receiver: processedReceivers[index]
+    }));
     
-    return results;
+    // Store in cache
+    await setCache(cacheKey, finalResults, 900); // 15 minutes
+    
+    return finalResults;
 };
 
 // Check connection status between two users

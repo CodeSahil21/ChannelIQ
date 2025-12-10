@@ -89,7 +89,10 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onUse
                   {user.profilePic ? (
                     <img src={user.profilePic} alt={user.fullName || ''} />
                   ) : (
-                    <FaUserCircle />
+                    <img 
+                      src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.fullName || user.email)}&backgroundColor=2a5298`}
+                      alt={user.fullName || 'Profile'}
+                    />
                   )}
                 </div>
                 <div className="search-result-info">

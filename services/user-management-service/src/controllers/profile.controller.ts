@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { CreateUserProfileSchema, UpdateUserProfileSchema, searchUsersSchema } from '../utils/schema';
 import { createProfile, updateUserProfile, getUserProfile, deleteUserProfile, restoreUser, searchUsers } from '../services/profile.service';
+import { processSingleProfileImage, processProfileImages } from '../services/image.service';
 import { AuthenticatedRequest, CreateUserProfile } from '../utils/types';
 
 export const createProfileController = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -24,14 +25,9 @@ export const createProfileController = async (req: AuthenticatedRequest, res: Re
         const profileData = validationResult.data;
         const userId = req.user!.id;
 
-        // Generate random avatar if not provided
-        const idx = Math.floor(Math.random() * 100) + 1;
-        const randomAvatar = `https://avatar.iran.liara.run/public/${idx}`;
-
         // Create sanitized profile data
         const sanitizedProfileData: CreateUserProfile = {
             fullName: profileData.fullName,
-            profilePic:  randomAvatar,
             timezone: profileData.timezone || "UTC",
             skills: profileData.skills || [],
             languages: profileData.languages || [],
@@ -178,9 +174,10 @@ export const getProfileController = async (req: AuthenticatedRequest, res: Respo
     try {
         const userId = req.user!.id;
         const profile = await getUserProfile(userId);
+        const processedProfile = processSingleProfileImage(profile);
         res.status(200).json({
             success: true,
-            data: profile
+            data: processedProfile
         });
     } catch (error: unknown) {
         console.error('Error fetching profile:', error);
@@ -213,9 +210,10 @@ export const fetchUserProfileController = async (req: AuthenticatedRequest, res:
             return;
         }
 
+        const processedProfile = processSingleProfileImage(profile);
         res.status(200).json({
             success: true,
-            data: profile
+            data: processedProfile
         });
     }catch (error: unknown) {
         console.error('Error fetching profile:', error);
@@ -308,10 +306,11 @@ export const searchUsersController = async (req: AuthenticatedRequest, res: Resp
         const currentUserId = req.user!.id;
         
         const users = await searchUsers(query, currentUserId, limit);
+        const processedUsers = processProfileImages(users);
         
         res.status(200).json({
             success: true,
-            data: users
+            data: processedUsers
         });
     } catch (error: unknown) {
         console.error('Error searching users:', error);

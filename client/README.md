@@ -1,73 +1,145 @@
-# React + TypeScript + Vite
+# CorporateChat Client
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React frontend for the CorporateChat platform with modern UI and real-time features.
 
-Currently, two official plugins are available:
+## Port: 3000 (dev) / 5173 (vite)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Tech Stack
 
-## React Compiler
+- **React 18** with TypeScript
+- **Vite** for build tooling
+- **Redux Toolkit** for state management
+- **Tailwind CSS** for styling
+- **Framer Motion** for animations
+- **React Hot Toast** for notifications
+- **Axios** for API calls
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Features
 
-## Expanding the ESLint configuration
+### Authentication
+- Login/Register with validation
+- OTP verification
+- Password reset
+- Protected routes
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Profile Management
+- Complete profile creation/editing
+- Profile image upload with direct MinIO URLs
+- Skills and languages management
+- Social links integration
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Connections
+- Send/accept/decline connection requests
+- User search and discovery
+- Connection statistics
+- Block/unblock users
+- Remove connections
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### UI/UX
+- Responsive design
+- Dark/light theme support
+- Smooth animations
+- Loading states
+- Error handling
+- Toast notifications
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Project Structure
+
+```
+src/
+├── api/           # API client configurations
+├── components/    # Reusable UI components
+│   ├── ui/        # Basic UI components
+│   ├── forms/     # Form components
+│   ├── profile/   # Profile-related components
+│   ├── connections/ # Connection components
+│   └── layout/    # Layout components
+├── hooks/         # Custom React hooks
+├── pages/         # Page components
+├── store/         # Redux store configuration
+├── types/         # TypeScript type definitions
+└── utils/         # Utility functions
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Key Components
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Image Handling
+- `DirectImage` component for MinIO public URLs
+- Automatic URL construction: `http://localhost:9000/profile-images/{filename}`
+- Fallback support for external URLs
+- No API calls required for image display
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### API Integration
+- Centralized API clients for each service
+- Automatic error handling
+- Request/response interceptors
+- Type-safe API calls
+
+### State Management
+- Redux Toolkit for global state
+- User authentication state
+- Theme preferences
+- Connection management
+
+## Environment Variables
+
+```env
+VITE_API_BASE_URL=http://localhost:4000
 ```
+
+## Available Scripts
+
+```bash
+# Development
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+
+# Linting
+npm run lint
+
+# Type checking
+npm run type-check
+```
+
+## API Endpoints Used
+
+- **Auth:** `/api/auth/*`
+- **Users:** `/api/users/*`
+- **Connections:** `/api/connections/*`
+- **Media:** `/api/media/*`
+
+## Image Upload Flow
+
+1. User selects image file
+2. Validation (size, format)
+3. Upload to media service via API gateway
+4. Receive filename and public URL
+5. Update profile with filename
+6. Display image using direct MinIO URL
+
+## Development Setup
+
+```bash
+npm install
+npm run dev
+```
+
+## Build for Production
+
+```bash
+npm run build
+npm run preview
+```
+
+## Performance Optimizations
+
+- Lazy loading of components
+- Image optimization
+- Bundle splitting
+- Tree shaking
+- Efficient re-renders with React.memo

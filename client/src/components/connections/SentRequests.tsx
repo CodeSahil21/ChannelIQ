@@ -72,7 +72,10 @@ export const SentRequests = () => {
                 {request.receiver?.profilePic ? (
                   <img src={request.receiver.profilePic} alt={request.receiver.fullName} />
                 ) : (
-                  <div className="avatar-placeholder">{request.receiver?.fullName?.charAt(0) || 'U'}</div>
+                  <img 
+                    src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(request.receiver?.fullName || request.receiver?.email || 'User')}&backgroundColor=2a5298`}
+                    alt={request.receiver?.fullName || 'Profile'}
+                  />
                 )}
               </div>
               <div className="sent-user-info">
