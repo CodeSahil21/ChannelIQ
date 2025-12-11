@@ -7,12 +7,6 @@ if (!databaseUrl) {
   throw new Error("DATABASE_URL environment variable is not set.");
 }
 
-const prisma = new PrismaClient({
-    datasources: {
-      db: {
-        url: databaseUrl,
-      },
-    },
-  }).$extends(withAccelerate());
+const prisma = new PrismaClient().$extends(withAccelerate());
   
   export default prisma;

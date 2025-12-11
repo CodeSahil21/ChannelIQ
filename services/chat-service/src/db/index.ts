@@ -1,6 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import  {withAccelerate} from "@prisma/extension-accelerate";
-
+import { withAccelerate } from "@prisma/extension-accelerate";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -8,5 +7,5 @@ if (!databaseUrl) {
 }
 
 const prisma = new PrismaClient().$extends(withAccelerate());
-  
-  export default prisma;
+
+export default prisma;

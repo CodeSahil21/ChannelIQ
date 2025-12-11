@@ -1,0 +1,217 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id
+  email       String   @unique
+  fullName    String
+  profileUrl  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  groupsCreated     ChatGroup[]       @relation("GroupAdmin")
+  memberships       ChatMember[]
+  messages          ChatMessage[]
+  polls             Poll[]
+  pollVotes         PollVote[]
+  announcements     Announcement[]
+  messageStatus     MessageStatus[]
+  reactions         MessageReaction[]
+
+  @@map("users")
+}
+
+model ChatGroup {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  avatar      String?
+  isPrivate   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Admin
+  adminId     String
+  admin       User     @relation("GroupAdmin", fields: [adminId], references: [id])
+
+  // Relations
+  members         ChatMember[]
+  messages        ChatMessage[]
+  pinnedMessages  PinnedMessage[]
+  announcements   Announcement[]
+  polls           Poll[]
+
+  @@map("chat_groups")
+}
+
+model ChatMember {
+  id              String     @id @default(cuid())
+  userId          String
+  groupId         String
+  role            MemberRole @default(MEMBER)
+  joinedAt        DateTime   @default(now())
+  lastSeen        DateTime   @default(now())
+  
+  // Group settings
+  isMuted         Boolean    @default(false)
+  muteUntil       DateTime?
+  notificationsEnabled Boolean @default(true)
+
+  // Relations
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group     ChatGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId])
+  @@map("chat_members")
+}
+
+model ChatMessage {
+  id          String      @id @default(cuid())
+  content     String?
+  messageType MessageType @default(TEXT)
+  mediaUrl    String?
+  fileName    String?
+  fileSize    Int?
+  replyToId   String?
+  editedAt    DateTime?
+  deletedAt   DateTime?   // Soft delete
+  isDeleted   Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+
+  // Relations
+  senderId    String
+  groupId     String
+  sender      User        @relation(fields: [senderId], references: [id])
+  group       ChatGroup   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  replyTo     ChatMessage? @relation("MessageReplies", fields: [replyToId], references: [id])
+  replies     ChatMessage[] @relation("MessageReplies")
+  
+  // New relations
+  messageStatus MessageStatus[]
+  reactions     MessageReaction[]
+
+  @@index([groupId, createdAt])
+  @@index([content]) // For search
+  @@map("chat_messages")
+}
+
+model MessageStatus {
+  id        String        @id @default(cuid())
+  messageId String
+  userId    String
+  status    DeliveryStatus @default(SENT)
+  timestamp DateTime      @default(now())
+
+  // Relations
+  message   ChatMessage   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id])
+
+  @@unique([messageId, userId])
+  @@map("message_status")
+}
+
+model MessageReaction {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  emoji     String   // Store emoji unicode
+  createdAt DateTime @default(now())
+
+  // Relations
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id])
+
+  @@unique([messageId, userId, emoji])
+  @@map("message_reactions")
+}
+
+model PinnedMessage {
+  id        String    @id @default(cuid())
+  messageId String
+  groupId   String
+  pinnedBy  String
+  pinnedAt  DateTime  @default(now())
+
+  group     ChatGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, groupId])
+  @@map("pinned_messages")
+}
+
+model Announcement {
+  id        String    @id @default(cuid())
+  title     String
+  content   String
+  groupId   String
+  createdBy String
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+
+  // Relations
+  creator   User      @relation(fields: [createdBy], references: [id])
+  group     ChatGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@map("announcements")
+}
+
+model Poll {
+  id          String     @id @default(cuid())
+  question    String
+  options     String[]
+  groupId     String
+  createdBy   String
+  expiresAt   DateTime?
+  allowMultiple Boolean  @default(false)
+  createdAt   DateTime   @default(now())
+
+  // Relations
+  creator     User       @relation(fields: [createdBy], references: [id])
+  group       ChatGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  votes       PollVote[]
+
+  @@map("polls")
+}
+
+model PollVote {
+  id        String   @id @default(cuid())
+  pollId    String
+  userId    String
+  options   Int[]    // Array of option indices
+  votedAt   DateTime @default(now())
+
+  // Relations
+  poll      Poll     @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([pollId, userId])
+  @@map("poll_votes")
+}
+
+enum MemberRole {
+  ADMIN
+  CO_ADMIN
+  MEMBER
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  FILE
+  POLL
+}
+
+enum DeliveryStatus {
+  SENT
+  DELIVERED
+  READ
+}
