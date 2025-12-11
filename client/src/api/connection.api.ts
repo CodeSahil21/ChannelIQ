@@ -18,7 +18,6 @@ import type {
 } from '../types/connection.types';
 
 const API_BASE = 'http://localhost:4000/api/connections';
-const USER_API_BASE = 'http://localhost:4000/api/users';
 
 const api = axios.create({
   baseURL: API_BASE,

@@ -28,7 +28,7 @@ export const ConnectionCard = ({ user, actions, onClick }: ConnectionCardProps) 
             <PresignedImage
               key={user.profilePic}
               fileName={user.profilePic}
-              alt={user.fullName}
+              alt={user.fullName || 'User'}
               className="w-16 h-16 rounded-2xl object-cover ring-2 ring-gray-200 dark:ring-gray-700"
               fallback={
                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
@@ -53,7 +53,7 @@ export const ConnectionCard = ({ user, actions, onClick }: ConnectionCardProps) 
         </div>
 
         <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-lg text-gray-900 dark:text-white truncate">{user.fullName}</h3>
+          <h3 className="font-bold text-lg text-gray-900 dark:text-white truncate">{user.fullName || 'Unknown User'}</h3>
           {user.jobTitle && (
             <p className="text-sm text-gray-600 dark:text-gray-400 truncate mt-0.5">{user.jobTitle}</p>
           )}

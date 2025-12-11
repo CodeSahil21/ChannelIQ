@@ -18,7 +18,7 @@ interface EditProfileProps {
 export const EditProfile: React.FC<EditProfileProps> = ({ profile, onCancel, onUpdate }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<CreateProfileFormData>({
-    fullName: profile.fullName,
+    fullName: profile.fullName || '',
     profilePic: profile.profilePic || '',
     jobTitle: profile.jobTitle || '',
     department: profile.department || '',
@@ -29,7 +29,7 @@ export const EditProfile: React.FC<EditProfileProps> = ({ profile, onCancel, onU
     timezone: profile.timezone || '',
     skills: profile.skills || [],
     languages: profile.languages || [],
-    managerId: profile.managerId,
+    managerId: profile.managerId || undefined,
     managerName: profile.managerName || '',
     linkedinUrl: profile.linkedinUrl || '',
     githubUrl: profile.githubUrl || '',

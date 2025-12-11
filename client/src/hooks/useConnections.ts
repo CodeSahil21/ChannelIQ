@@ -1,7 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { connectionApi } from '../api/connection.api';
 import toast from 'react-hot-toast';
-import { useDebounce } from '../utils/performance';
 import type { ConnectionResponse, ConnectionStatsResponse, ConnectionStatusString, SendConnectionRequestRequest, ConnectedUser } from '../types/connection.types';
 
 export const useConnections = () => {

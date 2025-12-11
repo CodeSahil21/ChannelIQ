@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FaUserPlus, FaUserCheck, FaClock, FaBan, FaUserMinus } from 'react-icons/fa';
+import { FaUserPlus, FaUserCheck, FaClock, FaBan } from 'react-icons/fa';
 import { useConnections } from '../../hooks/useConnections';
 import { SendRequestModal } from './SendRequestModal';
 import type { ConnectionStatusString } from '../../types/connection.types';
@@ -13,7 +13,7 @@ interface ConnectionButtonProps {
 export const ConnectionButton = ({ userId, userName }: ConnectionButtonProps) => {
   const [status, setStatus] = useState<ConnectionStatusString | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const { getConnectionStatus, removeConnection, blockUser, loading } = useConnections();
+  const { getConnectionStatus, removeConnection, loading } = useConnections();
 
   useEffect(() => {
     loadStatus();
@@ -29,10 +29,7 @@ export const ConnectionButton = ({ userId, userName }: ConnectionButtonProps) =>
     loadStatus();
   };
 
-  const handleBlock = async () => {
-    await blockUser(userId);
-    loadStatus();
-  };
+
 
   if (status === 'SELF') return null;
 
@@ -42,6 +39,12 @@ export const ConnectionButton = ({ userId, userName }: ConnectionButtonProps) =>
       text: 'Connect',
       className: 'bg-blue-600 hover:bg-blue-700 text-white',
       onClick: () => setShowModal(true),
+    },
+    PENDING: {
+      icon: FaClock,
+      text: 'Pending',
+      className: 'bg-yellow-500 text-white cursor-not-allowed',
+      onClick: () => {},
     },
     SENT: {
       icon: FaClock,
@@ -67,7 +70,7 @@ export const ConnectionButton = ({ userId, userName }: ConnectionButtonProps) =>
       className: 'bg-red-600 text-white cursor-not-allowed',
       onClick: () => {},
     },
-  };
+  } as const;
 
   const config = status ? buttonConfig[status] : null;
   if (!config) return null;
@@ -80,7 +83,7 @@ export const ConnectionButton = ({ userId, userName }: ConnectionButtonProps) =>
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={config.onClick}
-        disabled={loading || status === 'SENT' || status === 'BLOCKED'}
+        disabled={loading || status === 'PENDING' || status === 'BLOCKED'}
         className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${config.className}`}
       >
         <Icon />

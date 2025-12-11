@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaUnlock, FaBan, FaShieldAlt, FaEye } from 'react-icons/fa';
+import { FaUnlock, FaShieldAlt, FaEye } from 'react-icons/fa';
 import { useConnections } from '../../hooks/useConnections';
 import { useProfileContext } from '../../pages/Connections';
 
@@ -76,7 +76,7 @@ export const BlockedUsers = () => {
                   ) : (
                     <img 
                       src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.fullName || user.email || 'User')}&backgroundColor=6b7280`}
-                      alt={user.fullName || 'Profile'}
+                      alt={user.fullName || user.email || 'Profile'}
                     />
                   )}
                 </div>
