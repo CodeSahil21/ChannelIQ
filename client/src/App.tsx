@@ -15,7 +15,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Profile } from './pages/Profile';
 import { Preferences } from './pages/Preferences';
 import ConnectionsWithContext from './pages/Connections';
-
+import { ChatPage } from './pages/ChatPage';
 function AnimatedRoutes() {
   const location = useLocation();
   
@@ -52,6 +52,11 @@ function AnimatedRoutes() {
           <UserProtectWrapper>
             <ConnectionsWithContext />
           </UserProtectWrapper>
+        } />
+        <Route path="/chat" element={
+          <UserProtectWrapper>
+            <ChatPage />
+           </UserProtectWrapper>
         } />
       </Routes>
     </AnimatePresence>

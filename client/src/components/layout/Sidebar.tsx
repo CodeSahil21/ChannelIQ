@@ -1,16 +1,14 @@
 import React from 'react';
-import { HiHome, HiUser, HiCog, HiX, HiUserGroup } from 'react-icons/hi';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { HiHome, HiUser, HiCog, HiX, HiUserGroup, HiChat } from 'react-icons/hi';
+import { useNavigate } from 'react-router-dom';
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
-  onNavigate: (section: string) => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
-  const location = useLocation();
   
   const handleNavigation = (path: string) => {
     navigate(path);
@@ -56,6 +54,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onNavigate })
             >
               <HiUserGroup className="sidebar-icon" />
               <span>Connections</span>
+            </button>
+            
+            <button 
+              className="sidebar-item"
+              onClick={() => handleNavigation('/chat')}
+            >
+              <HiChat className="sidebar-icon" />
+              <span>Chat</span>
             </button>
           </div>
           

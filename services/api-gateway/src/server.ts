@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 4000;
 
 // CORS configuration
 app.use(cors({
-    origin: ['http://localhost:3000', 'http://localhost:4000'],
+    origin: ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:4000'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
@@ -154,6 +154,36 @@ app.use('/api/media', createProxyMiddleware({
     }
 }));
 
+// Groups/Chat Service Proxy
+app.use('/api/groups', createProxyMiddleware({
+    target: 'http://localhost:3004',
+    changeOrigin: true,
+    pathRewrite: {
+        '^/api/groups': '/groups'
+    },
+    onProxyReq: (proxyReq, req) => {
+        try {
+            proxyReq.removeHeader?.('if-none-match');
+            proxyReq.removeHeader?.('if-modified-since');
+        } catch (e) {}
+        console.log(`→ Groups: ${req.method} ${req.path} → /groups${req.path.replace('/api/groups', '')}`);
+    },
+    onProxyRes: (proxyRes, req) => {
+        delete proxyRes.headers['etag'];
+        proxyRes.headers['cache-control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate';
+        console.log(`← Groups: ${proxyRes.statusCode}`);
+    },
+    onError: (err, req, res) => {
+        console.error(`❌ Groups proxy error:`, err.message);
+        if (!res.headersSent) {
+            res.status(502).json({ 
+                success: false, 
+                message: 'Groups service unavailable' 
+            });
+        }
+    }
+}));
+
 // Catch-all
 app.use('*', (req, res) => {
     res.status(404).json({
@@ -171,6 +201,7 @@ app.listen(PORT, () => {
     console.log(`   /api/users/* → http://localhost:3002/api/v1/user-management/*`);
     console.log(`   /api/connections/* → http://localhost:3002/api/v1/connections/*`);
     console.log(`   /api/media/* → http://localhost:3003/api/v1/media/*`);
+    console.log(`   /api/groups/* → http://localhost:3004/groups/*`);
 });
 
 export default app;

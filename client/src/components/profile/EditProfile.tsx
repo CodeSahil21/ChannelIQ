@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { HiUser, HiBriefcase, HiGlobe, HiX } from 'react-icons/hi';
 import { Input } from '../ui/Input';

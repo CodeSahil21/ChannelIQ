@@ -4,8 +4,17 @@ import { mediaApi } from '../api/media.api';
 interface MediaState {
   uploading: boolean;
   deleting: boolean;
+  uploadingGroup: boolean;
+  deletingGroup: boolean;
   error: string | null;
   lastUploadedImage: {
+    fileName: string;
+    fileUrl: string;
+    fileSize: number;
+    mimeType: string;
+  } | null;
+  lastUploadedGroupImage: {
+    groupId: string;
     fileName: string;
     fileUrl: string;
     fileSize: number;
@@ -16,8 +25,11 @@ interface MediaState {
 const initialState: MediaState = {
   uploading: false,
   deleting: false,
+  uploadingGroup: false,
+  deletingGroup: false,
   error: null,
   lastUploadedImage: null,
+  lastUploadedGroupImage: null,
 };
 
 // Async thunks
@@ -53,6 +65,38 @@ export const deleteProfileImage = createAsyncThunk(
   }
 );
 
+export const uploadGroupProfileImage = createAsyncThunk(
+  'media/uploadGroupProfileImage',
+  async ({ groupId, file }: { groupId: string; file: File }, { rejectWithValue }) => {
+    try {
+      const response = await mediaApi.uploadGroupProfileImage(groupId, file);
+      if (response.data.success && response.data.data) {
+        return { groupId, ...response.data.data };
+      } else {
+        return rejectWithValue(response.data.msg || 'Failed to upload group image');
+      }
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.msg || 'Failed to upload group image');
+    }
+  }
+);
+
+export const deleteGroupProfileImage = createAsyncThunk(
+  'media/deleteGroupProfileImage',
+  async ({ groupId, fileName }: { groupId: string; fileName: string }, { rejectWithValue }) => {
+    try {
+      const response = await mediaApi.deleteGroupProfileImage(groupId, fileName);
+      if (response.data.success) {
+        return groupId;
+      } else {
+        return rejectWithValue(response.data.msg || 'Failed to delete group image');
+      }
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.msg || 'Failed to delete group image');
+    }
+  }
+);
+
 const mediaSlice = createSlice({
   name: 'media',
   initialState,
@@ -62,6 +106,9 @@ const mediaSlice = createSlice({
     },
     clearLastUpload: (state) => {
       state.lastUploadedImage = null;
+    },
+    clearLastGroupUpload: (state) => {
+      state.lastUploadedGroupImage = null;
     },
   },
   extraReducers: (builder) => {
@@ -92,9 +139,37 @@ const mediaSlice = createSlice({
       .addCase(deleteProfileImage.rejected, (state, action) => {
         state.deleting = false;
         state.error = (action.payload as string) || action.error.message || 'Failed to delete image';
+      })
+
+      // Upload group profile image
+      .addCase(uploadGroupProfileImage.pending, (state) => {
+        state.uploadingGroup = true;
+        state.error = null;
+      })
+      .addCase(uploadGroupProfileImage.fulfilled, (state, action) => {
+        state.uploadingGroup = false;
+        state.lastUploadedGroupImage = action.payload || null;
+      })
+      .addCase(uploadGroupProfileImage.rejected, (state, action) => {
+        state.uploadingGroup = false;
+        state.error = (action.payload as string) || action.error.message || 'Failed to upload group image';
+      })
+
+      // Delete group profile image
+      .addCase(deleteGroupProfileImage.pending, (state) => {
+        state.deletingGroup = true;
+        state.error = null;
+      })
+      .addCase(deleteGroupProfileImage.fulfilled, (state) => {
+        state.deletingGroup = false;
+        state.lastUploadedGroupImage = null;
+      })
+      .addCase(deleteGroupProfileImage.rejected, (state, action) => {
+        state.deletingGroup = false;
+        state.error = (action.payload as string) || action.error.message || 'Failed to delete group image';
       });
   },
 });
 
-export const { clearError, clearLastUpload } = mediaSlice.actions;
+export const { clearError, clearLastUpload, clearLastGroupUpload } = mediaSlice.actions;
 export default mediaSlice.reducer;

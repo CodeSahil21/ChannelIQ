@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { HiUser, HiBriefcase, HiMail, HiPhone, HiLocationMarker, HiGlobe } from 'react-icons/hi';
+import { HiUser, HiBriefcase, HiGlobe } from 'react-icons/hi';
 import { Input } from '../ui/Input';
 import { TextArea } from '../ui/TextArea';
 import { TagInput } from '../ui/TagInput';
@@ -120,7 +120,7 @@ export const CreateProfile: React.FC<CreateProfileProps> = ({ onProfileCreated }
               <Input
                 label="Full Name *"
                 value={formData.fullName}
-                onChange={(e) => setFormData({...formData, fullName: e.target.value})}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, fullName: e.target.value})}
                 placeholder="Enter your full name"
                 required
               />
@@ -128,14 +128,14 @@ export const CreateProfile: React.FC<CreateProfileProps> = ({ onProfileCreated }
               <Input
                 label="Job Title"
                 value={formData.jobTitle || ''}
-                onChange={(e) => setFormData({...formData, jobTitle: e.target.value})}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, jobTitle: e.target.value})}
                 placeholder="Software Engineer"
               />
               
               <Input
                 label="Department"
                 value={formData.department || ''}
-                onChange={(e) => setFormData({...formData, department: e.target.value})}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, department: e.target.value})}
                 placeholder="Engineering"
               />
               
@@ -143,7 +143,7 @@ export const CreateProfile: React.FC<CreateProfileProps> = ({ onProfileCreated }
                 label="Work Email"
                 type="email"
                 value={formData.workEmail || ''}
-                onChange={(e) => setFormData({...formData, workEmail: e.target.value})}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, workEmail: e.target.value})}
                 placeholder="your.name@company.com"
               />
             </div>
@@ -167,28 +167,28 @@ export const CreateProfile: React.FC<CreateProfileProps> = ({ onProfileCreated }
               <Input
                 label="Phone Number"
                 value={formData.phoneNumber || ''}
-                onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, phoneNumber: e.target.value})}
                 placeholder="+1 (555) 123-4567"
               />
               
               <Input
                 label="Location"
                 value={formData.location || ''}
-                onChange={(e) => setFormData({...formData, location: e.target.value})}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, location: e.target.value})}
                 placeholder="San Francisco, CA"
               />
               
               <Input
                 label="Manager Name"
                 value={formData.managerName || ''}
-                onChange={(e) => setFormData({...formData, managerName: e.target.value})}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, managerName: e.target.value})}
                 placeholder="Manager's name"
               />
               
               <TextArea
                 label="Bio"
                 value={formData.bio || ''}
-                onChange={(e) => setFormData({...formData, bio: e.target.value})}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFormData({...formData, bio: e.target.value})}
                 placeholder="Tell us about yourself..."
                 rows={3}
               />
@@ -227,28 +227,28 @@ export const CreateProfile: React.FC<CreateProfileProps> = ({ onProfileCreated }
               <Input
                 label="LinkedIn URL"
                 value={formData.linkedinUrl || ''}
-                onChange={(e) => setFormData({...formData, linkedinUrl: e.target.value})}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, linkedinUrl: e.target.value})}
                 placeholder="https://linkedin.com/in/username"
               />
               
               <Input
                 label="GitHub URL"
                 value={formData.githubUrl || ''}
-                onChange={(e) => setFormData({...formData, githubUrl: e.target.value})}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, githubUrl: e.target.value})}
                 placeholder="https://github.com/username"
               />
               
               <Input
                 label="Portfolio URL"
                 value={formData.portfolioUrl || ''}
-                onChange={(e) => setFormData({...formData, portfolioUrl: e.target.value})}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, portfolioUrl: e.target.value})}
                 placeholder="https://yourportfolio.com"
               />
               
               <Input
                 label="Twitter URL"
                 value={formData.twitterUrl || ''}
-                onChange={(e) => setFormData({...formData, twitterUrl: e.target.value})}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, twitterUrl: e.target.value})}
                 placeholder="https://twitter.com/username"
               />
             </div>

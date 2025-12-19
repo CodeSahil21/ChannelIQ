@@ -215,6 +215,10 @@ const connectionSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    refreshConnectionsNeeded: (state) => {
+      // Flag that connections need to be refreshed
+      state.error = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -321,5 +325,5 @@ const connectionSlice = createSlice({
   },
 });
 
-export const { clearError } = connectionSlice.actions;
+export const { clearError, refreshConnectionsNeeded } = connectionSlice.actions;
 export default connectionSlice.reducer;

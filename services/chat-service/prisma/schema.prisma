@@ -8,210 +8,260 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id          String   @id
-  email       String   @unique
-  fullName    String
-  profileUrl  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 
-  // Relations
-  groupsCreated     ChatGroup[]       @relation("GroupAdmin")
-  memberships       ChatMember[]
-  messages          ChatMessage[]
-  polls             Poll[]
-  pollVotes         PollVote[]
-  announcements     Announcement[]
-  messageStatus     MessageStatus[]
-  reactions         MessageReaction[]
-
-  @@map("users")
-}
-
-model ChatGroup {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  avatar      String?
-  isPrivate   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Admin
-  adminId     String
-  admin       User     @relation("GroupAdmin", fields: [adminId], references: [id])
-
-  // Relations
-  members         ChatMember[]
-  messages        ChatMessage[]
-  pinnedMessages  PinnedMessage[]
-  announcements   Announcement[]
-  polls           Poll[]
-
-  @@map("chat_groups")
-}
-
-model ChatMember {
-  id              String     @id @default(cuid())
-  userId          String
-  groupId         String
-  role            MemberRole @default(MEMBER)
-  joinedAt        DateTime   @default(now())
-  lastSeen        DateTime   @default(now())
-  
-  // Group settings
-  isMuted         Boolean    @default(false)
-  muteUntil       DateTime?
-  notificationsEnabled Boolean @default(true)
-
-  // Relations
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  group     ChatGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, groupId])
-  @@map("chat_members")
-}
-
-model ChatMessage {
-  id          String      @id @default(cuid())
-  content     String?
-  messageType MessageType @default(TEXT)
-  mediaUrl    String?
-  fileName    String?
-  fileSize    Int?
-  replyToId   String?
-  editedAt    DateTime?
-  deletedAt   DateTime?   // Soft delete
-  isDeleted   Boolean     @default(false)
-  createdAt   DateTime    @default(now())
-
-  // Relations
-  senderId    String
-  groupId     String
-  sender      User        @relation(fields: [senderId], references: [id])
-  group       ChatGroup   @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  replyTo     ChatMessage? @relation("MessageReplies", fields: [replyToId], references: [id])
-  replies     ChatMessage[] @relation("MessageReplies")
-  
-  // New relations
-  messageStatus MessageStatus[]
-  reactions     MessageReaction[]
-
-  @@index([groupId, createdAt])
-  @@index([content]) // For search
-  @@map("chat_messages")
-}
-
-model MessageStatus {
-  id        String        @id @default(cuid())
-  messageId String
-  userId    String
-  status    DeliveryStatus @default(SENT)
-  timestamp DateTime      @default(now())
-
-  // Relations
-  message   ChatMessage   @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  user      User          @relation(fields: [userId], references: [id])
-
-  @@unique([messageId, userId])
-  @@map("message_status")
-}
-
-model MessageReaction {
-  id        String   @id @default(cuid())
-  messageId String
-  userId    String
-  emoji     String   // Store emoji unicode
-  createdAt DateTime @default(now())
-
-  // Relations
-  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  user      User        @relation(fields: [userId], references: [id])
-
-  @@unique([messageId, userId, emoji])
-  @@map("message_reactions")
-}
-
-model PinnedMessage {
-  id        String    @id @default(cuid())
-  messageId String
-  groupId   String
-  pinnedBy  String
-  pinnedAt  DateTime  @default(now())
-
-  group     ChatGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-
-  @@unique([messageId, groupId])
-  @@map("pinned_messages")
-}
-
-model Announcement {
-  id        String    @id @default(cuid())
-  title     String
-  content   String
-  groupId   String
-  createdBy String
-  expiresAt DateTime?
-  createdAt DateTime  @default(now())
-
-  // Relations
-  creator   User      @relation(fields: [createdBy], references: [id])
-  group     ChatGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-
-  @@map("announcements")
-}
-
-model Poll {
-  id          String     @id @default(cuid())
-  question    String
-  options     String[]
-  groupId     String
-  createdBy   String
-  expiresAt   DateTime?
-  allowMultiple Boolean  @default(false)
-  createdAt   DateTime   @default(now())
-
-  // Relations
-  creator     User       @relation(fields: [createdBy], references: [id])
-  group       ChatGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  votes       PollVote[]
-
-  @@map("polls")
-}
-
-model PollVote {
-  id        String   @id @default(cuid())
-  pollId    String
-  userId    String
-  options   Int[]    // Array of option indices
-  votedAt   DateTime @default(now())
-
-  // Relations
-  poll      Poll     @relation(fields: [pollId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id])
-
-  @@unique([pollId, userId])
-  @@map("poll_votes")
-}
-
-enum MemberRole {
+enum GroupRole {
   ADMIN
   CO_ADMIN
   MEMBER
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum RequestType {
+  INVITE       // Admin invites User
+  JOIN_REQUEST // User asks to join
 }
 
 enum MessageType {
   TEXT
   IMAGE
   VIDEO
-  AUDIO
   FILE
   POLL
+  ANNOUNCEMENT // System message
 }
 
 enum DeliveryStatus {
   SENT
   DELIVERED
   READ
+}
+
+model User {
+  id         Int      @id 
+  email      String   @unique
+  fullName   String
+  profileUrl String?
+  
+  // Relations
+  memberships      GroupMember[]
+  messages         Message[]
+  createdGroups    Group[]           @relation("GroupCreator")
+  
+  // Unified Requests (Cleaner than splitting tables)
+  sentRequests     GroupRequest[]    @relation("RequestSender")
+  receivedRequests GroupRequest[]    @relation("RequestReceiver")
+  
+  votes            PollVote[]
+  messageStatus    MessageStatus[]
+  reactions        MessageReaction[]
+  pinnedMessages   PinnedMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("users")
+}
+
+model Group {
+  id          String   @id @default(uuid()) // UUID is safer for microservices
+  name        String
+  description String?
+  imageUrl    String?
+  
+  isPrivate   Boolean  @default(false)
+  maxMembers  Int      @default(256)
+  
+  creatorId   Int
+  creator     User     @relation("GroupCreator", fields: [creatorId], references: [id])
+
+  members     GroupMember[]
+  messages    Message[]
+  requests    GroupRequest[]
+  pinnedMsgs  PinnedMessage[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+  @@index([creatorId])
+  @@index([isPrivate])
+  @@map("groups")
+}
+
+model GroupMember {
+  id        String    @id @default(uuid())
+  userId    Int
+  groupId   String
+  role      GroupRole @default(MEMBER)
+  
+  // Mute/Settings (From your schema - good addition)
+  isMuted   Boolean   @default(false)
+  muteUntil DateTime?
+  
+  joinedAt  DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group     Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId])
+  @@index([groupId]) // Speed up "Get all members"
+  @@index([userId]) // Speed up user's groups
+  @@index([role]) // Speed up admin queries
+  @@map("group_members")
+}
+
+// Unified Request Model (Less Complex than 2 tables)
+model GroupRequest {
+  id        String        @id @default(uuid())
+  type      RequestType
+  status    RequestStatus @default(PENDING)
+  message   String?       // Optional message for join requests/invites
+  
+  groupId   String
+  group     Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  senderId  Int
+  sender    User          @relation("RequestSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  receiverId Int?
+  receiver   User?        @relation("RequestReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@unique([groupId, senderId, receiverId, type])
+  @@index([receiverId, status]) // Fast: "Show my pending invites"
+  @@index([senderId, status]) // Fast: "Show my sent requests"
+  @@index([groupId, status]) // Fast: "Show group requests"
+  @@map("group_requests")
+}
+
+model Message {
+  id        String      @id @default(uuid())
+  content   String?
+  type      MessageType @default(TEXT)
+  fileUrl   String?
+  
+  // Threading (From your schema)
+  replyToId String?     // Must be String to match Message ID
+  replyTo   Message?    @relation("ReplyRelation", fields: [replyToId], references: [id])
+  replies   Message[]   @relation("ReplyRelation")
+
+  groupId   String
+  group     Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  senderId  Int
+  sender    User        @relation(fields: [senderId], references: [id])
+
+  // Features
+  poll      Poll?
+  statuses  MessageStatus[]
+  reactions MessageReaction[]
+  pinned    PinnedMessage?
+
+  isDeleted Boolean     @default(false)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  
+  @@index([groupId, createdAt]) // Critical for chat history pagination
+  @@index([senderId]) // Fast sender lookups
+  @@index([type]) // Fast message type filtering
+  @@map("messages")
+}
+
+// --------------------------------------
+// Features (Reactions, Read Receipts, Pinned)
+// --------------------------------------
+
+model MessageStatus {
+  id        String         @id @default(uuid())
+  messageId String
+  userId    Int
+  status    DeliveryStatus @default(SENT)
+  updatedAt DateTime       @default(now())
+
+  message   Message        @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId]) // One status per user per message
+  @@index([userId, status]) // Fast user status queries
+  @@map("message_statuses")
+}
+
+model MessageReaction {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    Int
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@map("message_reactions")
+}
+
+model PinnedMessage {
+  id        String   @id @default(uuid())
+  messageId String   @unique // Only pin a message once
+  groupId   String
+  pinnedBy  Int
+  pinnedAt  DateTime @default(now())
+
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [pinnedBy], references: [id], onDelete: Cascade)
+
+  @@index([groupId]) // Fast: "Get pinned messages for this group"
+  @@map("pinned_messages")
+}
+
+// --------------------------------------
+// Poll System (Relational is better than Array)
+// --------------------------------------
+
+model Poll {
+  id        String   @id @default(uuid())
+  question  String
+  
+  // Config
+  allowMultiple Boolean @default(false)
+  expiresAt     DateTime?
+
+  messageId String   @unique
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  options   PollOption[]
+  @@map("polls")
+}
+
+model PollOption {
+  id        String   @id @default(uuid())
+  text      String
+  
+  pollId    String
+  poll      Poll     @relation(fields: [pollId], references: [id], onDelete: Cascade)
+
+  votes     PollVote[]
+  @@index([pollId])
+  @@map("poll_options")
+}
+
+model PollVote {
+  id        String   @id @default(uuid())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  optionId  String
+  option    PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, optionId])
+  @@index([optionId]) // Fast: Count votes for an option
+  @@map("poll_votes")
 }

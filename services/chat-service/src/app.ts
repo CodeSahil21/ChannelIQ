@@ -8,13 +8,15 @@ import { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import { isKafkaHealthy } from './kafka/kafkaManager';
 import prisma from './db';
+import { connectRedis, redis } from './redis';
+import groupRouter from './routes/group.route';
 
 const app = express();
 
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production' 
     ? process.env.FRONTEND_URLS?.split(',') || ['http://localhost:3000']
-    : ['http://localhost:3000', 'http://localhost:5173'], // React/Vite defaults
+    : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:4000'], // React/Vite + API Gateway
   credentials: true, // Allow cookies
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -42,13 +44,24 @@ app.get('/health', async (_req, res) => {
       console.error('Database health check failed:', dbError);
     }
     
-    const overallStatus = kafkaStatus && dbStatus;
+    // Add Redis health check
+    let redisStatus = false;
+    try {
+      await connectRedis();
+      await redis.ping();
+      redisStatus = true;
+    } catch (redisError) {
+      console.error('Redis health check failed:', redisError);
+    }
+    
+    const overallStatus = kafkaStatus && dbStatus && redisStatus;
     
     res.status(overallStatus ? 200 : 503).json({ 
       status: overallStatus ? 'healthy' : 'degraded',
       services: {
         kafka: kafkaStatus ? 'connected' : 'disconnected',
-        database: dbStatus ? 'connected' : 'disconnected'
+        database: dbStatus ? 'connected' : 'disconnected',
+        redis: redisStatus ? 'connected' : 'disconnected'
       },
       timestamp: new Date().toISOString()
     });
@@ -61,6 +74,8 @@ app.get('/health', async (_req, res) => {
   }
 });
 
+// Register routes
+app.use('/groups', groupRouter);
 
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error(err.stack);

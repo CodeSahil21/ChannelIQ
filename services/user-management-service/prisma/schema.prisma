@@ -5,7 +5,10 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  // url      = env("DATABASE_URL")
+  
 }
+
 
 // Simple enum for user status
 enum UserStatus {

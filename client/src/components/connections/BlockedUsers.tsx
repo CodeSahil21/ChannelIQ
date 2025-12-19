@@ -72,7 +72,7 @@ export const BlockedUsers = () => {
               <div className="blocked-user-content">
                 <div className="blocked-user-avatar">
                   {user.profilePic ? (
-                    <img src={user.profilePic} alt={user.fullName} />
+                    <img src={user.profilePic} alt={user.fullName || 'Profile'} />
                   ) : (
                     <img 
                       src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.fullName || user.email || 'User')}&backgroundColor=6b7280`}

@@ -10,6 +10,7 @@ Central routing service that proxies requests to microservices.
 - `/api/users/*` → User Management Service (3002) 
 - `/api/connections/*` → User Management Service (3002)
 - `/api/media/*` → Media Service (3003)
+- `/api/chat/*` → Chat Service (3004)
 
 ## Features
 

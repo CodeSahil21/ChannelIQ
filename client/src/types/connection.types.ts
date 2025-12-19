@@ -30,6 +30,8 @@ export type ConnectionResponse = {
 export type ConnectionStatsResponse = {
   totalAcceptedConnections: number;
   totalPendingConnections: number;
+  totalSentConnections: number;
+  totalBlockedUsers: number;
 };
 
 export type ConnectedUser = {

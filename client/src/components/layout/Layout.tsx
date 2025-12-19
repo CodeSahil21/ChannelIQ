@@ -17,7 +17,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <Sidebar 
           isOpen={sidebarOpen} 
           onClose={() => setSidebarOpen(false)}
-          onNavigate={() => {}}
         />
         <main className="main-content">
           {children}

@@ -71,7 +71,7 @@ export const PendingRequests = () => {
             <div className="request-card-content">
               <div className="request-user-avatar">
                 {request.sender?.profilePic ? (
-                  <img src={request.sender.profilePic} alt={request.sender.fullName} />
+                  <img src={request.sender.profilePic} alt={request.sender.fullName || 'Profile'} />
                 ) : (
                   <img 
                     src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(request.sender?.fullName || request.sender?.email || 'User')}&backgroundColor=2a5298`}

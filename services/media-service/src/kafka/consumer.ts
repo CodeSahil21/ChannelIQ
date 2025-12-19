@@ -15,6 +15,9 @@ export const startConsumer = async (): Promise<void> => {
 
           // Handle user events if needed for media service
           switch (eventData.eventType) {
+            case 'USER_REGISTERED':
+              console.log(`👤 User registered: ${eventData.userId} (${eventData.email})`);
+              break;
             case 'USER_DELETED':
               // Clean up user's media files
               console.log(`🗑️ User deleted, cleaning up media for user: ${eventData.userId}`);

@@ -16,6 +16,7 @@ export interface MediaUploadResponse {
     fileUrl: string;
     fileSize: number;
     mimeType: string;
+    groupId?: string;
   };
 }
 
@@ -37,6 +38,23 @@ export const mediaApi = {
 
   deleteProfileImage: (fileName: string): Promise<{ data: MediaUploadResponse }> => {
     return mediaApiClient.delete<MediaUploadResponse>('/delete-profile-image', {
+      data: { fileName }
+    });
+  },
+
+  uploadGroupProfileImage: (groupId: string, file: File): Promise<{ data: MediaUploadResponse }> => {
+    const formData = new FormData();
+    formData.append('groupProfileImage', file);
+    
+    return mediaApiClient.post<MediaUploadResponse>(`/group-profile-images/${groupId}/upload`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+
+  deleteGroupProfileImage: (groupId: string, fileName: string): Promise<{ data: MediaUploadResponse }> => {
+    return mediaApiClient.delete<MediaUploadResponse>(`/group-profile-images/${groupId}/delete`, {
       data: { fileName }
     });
   }

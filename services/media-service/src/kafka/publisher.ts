@@ -1,7 +1,7 @@
 import { kafkaProducer } from './kafkaManager';
 
 export interface MediaEvent {
-  eventType: 'PROFILE_IMAGE_UPLOADED' | 'PROFILE_IMAGE_DELETED';
+  eventType: 'PROFILE_IMAGE_UPLOADED' | 'PROFILE_IMAGE_DELETED' | 'GROUP_PROFILE_IMAGE_UPLOADED' | 'GROUP_PROFILE_IMAGE_DELETED';
   userId: string;
   imageUrl?: string;
   timestamp: string;
@@ -10,6 +10,7 @@ export interface MediaEvent {
     fileSize?: number;
     mimeType?: string;
     originalName?: string;
+    groupId?: string;
   };
 }
 
@@ -24,7 +25,9 @@ export const publishMediaEvent = async (event: MediaEvent): Promise<void> => {
         headers: {
           eventType: event.eventType,
           userId: event.userId,
-          source: 'media-service'
+          source: 'media-service',
+          targetService: 'chat-service',
+          version: '1.0'
         }
       }]
     };

@@ -184,7 +184,7 @@ export const checkProfileCompletion = async (id: number): Promise<boolean> => {
 export const updateUserProfile = async(id:number, data:UpdateUserProfile):Promise<UserProfileResponse>=>{
     const user = await prisma.user.findUnique({
         where: { id: id },
-        select: { profileCreated: true, isDeleted: true }
+        select: { profileCreated: true, isDeleted: true, fullName: true }
     });
     
     if (!user || user.isDeleted) {
@@ -192,6 +192,9 @@ export const updateUserProfile = async(id:number, data:UpdateUserProfile):Promis
     } else if(!user.profileCreated){
         throw new Error("Profile not created yet");
     }
+    
+    // Check if fullName is being updated
+    const isFullNameUpdated = data.fullName && data.fullName !== user.fullName;
     
     // Calculate profile completion percentage
     const completion = calculateProfileCompletion({...data});
@@ -214,6 +217,19 @@ export const updateUserProfile = async(id:number, data:UpdateUserProfile):Promis
         // Then update the search vector using raw SQL
         if (searchText) {
             await tx.$executeRaw`UPDATE "users" SET "searchVector" = to_tsvector('english', ${searchText}) WHERE "id" = ${id}`;
+        }
+        
+        // Publish fullName update event if changed
+        if (isFullNameUpdated) {
+            try {
+                await eventPublisher.publishUserFullNameUpdated({
+                    userId: id,
+                    fullName: data.fullName!
+                });
+            } catch (eventError) {
+                console.error(`Failed to publish fullName update event for user ${id}:`, eventError);
+                throw new Error("Failed to publish fullName update event. Please try again later.");
+            }
         }
         
         return updated;
@@ -262,6 +278,14 @@ export const deleteUserProfile = async (id: number, deletedBy?: number, userAgen
                 deletedAt: new Date()
             }
         });
+        
+        // Publish profile deletion event
+        try {
+            await eventPublisher.publishUserProfileDeleted({ userId: id });
+        } catch (eventError) {
+            console.error(`Failed to publish profile deletion event for user ${id}:`, eventError);
+            throw new Error("Failed to publish profile deletion event. Please try again later.");
+        }
     });
     
     // Log the activity
