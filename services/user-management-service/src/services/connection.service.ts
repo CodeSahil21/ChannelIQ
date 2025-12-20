@@ -526,23 +526,22 @@ export const getPendingRequests = async (userId: number): Promise<ConnectionResp
             return cached;
         }
         
+        // Optimized query with minimal includes
         const connections = await prisma.connection.findMany({
             where: {
                 receiverId: userId,
                 status: ConnectionStatus.PENDING,
                 isDeleted: false
             },
-            include: {
+            select: {
+                id: true,
+                senderId: true,
+                receiverId: true,
+                status: true,
+                message: true,
+                createdAt: true,
+                updatedAt: true,
                 sender: {
-                    select: {
-                        id: true,
-                        fullName: true,
-                        profilePic: true,
-                        jobTitle: true,
-                        department: true
-                    }
-                },
-                receiver: {
                     select: {
                         id: true,
                         fullName: true,
@@ -564,33 +563,22 @@ export const getPendingRequests = async (userId: number): Promise<ConnectionResp
             sender: {
                 id: connection.sender.id,
                 fullName: connection.sender.fullName ?? "",
-                ...(connection.sender.profilePic !== null && connection.sender.profilePic !== undefined ? { profilePic: connection.sender.profilePic } : {}),
-                ...(connection.sender.jobTitle !== null && connection.sender.jobTitle !== undefined ? { jobTitle: connection.sender.jobTitle } : {}),
-                ...(connection.sender.department !== null && connection.sender.department !== undefined ? { department: connection.sender.department } : {})
+                ...(connection.sender.profilePic ? { profilePic: connection.sender.profilePic } : {}),
+                ...(connection.sender.jobTitle ? { jobTitle: connection.sender.jobTitle } : {}),
+                ...(connection.sender.department ? { department: connection.sender.department } : {})
             },
             receiver: {
-                id: connection.receiver.id,
-                fullName: connection.receiver.fullName ?? "",
-                ...(connection.receiver.profilePic !== null && connection.receiver.profilePic !== undefined ? { profilePic: connection.receiver.profilePic } : {}),
-                ...(connection.receiver.jobTitle !== null && connection.receiver.jobTitle !== undefined ? { jobTitle: connection.receiver.jobTitle } : {}),
-                ...(connection.receiver.department !== null && connection.receiver.department !== undefined ? { department: connection.receiver.department } : {})
+                id: userId,
+                fullName: ""
             },
             createdAt: connection.createdAt,
             updatedAt: connection.updatedAt
         }));
         
-        // Process profile images
-        const processedResponses = await processProfileImages(responses.map(r => ({ ...r.sender, ...r.receiver })));
-        const finalResponses = responses.map((response, index) => ({
-            ...response,
-            sender: processedResponses[index * 2] || response.sender,
-            receiver: processedResponses[index * 2 + 1] || response.receiver
-        }));
-        
         // Store in cache
-        await setCache(cacheKey, finalResponses, 300); // 5 minutes
+        await setCache(cacheKey, responses, 300); // 5 minutes
         
-        return finalResponses;
+        return responses;
     } catch (error) {
         throw error;
     }
@@ -606,22 +594,21 @@ export const getSentRequests = async (userId: number): Promise<ConnectionRespons
             return cached;
         }
         
+        // Optimized query with minimal includes
         const connections = await prisma.connection.findMany({
             where: {
                 senderId: userId,
                 status: ConnectionStatus.PENDING,
                 isDeleted: false
             },
-            include: {
-                sender: {
-                    select: {
-                        id: true,
-                        fullName: true,
-                        profilePic: true,
-                        jobTitle: true,
-                        department: true
-                    }
-                },
+            select: {
+                id: true,
+                senderId: true,
+                receiverId: true,
+                status: true,
+                message: true,
+                createdAt: true,
+                updatedAt: true,
                 receiver: {
                     select: {
                         id: true,
@@ -642,37 +629,24 @@ export const getSentRequests = async (userId: number): Promise<ConnectionRespons
             status: connection.status as ConnectionStatus,
             message: connection.message ?? "",
             sender: {
-                id: connection.sender.id,
-                fullName: connection.sender.fullName ?? "",
-                ...(connection.sender.profilePic !== null && connection.sender.profilePic !== undefined ? { profilePic: connection.sender.profilePic } : {}),
-                ...(connection.sender.jobTitle !== null && connection.sender.jobTitle !== undefined ? { jobTitle: connection.sender.jobTitle } : {}),
-                ...(connection.sender.department !== null && connection.sender.department !== undefined ? { department: connection.sender.department } : {})
+                id: userId,
+                fullName: ""
             },
             receiver: {
                 id: connection.receiver.id,
                 fullName: connection.receiver.fullName ?? "",
-                ...(connection.receiver.profilePic !== null && connection.receiver.profilePic !== undefined ? { profilePic: connection.receiver.profilePic } : {}),
-                ...(connection.receiver.jobTitle !== null && connection.receiver.jobTitle !== undefined ? { jobTitle: connection.receiver.jobTitle } : {}),
-                ...(connection.receiver.department !== null && connection.receiver.department !== undefined ? { department: connection.receiver.department } : {})
+                ...(connection.receiver.profilePic ? { profilePic: connection.receiver.profilePic } : {}),
+                ...(connection.receiver.jobTitle ? { jobTitle: connection.receiver.jobTitle } : {}),
+                ...(connection.receiver.department ? { department: connection.receiver.department } : {})
             },
             createdAt: connection.createdAt,
             updatedAt: connection.updatedAt
         }));
         
-        // Process profile images for both sender and receiver
-        const allUsers = responses.flatMap(r => [r.sender, r.receiver]);
-        const processedUsers = await processProfileImages(allUsers);
-        
-        const finalResponses = responses.map((response, index) => ({
-            ...response,
-            sender: processedUsers[index * 2],
-            receiver: processedUsers[index * 2 + 1]
-        }));
-        
         // Store in cache
-        await setCache(cacheKey, finalResponses, 300); // 5 minutes
+        await setCache(cacheKey, responses, 300); // 5 minutes
 
-        return finalResponses;
+        return responses;
     } catch (error) {
         throw error;
     }
@@ -691,6 +665,7 @@ export const getConnections = async (userId: number): Promise<ConnectionResponse
             return cached;
         }
         
+        // Optimized single query
         const connections = await prisma.connection.findMany({
             where: {
                 status: ConnectionStatus.ACCEPTED,
@@ -700,16 +675,21 @@ export const getConnections = async (userId: number): Promise<ConnectionResponse
                     { receiverId: userId }
                 ]
             },
-            include: {
+            select: {
+                id: true,
+                senderId: true,
+                receiverId: true,
+                status: true,
+                message: true,
+                createdAt: true,
+                updatedAt: true,
                 sender: {
                     select: {
                         id: true,
                         fullName: true,
                         profilePic: true,
                         jobTitle: true,
-                        department: true,
-                        isOnline: true,
-                        lastSeen: true
+                        department: true
                     }
                 },
                 receiver: {
@@ -718,9 +698,7 @@ export const getConnections = async (userId: number): Promise<ConnectionResponse
                         fullName: true,
                         profilePic: true,
                         jobTitle: true,
-                        department: true,
-                        isOnline: true, 
-                        lastSeen: true  
+                        department: true
                     }
                 }
             },
@@ -752,17 +730,10 @@ export const getConnections = async (userId: number): Promise<ConnectionResponse
             };
         });
         
-        // Process profile images
-        const processedResults = await processProfileImages(results.map(r => r.sender));
-        const finalResults = results.map((result, index) => ({
-            ...result,
-            sender: processedResults[index]
-        }));
-        
         // Store in cache
-        await setCache(cacheKey, finalResults, 600); // 10 minutes
+        await setCache(cacheKey, results, 600); // 10 minutes
         
-        return finalResults;
+        return results;
     } catch (error) {
         throw error;
     }

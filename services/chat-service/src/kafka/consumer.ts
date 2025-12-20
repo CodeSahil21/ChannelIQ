@@ -2,27 +2,25 @@ import { kafkaConsumer } from './kafkaManager';
 import { CreateUserService, updateUserFullName, updateUserProfileUrl, deleteUserById } from '../services/user.service';
 import { updateGroupProfileImage } from '../services/group.service';
 import { MediaEvent } from '../utils/types';
-
+import { EachMessagePayload } from 'kafkajs';
 
 export const startConsumer = async (): Promise<void> => {
   try {
     console.log('🔄 Starting Kafka consumer...');
 
-    // Subscribe to all required topics
     await kafkaConsumer.subscribe({
       topics: ['user-management-events', 'chat-events', 'media-events'],
       fromBeginning: false
     });
 
     await kafkaConsumer.run({
-      eachMessage: async ({ topic, partition, message, heartbeat }) => {
+      eachMessage: async ({ topic, partition, message, heartbeat }: EachMessagePayload) => {
         try {
-          // Add heartbeat at the start
           await heartbeat();
           
           const value = message.value?.toString();
           if (!value) {
-            await heartbeat(); // Even for empty messages
+            await heartbeat();
             return;
           }
 
@@ -34,11 +32,10 @@ export const startConsumer = async (): Promise<void> => {
             userId: parsedMessage.userId
           });
 
-          // Handle different topics with appropriate handlers
           switch (topic) {
             case 'user-management-events':
               await heartbeat();
-              await handleChatEvent(parsedMessage);
+              await handleUserManagementEvent(parsedMessage);
               await heartbeat();
               break;
               
@@ -61,13 +58,11 @@ export const startConsumer = async (): Promise<void> => {
 
         } catch (error) {
           console.error(`❌ Error processing message from ${topic}:`, error);
-          // Still call heartbeat on error to maintain session
           try {
             await heartbeat();
           } catch (hbError) {
             console.error('❌ Heartbeat failed:', hbError);
           }
-          // Don't throw - let consumer continue with next message
         }
       }
     });
@@ -79,17 +74,8 @@ export const startConsumer = async (): Promise<void> => {
   }
 };
 
-// Define event types
-// type UserEvent = {
-//   eventType: string;
-//   userId: number;
-//   email: string;
-//   timestamp: Date;
-// };
-
-// Update your interface definitions:
 interface UserDeletedEvent {
-  eventType: 'USER_DELETED';  // Use literal type here
+  eventType: 'USER_DELETED';
   userId: number;
   email: string;
   timestamp: Date;
@@ -119,16 +105,13 @@ interface UserProfileDeletedEvent {
 
 type UserManagementEvent = UserDeletedEvent | UserProfileCreatedEvent | UserFullNameUpdatedEvent | UserProfileDeletedEvent;
 
-
-
-// Handle user-management events
-const handleChatEvent = async (event: UserManagementEvent): Promise<void> => {
+const handleUserManagementEvent = async (event: UserManagementEvent): Promise<void> => {
   try {
     switch (event.eventType) {
       case 'USER_DELETED':
         const deletedUserId = event.userId;
         if (typeof deletedUserId === 'number') {
-          // await deleteUserById(deletedUserId);
+          await deleteUserById(deletedUserId);
           console.log(`🗑️ User with ID ${deletedUserId} deleted successfully.`);
         } else {
           console.warn('⚠️ USER_DELETED event missing valid userId:', event);
@@ -181,7 +164,16 @@ const handleChatEvent = async (event: UserManagementEvent): Promise<void> => {
   }
 };
 
-// Handle media events
+const handleChatEvent = async (event: any): Promise<void> => {
+  try {
+    console.log(`💬 Processing chat event: ${event.eventType}`);
+    // Add chat event handling logic here
+  } catch (error) {
+    console.error(`❌ Error handling chat event:`, error);
+    throw error;
+  }
+};
+
 const handleMediaEvent = async (event: MediaEvent): Promise<void> => {
   try {
     const userId = parseInt(event.userId);
@@ -246,4 +238,3 @@ const handleMediaEvent = async (event: MediaEvent): Promise<void> => {
     throw error;
   }
 };
-

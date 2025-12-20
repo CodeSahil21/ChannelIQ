@@ -18,7 +18,10 @@ import {
   updateMemberSettings,
   clearError,
   clearSearchResults,
-  setCurrentGroup
+  setCurrentGroup,
+  updateGroupImage,
+  updateGroupDetails,
+  updateMemberCount
 } from '../store/groupSlice';
 import type { CreateGroupRequest, UpdateGroupRequest } from '../types/group.types';
 
@@ -165,6 +168,23 @@ export const useGroups = () => {
     }, 500);
   }, [dispatch]);
 
+  const handleGroupDetailsUpdate = useCallback((groupId: string, updates: any) => {
+    dispatch(updateGroupDetails({ groupId, updates }));
+  }, [dispatch]);
+
+  const handleMemberCountUpdate = useCallback((groupId: string, count: number) => {
+    dispatch(updateMemberCount({ groupId, count }));
+  }, [dispatch]);
+
+  const handleRealTimeGroupUpdate = useCallback((groupId: string, updates: any) => {
+    // For real-time updates from other users
+    dispatch(updateGroupDetails({ groupId, updates }));
+    // If it's the current group, also update current group state
+    if (updates.currentGroup?.id === groupId) {
+      dispatch(setCurrentGroup({ ...updates.currentGroup, ...updates }));
+    }
+  }, [dispatch]);
+
   return {
     // State
     groups,
@@ -192,5 +212,8 @@ export const useGroups = () => {
     clearSearchResults: handleClearSearchResults,
     setCurrentGroup: handleSetCurrentGroup,
     handleImageUpdate,
+    handleGroupDetailsUpdate,
+    handleMemberCountUpdate,
+    handleRealTimeGroupUpdate,
   };
 };

@@ -14,10 +14,16 @@ export const ChatPage: React.FC = () => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { groups, currentGroup, getMyGroups, getGroupDetails, loading } = useGroups();
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [loadingGroupDetails, setLoadingGroupDetails] = useState(false);
 
   const handleGroupClick = async (userGroup: any) => {
     setSelectedGroupId(userGroup.groupId);
-    await getGroupDetails(userGroup.groupId);
+    setLoadingGroupDetails(true);
+    try {
+      await getGroupDetails(userGroup.groupId);
+    } finally {
+      setLoadingGroupDetails(false);
+    }
   };
 
   useEffect(() => {
@@ -143,7 +149,14 @@ export const ChatPage: React.FC = () => {
 
         {/* Main Chat Area */}
         <div className="chat-main">
-          {currentGroup ? (
+          {loadingGroupDetails ? (
+            <div className="chat-welcome">
+              <div className="chat-welcome-content">
+                <div className="loading-spinner"></div>
+                <p>Loading group details...</p>
+              </div>
+            </div>
+          ) : currentGroup ? (
             <GroupDetailView group={currentGroup} />
           ) : (
             <div className="chat-welcome">

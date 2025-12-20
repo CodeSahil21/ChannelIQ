@@ -29,7 +29,7 @@ import {
   CreateAnnouncementResponse,          
 } from '../utils/types';
 import { ValidationError, NotFoundError, UnauthorizedError, ConflictError, ForbiddenError } from '../utils/errors';
-import { getCache, setCache, deleteCachePattern, CacheKeys, CacheTTL } from '../redis';
+import { getCache, setCache, deleteCachePattern, deleteCachePatterns, CacheKeys, CacheTTL } from '../redis';
 
 // Helper function to clean up pending requests for a user in a group
 const cleanupPendingRequests = async (groupId: string, userId: number) => {
@@ -138,93 +138,63 @@ export const getMyGroups = async (userId: number): Promise<MyGroupsResponse> => 
   return result;
 };
 
-// BEFORE: ~150ms (loads all members + counts)
-// AFTER: ~45ms (parallel queries + membership check first)
-// CACHED: ~5ms (Redis cache hit)
 export const getGroupDetails = async (groupId: string,userId: number): Promise<GroupDetailResponse | null> => {
   const cacheKey = CacheKeys.group(groupId);
   const cached = await getCache<GroupDetailResponse>(cacheKey);
   if (cached) return cached;
-  // First check membership for private groups (fast query)
-  const [group, membership] = await Promise.all([
-    prisma.group.findUnique({
-      where: { id: groupId },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        imageUrl: true,
-        isPrivate: true,
-        maxMembers: true,
-        creatorId: true,
-        createdAt: true,
-        updatedAt: true,
+
+  // Single optimized query with all includes
+  const group = await prisma.group.findUnique({
+    where: { id: groupId },
+    include: {
+      creator: {
+        select: {
+          id: true,
+          email: true,
+          fullName: true,
+          profileUrl: true,
+        },
       },
-    }),
-    prisma.groupMember.findUnique({
-      where: {
-        userId_groupId: { userId, groupId },
+      members: {
+        select: {
+          id: true,
+          userId: true,
+          groupId: true,
+          role: true,
+          isMuted: true,
+          muteUntil: true,
+          joinedAt: true,
+          user: {
+            select: {
+              id: true,
+              email: true,
+              fullName: true,
+              profileUrl: true,
+            },
+          },
+        },
+        orderBy: { joinedAt: 'asc' },
       },
-      select: { role: true },
-    }),
-  ]);
+      _count: {
+        select: {
+          members: true,
+          messages: true,
+        },
+      },
+    },
+  });
 
   if (!group) {
     throw new NotFoundError('Group not found');
   }
 
+  // Check membership in memory (faster than separate query)
+  const membership = group.members.find(m => m.userId === userId);
   if (!membership && group.isPrivate) {
     throw new ForbiddenError('You do not have access to this private group');
   }
 
-  // Parallel fetch of remaining data
-  const [creator, counts, members] = await Promise.all([
-    prisma.user.findUnique({
-      where: { id: group.creatorId },
-      select: {
-        id: true,
-        email: true,
-        fullName: true,
-        profileUrl: true,
-      },
-    }),
-    prisma.$transaction([
-      prisma.groupMember.count({ where: { groupId } }),
-      prisma.message.count({ where: { groupId } }),
-    ]),
-    prisma.groupMember.findMany({
-      where: { groupId },
-      select: {
-        id: true,
-        userId: true,
-        groupId: true,
-        role: true,
-        isMuted: true,
-        muteUntil: true,
-        joinedAt: true,
-        user: {
-          select: {
-            id: true,
-            email: true,
-            fullName: true,
-            profileUrl: true,
-          },
-        },
-      },
-      orderBy: { joinedAt: 'asc' },
-    }),
-  ]);
-
-  const result = {
-    ...group,
-    creator: creator!,
-    _count: {
-      members: counts[0],
-      messages: counts[1],
-    },
-    members,
-  } as GroupDetailResponse;
-  
+  const result = group as GroupDetailResponse;
   await setCache(cacheKey, result, CacheTTL.MEDIUM);
   return result;
 };
@@ -437,9 +407,9 @@ export const inviteUserToGroup = async (
   });
 
   // Invalidate cache
-  await Promise.all([
-    deleteCachePattern(`chat:user:${targetUserId}:requests`),
-    deleteCachePattern(`chat:user:${adminUserId}:requests`)
+  await deleteCachePatterns([
+    `chat:user:${targetUserId}:requests`,
+    `chat:user:${adminUserId}:requests`
   ]);
 
   return invite as InviteUserResponse;
@@ -514,9 +484,6 @@ export const joinGroupRequest = async (
   return request as JoinGroupResponse;
 };  
 
-// BEFORE: ~120ms (3 sequential queries)
-// AFTER: ~40ms (single optimized query)
-// CACHED: ~4ms (Redis cache hit)
 export const getPendingRequests = async (
   userId: number
 ): Promise<PendingRequestsResponse> => {
@@ -524,76 +491,74 @@ export const getPendingRequests = async (
   const cached = await getCache<PendingRequestsResponse>(cacheKey);
   if (cached) return cached;
 
-  // Single query to get all pending requests
-  const allRequests = await prisma.groupRequest.findMany({
-    where: {
-      OR: [
-        {
-          receiverId: userId,
-          type: RequestType.INVITE,
-          status: RequestStatus.PENDING,
+  // Split into 2 simple queries instead of complex OR
+  const [invites, joinRequests] = await Promise.all([
+    // Query 1: Direct invites to user
+    prisma.groupRequest.findMany({
+      where: {
+        receiverId: userId,
+        type: RequestType.INVITE,
+        status: RequestStatus.PENDING,
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            email: true,
+            fullName: true,
+            profileUrl: true,
+          },
         },
-        {
-          type: RequestType.JOIN_REQUEST,
-          status: RequestStatus.PENDING,
-          group: {
-            members: {
-              some: {
-                userId,
-                role: { in: [GroupRole.ADMIN, GroupRole.CO_ADMIN] },
-              },
+        group: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            imageUrl: true,
+            isPrivate: true,
+            creatorId: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+    // Query 2: Join requests for groups where user is admin
+    prisma.groupRequest.findMany({
+      where: {
+        type: RequestType.JOIN_REQUEST,
+        status: RequestStatus.PENDING,
+        group: {
+          members: {
+            some: {
+              userId,
+              role: { in: [GroupRole.ADMIN, GroupRole.CO_ADMIN] },
             },
           },
         },
-      ],
-    },
-    select: {
-      id: true,
-      groupId: true,
-      senderId: true,
-      receiverId: true,
-      type: true,
-      status: true,
-      message: true,
-      createdAt: true,
-      updatedAt: true,
-      sender: {
-        select: {
-          id: true,
-          email: true,
-          fullName: true,
-          profileUrl: true,
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            email: true,
+            fullName: true,
+            profileUrl: true,
+          },
+        },
+        group: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            imageUrl: true,
+            isPrivate: true,
+            creatorId: true,
+          },
         },
       },
-      receiver: {
-        select: {
-          id: true,
-          email: true,
-          fullName: true,
-          profileUrl: true,
-        },
-      },
-      group: {
-        select: {
-          id: true,
-          name: true,
-          description: true,
-          imageUrl: true,
-          isPrivate: true,
-          creatorId: true,
-        },
-      },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
-
-  // Separate in memory (faster than separate queries)
-  const invites = allRequests.filter(
-    (req) => req.type === RequestType.INVITE && req.receiverId === userId
-  );
-  const joinRequests = allRequests.filter(
-    (req) => req.type === RequestType.JOIN_REQUEST
-  );
+      orderBy: { createdAt: 'desc' },
+    }),
+  ]);
 
   const result = {
     invites: invites as any,
@@ -726,11 +691,11 @@ if (!request) {
 
     // Invalidate cache if accepted
     if (status === 'ACCEPTED' && membership) {
-      await Promise.all([
-        deleteCachePattern(`chat:user:${newMemberId}:*`),
-        deleteCachePattern(`chat:group:${request.groupId}`),
-        deleteCachePattern(`chat:members:${request.groupId}`),
-        deleteCachePattern(`chat:user:${userId}:requests`)
+      await deleteCachePatterns([
+        `chat:user:${newMemberId}:*`,
+        `chat:group:${request.groupId}`,
+        `chat:members:${request.groupId}`,
+        `chat:user:${userId}:requests`
       ]);
     } else {
       await deleteCachePattern(`chat:user:${userId}:requests`);
@@ -808,9 +773,9 @@ export const updateGroup = async (
   });
   
   // Invalidate cache
-  await Promise.all([
-    deleteCachePattern(`chat:group:${groupId}`),
-    deleteCachePattern('chat:search:*')
+  await deleteCachePatterns([
+    `chat:group:${groupId}`,
+    'chat:search:*'
   ]);
   
   return updatedGroup as UpdateGroupResponse;
@@ -899,10 +864,10 @@ export const removeMember = async (
     ]);
 
     // Invalidate cache
-    await Promise.all([
-      deleteCachePattern(`chat:user:${currentUserId}:*`),
-      deleteCachePattern(`chat:group:${groupId}`),
-      deleteCachePattern(`chat:members:${groupId}`)
+    await deleteCachePatterns([
+      `chat:user:${currentUserId}:*`,
+      `chat:group:${groupId}`,
+      `chat:members:${groupId}`
     ]);
 
     return {
@@ -964,10 +929,10 @@ export const removeMember = async (
     ]);
 
     // Invalidate cache
-    await Promise.all([
-      deleteCachePattern(`chat:user:${targetUserId}:*`),
-      deleteCachePattern(`chat:group:${groupId}`),
-      deleteCachePattern(`chat:members:${groupId}`)
+    await deleteCachePatterns([
+      `chat:user:${targetUserId}:*`,
+      `chat:group:${groupId}`,
+      `chat:members:${groupId}`
     ]);
 
     return {
@@ -1009,12 +974,12 @@ export const deleteGroup = async (
   });
 
   // Invalidate all related cache
-  await Promise.all([
-    deleteCachePattern(`chat:group:${groupId}`),
-    deleteCachePattern(`chat:members:${groupId}`),
-    deleteCachePattern(`chat:pinned:${groupId}`),
-    deleteCachePattern(`chat:user:*:groups`),
-    deleteCachePattern('chat:search:*')
+  await deleteCachePatterns([
+    `chat:group:${groupId}`,
+    `chat:members:${groupId}`,
+    `chat:pinned:${groupId}`,
+    `chat:user:*:groups`,
+    'chat:search:*'
   ]);
 
   return {
@@ -1120,9 +1085,9 @@ export const updateMemberRole = async (
     });
 
     // Invalidate cache
-    await Promise.all([
-      deleteCachePattern(`chat:group:${groupId}`),
-      deleteCachePattern(`chat:members:${groupId}`)
+    await deleteCachePatterns([
+      `chat:group:${groupId}`,
+      `chat:members:${groupId}`
     ]);
 
     return updatedMember as UpdateMemberRoleResponse;
@@ -1463,9 +1428,9 @@ export const updateGroupProfileImage = async (
   });
 
   // Invalidate cache
-  await Promise.all([
-    deleteCachePattern(`chat:group:${groupId}`),
-    deleteCachePattern('chat:search:*')
+  await deleteCachePatterns([
+    `chat:group:${groupId}`,
+    'chat:search:*'
   ]);
 
   console.log(`✅ Group profile image updated: ${groupId} -> ${imageUrl}`);

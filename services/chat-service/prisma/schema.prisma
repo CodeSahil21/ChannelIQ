@@ -138,6 +138,7 @@ model GroupRequest {
   @@index([receiverId, status]) // Fast: "Show my pending invites"
   @@index([senderId, status]) // Fast: "Show my sent requests"
   @@index([groupId, status]) // Fast: "Show group requests"
+  @@index([groupId, status, type]) // Fast: Complex WHERE conditions
   @@map("group_requests")
 }
 

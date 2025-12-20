@@ -21,7 +21,7 @@ interface GroupDetailViewProps {
 
 const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
   const [activeTab, setActiveTab] = useState<GroupDetailTab>('details');
-  const { updateMemberRole, updateMemberSettings, loading, handleImageUpdate } = useGroups();
+  const { updateMemberRole, updateMemberSettings, handleImageUpdate } = useGroups();
   const dispatch = useAppDispatch();
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -123,186 +123,177 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
       </div>
 
       <div className="group-detail-content">
-        {loading ? (
-          <div className="group-detail-loading">
-            <div className="loading-spinner"></div>
-            <p>Loading group details...</p>
-          </div>
-        ) : (
-          <>
-            {activeTab === 'details' && (
-              <GroupProfile 
-                group={group} 
-                onUpdate={() => setShowUpdateModal(true)}
-                onDelete={() => setShowDeleteModal(true)}
-                onAddMembers={() => setShowAddMembersModal(true)}
-                canManage={isCreator}
-                isCreator={isCreator}
-                onImageUpdate={(imageUrl) => {
-                  // Handle image update with optimistic update + refetch
-                  handleImageUpdate(group.id, imageUrl);
-                  console.log('Group image updated:', imageUrl);
-                }}
-              />
-            )}
-            {activeTab === 'members' && (
-              <div className="members-tab-content">
-                <h3>All Members ({group._count?.members || 0})</h3>
-                <div className="members-list-container">
-                  {group.members?.map(member => {
-                    const currentUserMembership = group.members?.find(m => m.userId === currentUserId);
-                    const currentUserRole = currentUserMembership?.role || 'MEMBER';
-                    const memberIsCreator = group.creatorId === currentUserId;
-                    
-                    const getInitials = (name: string) => {
-                      return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
-                    };
-                    
-                    const getRoleBadge = (role: string) => {
-                      const badges = {
-                        ADMIN: { text: 'Admin', class: 'role-admin' },
-                        CO_ADMIN: { text: 'Co-Admin', class: 'role-co-admin' },
-                        MEMBER: { text: 'Member', class: 'role-member' }
-                      };
-                      return badges[role as keyof typeof badges] || badges.MEMBER;
-                    };
-                    
-                    const canRemoveMember = () => {
-                      if (member.userId === currentUserId) return false;
-                      if (member.role === 'ADMIN' && !memberIsCreator) return false;
-                      if (currentUserRole === 'CO_ADMIN' && ['ADMIN', 'CO_ADMIN'].includes(member.role)) return false;
-                      return ['ADMIN', 'CO_ADMIN'].includes(currentUserRole);
-                    };
-                    
-                    const canLeaveGroup = () => {
-                      return member.userId === currentUserId && !memberIsCreator;
-                    };
-                    
-                    const canChangeRole = () => {
-                      if (member.userId === currentUserId) return false;
-                      if (currentUserRole !== 'ADMIN') return false;
-                      return member.role !== 'ADMIN';
-                    };
-                    
-                    const canMuteSettings = () => {
-                      return member.userId === currentUserId;
-                    };
-                    
-                    return (
-                      <div key={member.id} className="member-list-item">
-                        <div className="member-item-avatar">
-                          {member.user.profileUrl ? (
-                            <img src={member.user.profileUrl} alt={member.user.fullName} />
-                          ) : (
-                            <div className="member-item-initials">
-                              {getInitials(member.user.fullName)}
-                            </div>
-                          )}
+        {activeTab === 'details' && (
+          <GroupProfile 
+            group={group} 
+            onUpdate={() => setShowUpdateModal(true)}
+            onDelete={() => setShowDeleteModal(true)}
+            onAddMembers={() => setShowAddMembersModal(true)}
+            canManage={isCreator}
+            isCreator={isCreator}
+            onImageUpdate={(imageUrl) => {
+              // Handle image update with optimistic update + refetch
+              handleImageUpdate(group.id, imageUrl);
+              console.log('Group image updated:', imageUrl);
+            }}
+          />
+        )}
+        {activeTab === 'members' && (
+          <div className="members-tab-content">
+            <h3>All Members ({group._count?.members || 0})</h3>
+            <div className="members-list-container">
+              {group.members?.map(member => {
+                const currentUserMembership = group.members?.find(m => m.userId === currentUserId);
+                const currentUserRole = currentUserMembership?.role || 'MEMBER';
+                const memberIsCreator = group.creatorId === currentUserId;
+                
+                const getInitials = (name: string) => {
+                  return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
+                };
+                
+                const getRoleBadge = (role: string) => {
+                  const badges = {
+                    ADMIN: { text: 'Admin', class: 'role-admin' },
+                    CO_ADMIN: { text: 'Co-Admin', class: 'role-co-admin' },
+                    MEMBER: { text: 'Member', class: 'role-member' }
+                  };
+                  return badges[role as keyof typeof badges] || badges.MEMBER;
+                };
+                
+                const canRemoveMember = () => {
+                  if (member.userId === currentUserId) return false;
+                  if (member.role === 'ADMIN' && !memberIsCreator) return false;
+                  if (currentUserRole === 'CO_ADMIN' && ['ADMIN', 'CO_ADMIN'].includes(member.role)) return false;
+                  return ['ADMIN', 'CO_ADMIN'].includes(currentUserRole);
+                };
+                
+                const canLeaveGroup = () => {
+                  return member.userId === currentUserId && !memberIsCreator;
+                };
+                
+                const canChangeRole = () => {
+                  if (member.userId === currentUserId) return false;
+                  if (currentUserRole !== 'ADMIN') return false;
+                  return member.role !== 'ADMIN';
+                };
+                
+                const canMuteSettings = () => {
+                  return member.userId === currentUserId;
+                };
+                
+                return (
+                  <div key={member.id} className="member-list-item">
+                    <div className="member-item-avatar">
+                      {member.user.profileUrl ? (
+                        <img src={member.user.profileUrl} alt={member.user.fullName} />
+                      ) : (
+                        <div className="member-item-initials">
+                          {getInitials(member.user.fullName)}
                         </div>
-                        
-                        <div className="member-item-info">
-                          <div className="member-item-name-row">
-                            <span className="member-item-name">{member.user.fullName}</span>
-                            <span className={`role-badge ${getRoleBadge(member.role).class}`}>
-                              {getRoleBadge(member.role).text}
-                            </span>
-                          </div>
-                          <div className="member-item-details">
-                            <span className="member-item-email">{member.user.email}</span>
-                            {member.isMuted && <span className="muted-indicator">Muted</span>}
-                          </div>
-                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="member-item-info">
+                      <div className="member-item-name-row">
+                        <span className="member-item-name">{member.user.fullName}</span>
+                        <span className={`role-badge ${getRoleBadge(member.role).class}`}>
+                          {getRoleBadge(member.role).text}
+                        </span>
+                      </div>
+                      <div className="member-item-details">
+                        <span className="member-item-email">{member.user.email}</span>
+                        {member.isMuted && <span className="muted-indicator">Muted</span>}
+                      </div>
+                    </div>
 
-                        {isCreator && member.userId !== currentUserId && (
-                          <div className="member-item-actions" style={{ position: 'relative' }}>
-                            <button 
-                              className="member-dots-btn"
-                              onClick={() => setActiveDropdown(activeDropdown === member.userId ? null : member.userId)}
-                            >
-                              <HiDotsVertical />
-                            </button>
-                            
-                            {activeDropdown === member.userId && (
-                              <div 
-                                ref={dropdownRef}
-                                className="member-dropdown"
-                                style={{
-                                  position: 'absolute',
-                                  right: '0',
-                                  top: '100%',
-                                  backgroundColor: 'white',
-                                  border: '1px solid #ccc',
-                                  borderRadius: '4px',
-                                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                                  zIndex: 1000,
-                                  minWidth: '150px'
-                                }}
-                              >
-                                {member.userId !== currentUserId && (
-                                  <>
-                                    <button 
-                                      className="member-dropdown-item"
-                                      onClick={() => {
-                                        handleRoleChange(member.userId, 'CO_ADMIN');
-                                        setActiveDropdown(null);
-                                      }}
-                                    >
-                                      <HiCog />
-                                      Make Co-Admin
-                                    </button>
-                                    <button 
-                                      className="member-dropdown-item"
-                                      onClick={() => {
-                                        handleRoleChange(member.userId, 'MEMBER');
-                                        setActiveDropdown(null);
-                                      }}
-                                    >
-                                      <HiCog />
-                                      Make Member
-                                    </button>
-                                    <button 
-                                      className="member-dropdown-item"
-                                      onClick={() => {
-                                        handleMuteToggle(member.userId);
-                                        setActiveDropdown(null);
-                                      }}
-                                    >
-                                      {member.isMuted ? <HiVolumeUp /> : <HiVolumeOff />}
-                                      {member.isMuted ? 'Unmute' : 'Mute'}
-                                    </button>
-                                    <button 
-                                      className="member-dropdown-item danger"
-                                      onClick={() => {
-                                        handleRemoveMemberClick(member.userId, member.user.fullName);
-                                        setActiveDropdown(null);
-                                      }}
-                                    >
-                                      <HiUserRemove />
-                                      Remove Member
-                                    </button>
-                                  </>
-                                )}
-                              </div>
+                    {isCreator && member.userId !== currentUserId && (
+                      <div className="member-item-actions" style={{ position: 'relative' }}>
+                        <button 
+                          className="member-dots-btn"
+                          onClick={() => setActiveDropdown(activeDropdown === member.userId ? null : member.userId)}
+                        >
+                          <HiDotsVertical />
+                        </button>
+                        
+                        {activeDropdown === member.userId && (
+                          <div 
+                            ref={dropdownRef}
+                            className="member-dropdown"
+                            style={{
+                              position: 'absolute',
+                              right: '0',
+                              top: '100%',
+                              backgroundColor: 'white',
+                              border: '1px solid #ccc',
+                              borderRadius: '4px',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                              zIndex: 1000,
+                              minWidth: '150px'
+                            }}
+                          >
+                            {member.userId !== currentUserId && (
+                              <>
+                                <button 
+                                  className="member-dropdown-item"
+                                  onClick={() => {
+                                    handleRoleChange(member.userId, 'CO_ADMIN');
+                                    setActiveDropdown(null);
+                                  }}
+                                >
+                                  <HiCog />
+                                  Make Co-Admin
+                                </button>
+                                <button 
+                                  className="member-dropdown-item"
+                                  onClick={() => {
+                                    handleRoleChange(member.userId, 'MEMBER');
+                                    setActiveDropdown(null);
+                                  }}
+                                >
+                                  <HiCog />
+                                  Make Member
+                                </button>
+                                <button 
+                                  className="member-dropdown-item"
+                                  onClick={() => {
+                                    handleMuteToggle(member.userId);
+                                    setActiveDropdown(null);
+                                  }}
+                                >
+                                  {member.isMuted ? <HiVolumeUp /> : <HiVolumeOff />}
+                                  {member.isMuted ? 'Unmute' : 'Mute'}
+                                </button>
+                                <button 
+                                  className="member-dropdown-item danger"
+                                  onClick={() => {
+                                    handleRemoveMemberClick(member.userId, member.user.fullName);
+                                    setActiveDropdown(null);
+                                  }}
+                                >
+                                  <HiUserRemove />
+                                  Remove Member
+                                </button>
+                              </>
                             )}
                           </div>
                         )}
                       </div>
-                    );
-                  })}
-                </div>
-                {!isCreator && (
-                  <div className="leave-group-section">
-                    <button 
-                      className="btn leave-group-btn"
-                      onClick={() => setShowLeaveGroupModal(true)}
-                    >
-                      Leave Group
-                    </button>
+                    )}
                   </div>
-                )}
+                );
+              })}
+            </div>
+            {!isCreator && (
+              <div className="leave-group-section">
+                <button 
+                  className="btn leave-group-btn"
+                  onClick={() => setShowLeaveGroupModal(true)}
+                >
+                  Leave Group
+                </button>
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
 

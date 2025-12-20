@@ -33,10 +33,31 @@ export const deleteMultipleCache = async (keys: string[]): Promise<void> => {
   try {
     await connectRedis();
     if (keys.length > 0) {
+      // Batch delete all keys in single operation
       await redis.del(keys);
     }
   } catch (error) {
     console.error(`Cache delete multiple error:`, error);
+  }
+};
+
+export const deleteCachePatterns = async (patterns: string[]): Promise<void> => {
+  try {
+    await connectRedis();
+    const allKeys: string[] = [];
+    
+    // Batch all pattern matches
+    for (const pattern of patterns) {
+      const keys = await redis.keys(pattern);
+      allKeys.push(...keys);
+    }
+    
+    // Single delete operation
+    if (allKeys.length > 0) {
+      await redis.del(allKeys);
+    }
+  } catch (error) {
+    console.error(`Cache delete patterns error:`, error);
   }
 };
 

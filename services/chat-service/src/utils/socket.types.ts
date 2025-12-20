@@ -1,6 +1,6 @@
 export interface MessageData {
   id?: string;
-  content?: string;
+  content: string;
   type: 'TEXT' | 'IMAGE' | 'VIDEO' | 'FILE' | 'POLL' | 'ANNOUNCEMENT';
   fileUrl?: string;
   replyToId?: string;
@@ -19,7 +19,17 @@ export interface SendMessageData {
   groupId: string;
 }
 
-export interface MessageWithSender extends MessageData {
+export interface MessageWithSender {
+  id: string;
+  content: string;
+  type: 'TEXT' | 'IMAGE' | 'VIDEO' | 'FILE' | 'POLL' | 'ANNOUNCEMENT';
+  fileUrl?: string;
+  replyToId?: string;
+  groupId: string;
+  senderId: number;
+  isDeleted: boolean;
+  createdAt: Date;
+  updatedAt: Date;
   sender: {
     id: number;
     fullName: string;

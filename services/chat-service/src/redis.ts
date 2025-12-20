@@ -76,6 +76,22 @@ export const deleteCachePattern = async (pattern: string): Promise<void> => {
   }
 };
 
+export const deleteCachePatterns = async (patterns: string[]): Promise<void> => {
+  await connectRedis();
+  const allKeys: string[] = [];
+  
+  // Batch all pattern matches
+  for (const pattern of patterns) {
+    const keys = await redis.keys(pattern);
+    allKeys.push(...keys);
+  }
+  
+  // Single delete operation
+  if (allKeys.length > 0) {
+    await redis.del(allKeys);
+  }
+};
+
 // Cache keys
 export const CacheKeys = {
   group: (groupId: string) => `chat:group:${groupId}`,

@@ -6,7 +6,6 @@ import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
-import { isKafkaHealthy } from './kafka/kafkaManager';
 import prisma from './db';
 import { connectRedis, redis } from './redis';
 import groupRouter from './routes/group.route';
@@ -33,8 +32,6 @@ app.use(express.urlencoded({ extended: true }));
 
 app.get('/health', async (_req, res) => {
   try {
-    const kafkaStatus = await isKafkaHealthy();
-    
     // Add database health check
     let dbStatus = false;
     try {
@@ -54,12 +51,11 @@ app.get('/health', async (_req, res) => {
       console.error('Redis health check failed:', redisError);
     }
     
-    const overallStatus = kafkaStatus && dbStatus && redisStatus;
+    const overallStatus = dbStatus && redisStatus;
     
     res.status(overallStatus ? 200 : 503).json({ 
       status: overallStatus ? 'healthy' : 'degraded',
       services: {
-        kafka: kafkaStatus ? 'connected' : 'disconnected',
         database: dbStatus ? 'connected' : 'disconnected',
         redis: redisStatus ? 'connected' : 'disconnected'
       },

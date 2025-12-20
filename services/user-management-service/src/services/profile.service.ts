@@ -59,7 +59,6 @@ export const createProfile = async (id: number, profileData: CreateUserProfile):
         throw new Error("User does not exist");
     }
     
-    // Check if profile is already completed
     if (isUserExists.profileCreated) {
         throw new Error("Profile already completed");
     }
@@ -67,65 +66,42 @@ export const createProfile = async (id: number, profileData: CreateUserProfile):
     // Calculate profile completion percentage
     const completion = calculateProfileCompletion(profileData);
     
-    // Create search vector for full-text search - using raw SQL
+    // Prepare update data
     const updatedData = {
         ...profileData,
         profileCreated: true,
         profileCompletionPercentage: completion
     };
     
-    // Use raw SQL to handle tsvector since Prisma doesn't support it directly
-    const searchText = buildSearchVector(profileData);
-    
     try {
-        // Use a transaction for atomicity - all operations succeed or fail together
-        const updatedUser = await prisma.$transaction(async (tx) => {
-            // First update the user with the profile data
-            const user = await tx.user.update({
-                where: { id: id },
-                data: updatedData
-            });
-            
-            // Then update the search vector using raw SQL
-            if (searchText) {
-                await tx.$executeRaw`UPDATE "users" SET "searchVector" = to_tsvector('english', ${searchText}) WHERE "id" = ${id}`;
-            }
-            
-            // Publish event within the transaction - if this fails, transaction rolls back
-            try {
-                await eventPublisher.publishUserProfileCreated({
-                    userId: user.id,
-                    email: user.email,
-                    fullName: user.fullName || '',
-                    profilePic: user.profilePic || ''
-                });
-                
-                console.log(`Published USER_PROFILE_CREATED event for user ${user.id}`);
-            } catch (eventError) {
-                console.error(`❌ Failed to publish profile event for user ${id}:`, eventError);
-                // Just throw - transaction will automatically roll back profile update
-                throw new Error("Failed to publish profile event. Please try again later.");
-            }
-            
-            return user;
+        // Single optimized update
+        const updatedUser = await prisma.user.update({
+            where: { id: id },
+            data: updatedData
         });
         
-        // Log the activity after transaction completes
-        await logUserActivity(
-            id,
-            ActivityType.PROFILE_UPDATE,
-            'Profile created',
-            { fields: Object.keys(profileData) }
-        );
+        // Async operations (non-blocking)
+        Promise.all([
+            // Update search vector
+            prisma.$executeRaw`UPDATE "users" SET "searchVector" = to_tsvector('english', ${buildSearchVector(profileData)}) WHERE "id" = ${id}`,
+            // Log activity
+            logUserActivity(id, ActivityType.PROFILE_UPDATE, 'Profile created', { fields: Object.keys(profileData) }),
+            // Publish event
+            eventPublisher.publishUserProfileCreated({
+                userId: updatedUser.id,
+                email: updatedUser.email,
+                fullName: updatedUser.fullName || '',
+                profilePic: updatedUser.profilePic || ''
+            })
+        ]).catch(error => {
+            console.error('Background operations failed:', error);
+        });
         
-        // Invalidate caches - profile, search, and connections
+        // Invalidate caches
         await deleteMultipleCache([
             `user:profile:${id}`, 
             `user:profile:completion:${id}`,
-            `search:users:*`, // Profile updates affect search results
-            `user:connections:${id}`,
-            `user:pending-requests:${id}`,
-            `user:sent-requests:${id}`
+            `search:users:*`
         ]);
         
         return updatedUser as UserProfileResponse;
@@ -145,18 +121,49 @@ export const getUserProfile = async (id: number): Promise<UserProfileResponse | 
         return cached;
     }
     
-    // Cache miss - fetch from DB using findUnique (index lookup) without preference
+    // Optimized query with only necessary fields
     const profile = await prisma.user.findUnique({
-        where: { id: id }
+        where: { 
+            id: id,
+            isDeleted: false,
+            status: { not: UserStatus.DELETED }
+        },
+        select: {
+            id: true,
+            fullName: true,
+            email: true,
+            profilePic: true,
+            jobTitle: true,
+            department: true,
+            phoneNumber: true,
+            workEmail: true,
+            status: true,
+            profileCreated: true,
+            profileCompletionPercentage: true,
+            skills: true,
+            languages: true,
+            bio: true,
+            location: true,
+            timezone: true,
+            managerId: true,
+            managerName: true,
+            linkedinUrl: true,
+            githubUrl: true,
+            portfolioUrl: true,
+            twitterUrl: true,
+            isOnline: true,
+            lastSeen: true,
+            createdAt: true,
+            updatedAt: true
+        }
     });
     
-    // Check if deleted
-    if (!profile || profile.isDeleted) {
+    if (!profile) {
         return null;
     }
     
-    // Store in cache
-    await setCache(cacheKey, profile, 1800); // 30 minutes
+    // Store in cache with longer TTL
+    await setCache(cacheKey, profile, 3600); // 1 hour
     
     return profile as unknown as UserProfileResponse;
 }
@@ -361,7 +368,7 @@ export const searchUsers = async (
             return [];
         }
         
-        const cacheKey = `search:users:${query}:${currentUserId}`;
+        const cacheKey = `search:users:${query}:${currentUserId}:${limit}:${offset}`;
         
         // Try cache first
         const cached = await getCache<UserSearchResult[]>(cacheKey);
@@ -369,23 +376,18 @@ export const searchUsers = async (
             return cached;
         }
         
+        // Optimized single query with proper WHERE conditions
         const users = await prisma.user.findMany({
             where: {
-                AND: [
-                    { id: { not: currentUserId } },
-                    { profileCreated: true },
-                    { isDeleted: false },
-                    // Using a different approach for the full-text search
-                    // since Prisma doesn't support tsvector directly in the query builder
-                    {
-                        OR: [
-                            { fullName: { contains: query, mode: 'insensitive' } },
-                            { email: { contains: query, mode: 'insensitive' } },
-                            { jobTitle: { contains: query, mode: 'insensitive' } },
-                            { department: { contains: query, mode: 'insensitive' } }
-                        ]
-                    }
-                ]
+                id: { not: currentUserId },
+                profileCreated: true,
+                isDeleted: false,
+                status: UserStatus.ACTIVE,
+                // Use indexed fields for better performance
+                fullName: {
+                    contains: query,
+                    mode: 'insensitive'
+                }
             },
             select: {
                 id: true,

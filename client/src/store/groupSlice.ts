@@ -301,6 +301,45 @@ const groupSlice = createSlice({
       if (groupIndex !== -1) {
         state.groups[groupIndex].group.imageUrl = imageUrl;
       }
+      // Update in search results
+      const searchIndex = state.searchResults.findIndex(g => g.id === groupId);
+      if (searchIndex !== -1) {
+        state.searchResults[searchIndex].imageUrl = imageUrl;
+      }
+    },
+    updateGroupDetails: (state, action) => {
+      const { groupId, updates } = action.payload;
+      // Update current group
+      if (state.currentGroup?.id === groupId) {
+        state.currentGroup = { ...state.currentGroup, ...updates };
+      }
+      // Update in groups list
+      const groupIndex = state.groups.findIndex(g => g.groupId === groupId);
+      if (groupIndex !== -1) {
+        state.groups[groupIndex].group = { ...state.groups[groupIndex].group, ...updates };
+      }
+      // Update in search results
+      const searchIndex = state.searchResults.findIndex(g => g.id === groupId);
+      if (searchIndex !== -1) {
+        state.searchResults[searchIndex] = { ...state.searchResults[searchIndex], ...updates };
+      }
+    },
+    updateMemberCount: (state, action) => {
+      const { groupId, count } = action.payload;
+      // Update current group member count
+      if (state.currentGroup?.id === groupId && state.currentGroup._count) {
+        state.currentGroup._count.members = count;
+      }
+      // Update in groups list
+      const groupIndex = state.groups.findIndex(g => g.groupId === groupId);
+      if (groupIndex !== -1 && state.groups[groupIndex].group._count) {
+        state.groups[groupIndex].group._count.members = count;
+      }
+      // Update in search results
+      const searchIndex = state.searchResults.findIndex(g => g.id === groupId);
+      if (searchIndex !== -1 && state.searchResults[searchIndex]._count) {
+        state.searchResults[searchIndex]._count.members = count;
+      }
     },
   },
   extraReducers: (builder) => {
@@ -427,7 +466,8 @@ const groupSlice = createSlice({
       
       // Get Group Details
       .addCase(getGroupDetails.pending, (state) => {
-        state.loading = true;
+        // Don't set global loading for group details to prevent page refresh effect
+        state.error = null;
       })
       .addCase(getGroupDetails.fulfilled, (state, action) => {
         state.loading = false;
@@ -460,5 +500,5 @@ const groupSlice = createSlice({
   },
 });
 
-export const { clearError, clearSearchResults, setCurrentGroup, refreshGroupsNeeded, refreshCurrentGroupNeeded, updateGroupImage } = groupSlice.actions;
+export const { clearError, clearSearchResults, setCurrentGroup, refreshGroupsNeeded, refreshCurrentGroupNeeded, updateGroupImage, updateGroupDetails, updateMemberCount } = groupSlice.actions;
 export default groupSlice.reducer;
