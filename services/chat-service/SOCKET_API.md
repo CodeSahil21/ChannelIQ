@@ -1,12 +1,13 @@
 # Socket.IO API Documentation
 
 ## Overview
-Real-time chat system using Socket.IO with TypeScript support, JWT authentication, and comprehensive security features.
+Real-time chat system using Socket.IO with TypeScript support, JWT authentication, comprehensive security features, automatic group re-joining, and enhanced message status tracking.
 
 ## Authentication
 - **Method**: JWT token via HTTP cookies
 - **Middleware**: `verifySocketAuth` validates token and attaches user to socket
 - **User Type**: `SocketUser { id: number, email: string, fullName: string }`
+- **Auto-Rejoin**: Users automatically rejoin all their groups on reconnection
 
 ## Connection
 ```javascript
@@ -38,8 +39,8 @@ socket.emit('group:join', { groupId: 'uuid' }, (response) => {
 ```
 - **Payload**: `{ groupId: string }`
 - **Callback**: `SocketResponse`
-- **Validation**: Verifies user is group member
-- **Security**: Database verification before joining
+- **Validation**: Database verification of group membership
+- **Security**: Real-time authorization check
 
 #### `group:leave`
 Leave a chat group.
@@ -73,7 +74,8 @@ socket.emit('message:send', {
   - `fileUrl?: string` (optional)
   - `replyToId?: string` (optional)
 - **Callback**: `SocketResponse & { messageId?: string }`
-- **Security**: Group membership validation, content sanitization
+- **Security**: Session-based group membership validation, content sanitization
+- **Status Tracking**: Automatically creates MessageStatus for all group members
 
 #### `message:edit`
 Edit an existing message.
@@ -122,7 +124,8 @@ socket.emit('message:reaction:add', {
 ```
 - **Payload**: `{ messageId: string, emoji: string }`
 - **Callback**: `SocketResponse`
-- **Security**: Emoji validation (Unicode only), group membership check
+- **Security**: Emoji validation (Unicode only), database group membership verification
+- **Authorization**: Real-time database check (no longer relies on session state)
 
 #### `message:reaction:remove`
 Remove emoji reaction from a message.
@@ -138,6 +141,29 @@ socket.emit('message:reaction:remove', {
 ```
 - **Payload**: `{ messageId: string, emoji: string }`
 - **Callback**: `SocketResponse`
+- **Security**: Database group membership verification
+
+### Poll Operations
+
+#### `poll:vote`
+Vote on a poll option.
+```javascript
+socket.emit('poll:vote', {
+  pollId: 'uuid',
+  optionId: 'uuid'
+}, (response) => {
+  if (response.success) {
+    console.log('Vote cast successfully');
+  } else {
+    console.error('Vote failed:', response.error);
+  }
+});
+```
+- **Payload**: `{ pollId: string, optionId: string }`
+- **Callback**: `SocketResponse`
+- **Security**: Database group membership verification
+- **Duplicate Prevention**: Prisma unique constraint prevents multiple votes
+- **Real-time Updates**: Broadcasts vote count to all group members
 
 ### Real-time Features
 
@@ -151,7 +177,7 @@ socket.emit('user:typing', {
 ```
 - **Payload**: `{ groupId: string, isTyping: boolean }`
 - **No callback**
-- **Security**: Group membership validation
+- **Security**: Session-based group membership validation
 
 #### `message:read`
 Mark message as read.
@@ -163,6 +189,7 @@ socket.emit('message:read', {
 ```
 - **Payload**: `{ messageId: string, groupId: string }`
 - **No callback**
+- **Status Update**: Updates MessageStatus to READ
 
 #### `message:delivered`
 Mark message as delivered.
@@ -174,6 +201,7 @@ socket.emit('message:delivered', {
 ```
 - **Payload**: `{ messageId: string, groupId: string }`
 - **No callback**
+- **Status Update**: Updates MessageStatus to DELIVERED
 
 ---
 
@@ -191,6 +219,7 @@ socket.on('message:persisted', (message) => {
 ```
 - **Payload**: `MessageWithRelations | SystemMessage`
 - **Includes**: Full message data with sender info, reactions, statuses
+- **Enhanced**: Now includes MessageStatus for all group members
 
 #### `message:updated`
 Receive message edit/delete notifications.
@@ -233,6 +262,19 @@ socket.on('reaction:updated', (data) => {
 });
 ```
 - **Payload**: `{ messageId: string, emoji: string, userId: number, action: "add" | "remove" }`
+
+### Poll Events
+
+#### `poll:vote:update`
+Receive poll vote updates.
+```javascript
+socket.on('poll:vote:update', (data) => {
+  console.log(`Poll ${data.pollId} option ${data.optionId} now has ${data.voteCount} votes`);
+  console.log(`Vote by user ${data.userId}`);
+});
+```
+- **Payload**: `{ pollId: string, optionId: string, userId: number, voteCount: number }`
+- **Real-time**: Broadcasts immediately after vote is cast
 
 ### Real-time Events
 
@@ -319,8 +361,17 @@ enum MessageType {
 ```typescript
 enum GroupRole {
   ADMIN = 'ADMIN',
-  MODERATOR = 'MODERATOR', 
+  CO_ADMIN = 'CO_ADMIN', 
   MEMBER = 'MEMBER'
+}
+```
+
+### DeliveryStatus Enum
+```typescript
+enum DeliveryStatus {
+  SENT = 'SENT',
+  DELIVERED = 'DELIVERED',
+  READ = 'read'
 }
 ```
 
@@ -335,22 +386,47 @@ interface SocketResponse {
 
 ---
 
+## Enhanced Features
+
+### Automatic Group Re-joining
+- Users automatically rejoin all their groups on reconnection
+- Database-driven group membership fetching
+- Session state synchronization
+- No manual re-joining required
+
+### Enhanced Message Status Tracking
+- **Sender**: Gets `SENT` status immediately
+- **All other group members**: Get `DELIVERED` status automatically
+- **Real-time updates**: Status changes broadcast to group
+- **Atomic operations**: Message creation and status initialization in single transaction
+
+### Database-Driven Authorization
+- **Reactions**: Real-time database verification (no stale session state)
+- **Poll voting**: Group membership verified before vote
+- **Message operations**: Ownership and membership checks
+- **Consistent security**: All operations use fresh database state
+
+---
+
 ## Security Features
 
 ### Input Validation
 - All required fields validated before processing
 - Content sanitized to prevent XSS attacks
 - Emoji validation using Unicode regex
+- Poll ID and option ID validation
 
 ### Authorization
-- Group membership verified on join
-- Session-based validation for real-time events
-- Message ownership verification for edit/delete
+- **Auto-rejoin**: Database verification on connection
+- **Real-time checks**: Database verification for reactions and polls
+- **Session validation**: Memory-based checks for frequent operations
+- **Message ownership**: Verification for edit/delete operations
 
 ### Content Security
 - HTML encoding for all user content
 - Emoji whitelist validation
 - File URL validation
+- Duplicate vote prevention
 
 ---
 
@@ -377,6 +453,16 @@ interface SocketResponse {
   success: false,
   error: "Message not found"
 }
+
+{
+  success: false,
+  error: "Poll not found"
+}
+
+{
+  success: false,
+  error: "Not a group member"
+}
 ```
 
 ### Connection Errors
@@ -384,6 +470,7 @@ interface SocketResponse {
 - `"No token"` - Missing JWT token
 - `"Unauthorized"` - Invalid token
 - `"User not found"` - User doesn't exist
+- `"Failed to rejoin groups"` - Database error during auto-rejoin
 
 ---
 
@@ -394,15 +481,17 @@ interface SocketResponse {
 2. Implement reconnection logic
 3. Validate data before emitting
 4. Handle connection state changes
+5. Listen for poll vote updates
 
 ### Performance
-- Join only necessary groups
-- Implement message pagination
-- Use typing indicators sparingly
-- Cache user data locally
+- Auto-rejoin eliminates manual group joining
+- Database checks are optimized with indexes
+- Session state used for frequent operations
+- Message status tracking is atomic
 
 ### Security
 - Never trust client data
-- Validate all inputs server-side
+- All operations use database verification
 - Use HTTPS in production
 - Implement rate limiting
+- Monitor for duplicate vote attempts

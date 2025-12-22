@@ -116,9 +116,8 @@ export const registerChatHandlers: SocketHandler = (io: TypedServer, socket: Typ
       const message = await SocketMessageService.findMessageForReaction(messageId);
       if (!message) return handleError(cb, "Message not found");
       
-      if (!SessionManager.isUserInGroup(socket.id, message.groupId)) {
-        return handleError(cb, "Must join group first");
-      }
+      // Verify user is still a group member in database
+      await SocketMessageService.verifyGroupMember(socket.user.id, message.groupId);
       
       if (action === "add") {
         await SocketMessageService.addReaction(messageId, socket.user.id, emoji);
@@ -153,6 +152,34 @@ export const registerChatHandlers: SocketHandler = (io: TypedServer, socket: Typ
       return handleError(cb, "Invalid emoji format");
     }
     await handleReaction(messageId, emoji, "remove", cb);
+  });
+
+  // Poll Voting
+  socket.on("poll:vote", async ({ pollId, optionId }, cb) => {
+    try {
+      if (!validateInput({ pollId, optionId }, ['pollId', 'optionId'])) {
+        return handleError(cb, "Missing required fields");
+      }
+
+      const poll = await SocketMessageService.findPoll(pollId);
+      if (!poll) return handleError(cb, "Poll not found");
+
+      // Verify user is a group member
+      await SocketMessageService.verifyGroupMember(socket.user.id, poll.message.groupId);
+
+      // Create vote (Prisma will handle duplicate prevention)
+      await SocketMessageService.createPollVote(socket.user.id, optionId);
+
+      // Get updated vote count and emit to group
+      const voteCount = await SocketMessageService.countPollVotes(optionId);
+      io.to(`group:${poll.message.groupId}`).emit("poll:vote:update", {
+        pollId, optionId, userId: socket.user.id, voteCount
+      });
+
+      handleSuccess(cb);
+    } catch (err: any) {
+      handleError(cb, err.message);
+    }
   });
 
   // Real-time Features

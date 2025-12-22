@@ -11,17 +11,42 @@ export class SocketMessageService {
     senderId: number;
     replyToId?: string;
   }) {
-    return prisma.message.create({
-      data: {
-        content: data.content ?? null,
-        type: data.type,
-        fileUrl: data.fileUrl ?? null,
-        groupId: data.groupId,
-        senderId: data.senderId,
-        replyToId: data.replyToId ?? null,
-        statuses: { create: { userId: data.senderId, status: "SENT" } }
-      },
-      include: { sender: true, reactions: true, statuses: true }
+    return prisma.$transaction(async (tx) => {
+      // Create the message
+      const message = await tx.message.create({
+        data: {
+          content: data.content ?? null,
+          type: data.type,
+          fileUrl: data.fileUrl ?? null,
+          groupId: data.groupId,
+          senderId: data.senderId,
+          replyToId: data.replyToId ?? null
+        }
+      });
+
+      // Get all group members
+      const members = await tx.groupMember.findMany({
+        where: { groupId: data.groupId },
+        select: { userId: true }
+      });
+
+      // Create MessageStatus for all members
+      const statusData = members.map(({ userId }) => ({
+        messageId: message.id,
+        userId,
+        status: userId === data.senderId ? "SENT" as const : "DELIVERED" as const
+      }));
+
+      await tx.messageStatus.createMany({
+        data: statusData,
+        skipDuplicates: true
+      });
+
+      // Return message with relations
+      return tx.message.findUniqueOrThrow({
+        where: { id: message.id },
+        include: { sender: true, reactions: true, statuses: true }
+      });
     });
   }
 
