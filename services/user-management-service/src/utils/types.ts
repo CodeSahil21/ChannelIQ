@@ -50,7 +50,7 @@ export interface UserProfileResponse {
     githubUrl: string | null;
     portfolioUrl: string | null;
     twitterUrl: string | null;
-    status: 'ACTIVE' | 'INACTIVE';
+    status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'DELETED';
     isOnline: boolean;
     lastSeen: Date | null;
     createdAt: Date;

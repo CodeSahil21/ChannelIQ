@@ -5,7 +5,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  //url      = env("DATABASE_URL")
+ // url      = env("DATABASE_URL")
   
 }
 
@@ -25,20 +25,7 @@ enum ConnectionStatus {
   BLOCKED
 }
 
-// For audit trail and compliance
-enum ActivityType {
-  LOGIN
-  LOGOUT
-  PROFILE_UPDATE
-  CONNECTION_REQUEST
-  CONNECTION_ACCEPTED
-  CONNECTION_DECLINED
-  PASSWORD_CHANGE
-  ACCOUNT_DEACTIVATION
-  USER_BLOCKED
-  USER_UNBLOCKED
-  CONNECTION_REMOVED
-}
+
 
 model User {
   id               Int         @id
@@ -84,9 +71,6 @@ model User {
   // Chat-specific fields
   isOnline         Boolean     @default(false)
   lastSeen         DateTime?
-  
-  // Search optimization - Full-text search support
-  searchVector     Unsupported("tsvector")? // Computed field for full-text search
 
   // Activity tracking
   lastLoginAt      DateTime?
@@ -97,8 +81,7 @@ model User {
   sentConnections     Connection[] @relation("ConnectionSender")
   receivedConnections Connection[] @relation("ConnectionReceiver")
   
-  // Activity logs
-  activities       UserActivity[]
+
 
   // User preferences (relation field for UserPreference)
   preference       UserPreference?
@@ -122,9 +105,6 @@ model User {
   @@index([managerId, status]) // For manager-team queries
   @@index([fullName, status, isDeleted]) // For search optimization
   @@index([profileCreated, isDeleted]) // For profile completion queries
-  
-  // Full-text search index (PostgreSQL specific)
-  @@index([searchVector], type: Gin)
   
   @@map("users")
 }
@@ -170,37 +150,7 @@ model Connection {
   @@map("connections")
 }
 
-// For audit trail and compliance tracking
-model UserActivity {
-  id          Int          @id @default(autoincrement())
-  userId      Int
-  type        ActivityType
-  description String?
-  metadata    Json?        // Store additional data as JSON
-  ipAddress   String?
-  userAgent   String?
-  
-  // Soft delete support
-  isDeleted   Boolean      @default(false)
-  deletedAt   DateTime?
-  
-  // Relationships
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  // Timestamps
-  createdAt   DateTime     @default(now())
-  
-  // Strategic indexes for performance and compliance queries
-  @@index([userId])
-  @@index([type])
-  @@index([createdAt])
-  @@index([userId, type])
-  @@index([userId, createdAt])
-  @@index([type, createdAt])
-  @@index([isDeleted])
-  
-  @@map("user_activities")
-}
+
 
 // For storing user preferences and settings
 model UserPreference {

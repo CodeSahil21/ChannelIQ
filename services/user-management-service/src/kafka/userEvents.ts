@@ -49,4 +49,3 @@ export const createUserProfileDeletedEvent = (data: {
     timestamp: new Date()
   };
 }
-

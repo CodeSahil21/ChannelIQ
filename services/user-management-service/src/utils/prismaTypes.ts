@@ -1,9 +1,9 @@
-import { ConnectionStatus, UserStatus, ActivityType } from '@prisma/client';
+import { ConnectionStatus, UserStatus } from '@prisma/client';
 
 export * from '@prisma/client';
 
 // Export the existing types with the new ones
-export { ConnectionStatus, UserStatus, ActivityType };
+export { ConnectionStatus, UserStatus };
 
 // Preference visibility type for user profiles
 export enum PreferenceVisibilityType {

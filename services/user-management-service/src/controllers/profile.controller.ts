@@ -229,7 +229,7 @@ export const deleteProfileController = async (req: AuthenticatedRequest, res: Re
         const userAgent = req.headers['user-agent'];
         const ipAddress = req.ip || req.connection.remoteAddress;
         
-        await deleteUserProfile(userId, userId, userAgent, ipAddress as string);
+        await deleteUserProfile(userId, userId);
         
         res.status(200).json({
             success: true,
@@ -274,7 +274,7 @@ export const restoreUserController = async (req: AuthenticatedRequest, res: Resp
         const userAgent = req.headers['user-agent'];
         const ipAddress = req.ip || req.connection.remoteAddress;
         
-        await restoreUser(userId, userAgent, ipAddress as string);
+        await restoreUser(userId);
         
         res.status(200).json({ success: true, message: "User restored successfully" });
     } catch (error: unknown) {

@@ -4,15 +4,16 @@ import {
     CreateUserProfile, 
     UserProfileResponse,
     UpdateUserProfile,
-    UserSearchResult,
-    ActivityType
+    UserSearchResult
 } from '../utils/types';
 import { getCache, setCache, deleteMultipleCache } from '../utils/cache';
 import { UserStatus } from '../utils/prismaTypes';
-import { logUserActivity } from './activity.service';
 import { createDefaultPreferences } from './preference.service';
-import { calculateProfileCompletion, buildSearchVector } from '../utils/profileUtils';
 import { eventPublisher } from '../kafka/publisher';
+
+
+
+
 
 // Create a new user
 export const CreateUserService = async ({userId, email}: CreateUser): Promise<{ id: number; email: string; profileCreated: boolean; status: UserStatus; isDeleted: boolean; createdAt: Date; updatedAt: Date }> => {
@@ -38,14 +39,6 @@ export const CreateUserService = async ({userId, email}: CreateUser): Promise<{ 
     // Create default preferences
     await createDefaultPreferences(user.id);
     
-    // Log user creation
-    await logUserActivity(
-        user.id,
-        ActivityType.PROFILE_UPDATE,
-        'User account created',
-        { email: user.email }
-    );
-    
     return user;
 }
 
@@ -63,14 +56,10 @@ export const createProfile = async (id: number, profileData: CreateUserProfile):
         throw new Error("Profile already completed");
     }
     
-    // Calculate profile completion percentage
-    const completion = calculateProfileCompletion(profileData);
-    
     // Prepare update data
     const updatedData = {
         ...profileData,
-        profileCreated: true,
-        profileCompletionPercentage: completion
+        profileCreated: true
     };
     
     try {
@@ -80,22 +69,17 @@ export const createProfile = async (id: number, profileData: CreateUserProfile):
             data: updatedData
         });
         
-        // Async operations (non-blocking)
-        Promise.all([
-            // Update search vector
-            prisma.$executeRaw`UPDATE "users" SET "searchVector" = to_tsvector('english', ${buildSearchVector(profileData)}) WHERE "id" = ${id}`,
-            // Log activity
-            logUserActivity(id, ActivityType.PROFILE_UPDATE, 'Profile created', { fields: Object.keys(profileData) }),
-            // Publish event
-            eventPublisher.publishUserProfileCreated({
+        // Publish profile created event
+        try {
+            await eventPublisher.publishUserProfileCreated({
                 userId: updatedUser.id,
                 email: updatedUser.email,
                 fullName: updatedUser.fullName || '',
                 profilePic: updatedUser.profilePic || ''
-            })
-        ]).catch(error => {
-            console.error('Background operations failed:', error);
-        });
+            });
+        } catch (eventError) {
+            console.error('Failed to publish profile created event:', eventError);
+        }
         
         // Invalidate caches
         await deleteMultipleCache([
@@ -203,28 +187,16 @@ export const updateUserProfile = async(id:number, data:UpdateUserProfile):Promis
     // Check if fullName is being updated
     const isFullNameUpdated = data.fullName && data.fullName !== user.fullName;
     
-    // Calculate profile completion percentage
-    const completion = calculateProfileCompletion({...data});
-    
-    // Build search vector text
-    const searchText = buildSearchVector(data);
-    
-    // Update profile with transaction to handle the search vector
+    // Update profile with transaction for consistency
     const updatedProfile = await prisma.$transaction(async (tx) => {
         // First update the user with regular data
         const updated = await tx.user.update({
             where: { id: id },
             data: {
                 ...data,
-                profileCreated: true,
-                profileCompletionPercentage: completion
+                profileCreated: true
             }
         });
-        
-        // Then update the search vector using raw SQL
-        if (searchText) {
-            await tx.$executeRaw`UPDATE "users" SET "searchVector" = to_tsvector('english', ${searchText}) WHERE "id" = ${id}`;
-        }
         
         // Publish fullName update event if changed
         if (isFullNameUpdated) {
@@ -235,20 +207,11 @@ export const updateUserProfile = async(id:number, data:UpdateUserProfile):Promis
                 });
             } catch (eventError) {
                 console.error(`Failed to publish fullName update event for user ${id}:`, eventError);
-                throw new Error("Failed to publish fullName update event. Please try again later.");
             }
         }
         
         return updated;
     });
-    
-    // Log the activity
-    await logUserActivity(
-        id,
-        ActivityType.PROFILE_UPDATE,
-        'Profile updated',
-        { fields: Object.keys(data) }
-    );
     
     // Invalidate caches - profile, search, and connections
     await deleteMultipleCache([
@@ -264,7 +227,7 @@ export const updateUserProfile = async(id:number, data:UpdateUserProfile):Promis
 }
 
 
-export const deleteUserProfile = async (id: number, deletedBy?: number, userAgent?: string, ipAddress?: string): Promise<void> => {
+export const deleteUserProfile = async (id: number, deletedBy?: number): Promise<void> => {
     await prisma.$transaction(async (tx) => {
         // Soft delete the user
         await tx.user.update({
@@ -276,34 +239,7 @@ export const deleteUserProfile = async (id: number, deletedBy?: number, userAgen
                 status: UserStatus.DELETED
             }
         });
-        
-        // Also soft delete user preferences
-        await tx.userPreference.updateMany({
-            where: { userId: id },
-            data: {
-                isDeleted: true,
-                deletedAt: new Date()
-            }
-        });
-        
-        // Publish profile deletion event
-        try {
-            await eventPublisher.publishUserProfileDeleted({ userId: id });
-        } catch (eventError) {
-            console.error(`Failed to publish profile deletion event for user ${id}:`, eventError);
-            throw new Error("Failed to publish profile deletion event. Please try again later.");
-        }
     });
-    
-    // Log the activity
-    await logUserActivity(
-        deletedBy ?? id,
-        ActivityType.ACCOUNT_DEACTIVATION,
-        'User account deactivated',
-        { userId: id },
-        ipAddress,
-        userAgent
-    );
     
     // Invalidate caches - profile, search, and connections
     await deleteMultipleCache([
@@ -316,7 +252,7 @@ export const deleteUserProfile = async (id: number, deletedBy?: number, userAgen
     ]);
 };
 
-export const restoreUser = async (id: number, userAgent?: string, ipAddress?: string): Promise<void> => {
+export const restoreUser = async (id: number): Promise<void> => {
     // Use a transaction to ensure consistency when restoring a user
     await prisma.$transaction(async (tx) => {
         // Restore the user
@@ -329,34 +265,19 @@ export const restoreUser = async (id: number, userAgent?: string, ipAddress?: st
                 status: UserStatus.ACTIVE
             }
         });
-        
-        // Also restore user preferences if they were soft deleted
-        await tx.userPreference.updateMany({
-            where: { 
-                userId: id,
-                isDeleted: true 
-            },
-            data: {
-                isDeleted: false,
-                deletedAt: null
-            }
-        });
     });
     
-    // Log the activity
-    await logUserActivity(
-        id,
-        ActivityType.ACCOUNT_DEACTIVATION, // Using existing type since ACCOUNT_REACTIVATION doesn't exist
-        'User account reactivated',
-        { userId: id },
-        ipAddress,
-        userAgent
-    );
+    // Invalidate caches after restoration
+    await deleteMultipleCache([
+        `user:profile:${id}`, 
+        `user:profile:completion:${id}`,
+        `search:users:*`
+    ]);
 };
 
 
 
-// Search users using searchVector (full-text search)
+// Search users using simple text matching
 export const searchUsers = async (
     query: string, 
     currentUserId: number,
@@ -427,14 +348,6 @@ export const updateUserProfileImage = async (userId: number, fileName: string | 
             data: { profilePic: fileName }
         });
         
-        // Log the activity
-        await logUserActivity(
-            userId,
-            ActivityType.PROFILE_UPDATE,
-            fileName ? 'Profile image updated' : 'Profile image removed',
-            { fileName }
-        );
-        
         // Invalidate caches - profile, search, and connections
         await deleteMultipleCache([
             `user:profile:${userId}`,
@@ -450,4 +363,72 @@ export const updateUserProfileImage = async (userId: number, fileName: string | 
         console.error(`❌ Failed to update profile image for user ${userId}:`, error);
         throw error;
     }
+};
+
+// Bulk user lookup with caching optimization
+export const getBulkUserProfiles = async (userIds: number[]): Promise<UserProfileResponse[]> => {
+    if (userIds.length === 0) return [];
+    
+    const results: UserProfileResponse[] = [];
+    const uncachedIds: number[] = [];
+    
+    // Check cache for each user
+    for (const userId of userIds) {
+        const cacheKey = `user:profile:${userId}`;
+        const cached = await getCache<UserProfileResponse>(cacheKey);
+        if (cached) {
+            results.push(cached);
+        } else {
+            uncachedIds.push(userId);
+        }
+    }
+    
+    // Fetch uncached users in bulk
+    if (uncachedIds.length > 0) {
+        const profiles = await prisma.user.findMany({
+            where: {
+                id: { in: uncachedIds },
+                isDeleted: false,
+                status: { not: UserStatus.DELETED }
+            },
+            select: {
+                id: true,
+                fullName: true,
+                email: true,
+                profilePic: true,
+                jobTitle: true,
+                department: true,
+                phoneNumber: true,
+                workEmail: true,
+                status: true,
+                profileCreated: true,
+                profileCompletionPercentage: true,
+                skills: true,
+                languages: true,
+                bio: true,
+                location: true,
+                timezone: true,
+                managerId: true,
+                managerName: true,
+                linkedinUrl: true,
+                githubUrl: true,
+                portfolioUrl: true,
+                twitterUrl: true,
+                isOnline: true,
+                lastSeen: true,
+                createdAt: true,
+                updatedAt: true
+            }
+        });
+        
+        // Cache and add to results
+        for (const profile of profiles) {
+            const cacheKey = `user:profile:${profile.id}`;
+            await setCache(cacheKey, profile, 3600); // 1 hour
+            results.push(profile as unknown as UserProfileResponse);
+        }
+    }
+    
+    // Sort results to match original order
+    return userIds.map(id => results.find(profile => profile.id === id)).filter(Boolean) as UserProfileResponse[];
 };

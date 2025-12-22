@@ -4,8 +4,6 @@ import {
     getProfileController, 
     updateProfileController,
     fetchUserProfileController,
-    deleteProfileController,
-    restoreUserController,
     searchUsersController
 } from '../controllers/profile.controller';
 import {
@@ -21,8 +19,6 @@ userManagementRouter.post('/create-profile', protectRoute, createProfileControll
 userManagementRouter.put('/update-profile', protectRoute, updateProfileController);
 userManagementRouter.get('/get-profile', protectRoute, getProfileController);   
 userManagementRouter.get('/fetch-profile/:userId', protectRoute, fetchUserProfileController);
-userManagementRouter.delete('/delete-profile', protectRoute, deleteProfileController);
-userManagementRouter.post('/restore-user/:userId', protectRoute, restoreUserController);
 
 // User preferences routes
 userManagementRouter.get('/preferences', protectRoute, getUserPreferenceController);

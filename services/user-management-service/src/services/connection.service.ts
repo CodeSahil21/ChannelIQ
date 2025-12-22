@@ -4,10 +4,9 @@ import {
     ConnectionResponse, 
     ConnectionStatus,
     ConnectionStats,
-    ConnectedUser,
-    ActivityType
+    ConnectedUser
 } from '../utils/types';
-import { logUserActivity } from './activity.service';
+
 import { getCache, setCache, deleteMultipleCache } from '../utils/cache';
 import { processProfileImages } from './image.service';
 
@@ -44,17 +43,23 @@ export const sendConnectionRequest = async (request: ConnectionRequest): Promise
     });
 
     if (existingConnection) {
-        // If connection exists but is soft-deleted, reactivate it
+        // If connection exists but is soft-deleted, only allow if user was part of original connection
         if (existingConnection.isDeleted) {
+            // Check if current sender was involved in the original connection
+            const wasInvolved = (existingConnection.senderId === senderId && existingConnection.receiverId === receiverId) ||
+                              (existingConnection.senderId === receiverId && existingConnection.receiverId === senderId);
+            
+            if (!wasInvolved) {
+                throw new Error("Invalid connection reactivation");
+            }
+            
             const reactivatedConnection = await prisma.connection.update({
                 where: { id: existingConnection.id },
                 data: {
                     isDeleted: false,
                     deletedAt: null,
                     status: ConnectionStatus.PENDING,
-                    message: message ?? null,
-                    senderId,
-                    receiverId
+                    message: message ?? null
                 },
                 include: {
                     sender: {
@@ -112,6 +117,75 @@ export const sendConnectionRequest = async (request: ConnectionRequest): Promise
         }
         if (existingConnection.status === ConnectionStatus.ACCEPTED) {
             throw new Error("Users are already connected");
+        }
+        if (existingConnection.status === ConnectionStatus.DECLINED) {
+            // Only allow original sender to resend declined requests
+            if (existingConnection.senderId !== senderId) {
+                throw new Error("Connection request was declined");
+            }
+            // Allow resending by updating the existing declined request
+            const reactivatedConnection = await prisma.connection.update({
+                where: { id: existingConnection.id },
+                data: {
+                    status: ConnectionStatus.PENDING,
+                    message: message ?? null,
+                    senderId,
+                    receiverId,
+                    updatedAt: new Date()
+                },
+                include: {
+                    sender: {
+                        select: {
+                            id: true,
+                            fullName: true,
+                            profilePic: true,
+                            jobTitle: true,
+                            department: true
+                        }
+                    },
+                    receiver: {
+                        select: {
+                            id: true,
+                            fullName: true,
+                            profilePic: true,
+                            jobTitle: true,
+                            department: true
+                        }
+                    }
+                }
+            });
+            
+            // Invalidate caches for declined request reactivation
+            await deleteMultipleCache([
+                `user:sent-requests:${senderId}`,
+                `user:pending-requests:${receiverId}`,
+                `connection:status:${senderId}:${receiverId}`,
+                `connection:status:${receiverId}:${senderId}`
+            ]);
+            
+            return {
+                id: reactivatedConnection.id,
+                senderId: reactivatedConnection.senderId,
+                receiverId: reactivatedConnection.receiverId,
+                status: reactivatedConnection.status as ConnectionStatus,
+                message: reactivatedConnection.message ?? "",
+                sender: {
+                    id: reactivatedConnection.sender.id,
+                    fullName: reactivatedConnection.sender.fullName ?? "",
+                    ...(reactivatedConnection.sender.profilePic ? { profilePic: reactivatedConnection.sender.profilePic } : {}),
+                    ...(reactivatedConnection.sender.jobTitle ? { jobTitle: reactivatedConnection.sender.jobTitle } : {}),
+                    ...(reactivatedConnection.sender.department ? { department: reactivatedConnection.sender.department } : {})
+                },
+                receiver: {
+                    id: reactivatedConnection.receiver.id,
+                    fullName: reactivatedConnection.receiver.fullName ?? "",
+                    ...(reactivatedConnection.receiver.profilePic ? { profilePic: reactivatedConnection.receiver.profilePic } : {}),
+                    ...(reactivatedConnection.receiver.jobTitle ? { jobTitle: reactivatedConnection.receiver.jobTitle } : {}),
+                    ...(reactivatedConnection.receiver.department ? { department: reactivatedConnection.receiver.department } : {})
+                },
+                createdAt: reactivatedConnection.createdAt,
+                updatedAt: reactivatedConnection.updatedAt
+            };
         }
     }
 
@@ -365,7 +439,7 @@ export const declineConnectionRequest = async (connectionId: number, userId: num
 }
 
 
-export const blockUser = async (senderId: number, receiverId: number, userAgent?: string, ipAddress?: string): Promise<void> => {
+export const blockUser = async (senderId: number, receiverId: number): Promise<void> => {
     if (senderId === receiverId) {
         throw new Error('Cannot block yourself');
     }
@@ -387,9 +461,7 @@ export const blockUser = async (senderId: number, receiverId: number, userAgent?
             data: {
                 isDeleted: false,
                 deletedAt: null,
-                status: ConnectionStatus.BLOCKED,
-                senderId,
-                receiverId
+                status: ConnectionStatus.BLOCKED
             }
         });
     } else {
@@ -402,16 +474,6 @@ export const blockUser = async (senderId: number, receiverId: number, userAgent?
             }
         });
     }
-    
-    // Log the activity
-    await logUserActivity(
-        senderId,
-        ActivityType.USER_BLOCKED,
-        'User blocked',
-        { blockedUserId: receiverId },
-        ipAddress,
-        userAgent
-    );
     
     // Invalidate caches
     await deleteMultipleCache([
@@ -429,38 +491,29 @@ export const blockUser = async (senderId: number, receiverId: number, userAgent?
     ]);
 };
 
-export const unblockUser = async (senderId: number, receiverId: number, userAgent?: string, ipAddress?: string): Promise<void> => {
+export const unblockUser = async (senderId: number, receiverId: number): Promise<void> => {
     if (senderId === receiverId) {
         throw new Error('Cannot unblock yourself');
     }
 
     const updatedConnection = await prisma.connection.updateMany({
         where: {
-            senderId,
-            receiverId,
+            OR: [
+                { senderId, receiverId },
+                { senderId: receiverId, receiverId: senderId }
+            ],
             status: ConnectionStatus.BLOCKED,
             isDeleted: false
         },
         data: {
             isDeleted: true,
             deletedAt: new Date()
-            // deletedBy field is not in the schema
         }
     });
 
     if (updatedConnection.count === 0) {
         throw new Error('No blocked connection found');
     }
-    
-    // Log the activity
-    await logUserActivity(
-        senderId,
-        ActivityType.USER_UNBLOCKED,
-        'User unblocked',
-        { unblockedUserId: receiverId },
-        ipAddress,
-        userAgent
-    );
     
     // Invalidate caches
     await deleteMultipleCache([
@@ -472,9 +525,7 @@ export const unblockUser = async (senderId: number, receiverId: number, userAgen
 
 export const removeConnection = async (
     userId1: number, 
-    userId2: number, 
-    userAgent?: string, 
-    ipAddress?: string
+    userId2: number
 ): Promise<void> => {
     if (userId1 === userId2) {
         throw new Error('Cannot remove connection with yourself');
@@ -494,16 +545,6 @@ export const removeConnection = async (
             // deletedBy field is not in the schema
         }
     });
-    
-    // Log the activity
-    await logUserActivity(
-        userId1,
-        ActivityType.CONNECTION_REMOVED,
-        'Connection removed',
-        { otherUserId: userId2 },
-        ipAddress,
-        userAgent
-    );
     
     // Invalidate caches
     await deleteMultipleCache([

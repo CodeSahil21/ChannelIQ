@@ -1,19 +1,14 @@
 import prisma from '../db/index';
-import { ActivityType } from '../utils/prismaTypes';
-import { logUserActivity } from './activity.service';
+import { deleteMultipleCache } from '../utils/cache';
 
 /**
- * Soft delete a connection with activity logging
+ * Soft delete a connection with cache invalidation
  * @param connectionId The connection ID to delete
  * @param userId The user ID requesting the deletion
- * @param userAgent Optional user agent string
- * @param ipAddress Optional IP address
  */
 export const softDeleteConnection = async (
     connectionId: number, 
-    userId: number,
-    userAgent?: string,
-    ipAddress?: string
+    userId: number
 ): Promise<void> => {
     // Find the connection first to validate it
     const connection = await prisma.connection.findUnique({
@@ -29,25 +24,24 @@ export const softDeleteConnection = async (
         throw new Error("You are not authorized to delete this connection");
     }
     
+    const otherUserId = connection.senderId === userId ? connection.receiverId : connection.senderId;
+    
     // Soft delete the connection
     await prisma.connection.update({
         where: { id: connectionId },
         data: {
             isDeleted: true,
             deletedAt: new Date()
-            // deletedBy field is not present in the schema
         }
     });
 
-    // Log the activity
-    const otherUserId = connection.senderId === userId ? connection.receiverId : connection.senderId;
-    
-    await logUserActivity(
-        userId,
-        ActivityType.CONNECTION_REMOVED,
-        'Connection removed',
-        { connectionId, otherUserId },
-        ipAddress,
-        userAgent
-    );
+    // Invalidate caches for both users
+    await deleteMultipleCache([
+        `user:connections:${userId}`,
+        `user:connections:${otherUserId}`,
+        `user:connection-stats:${userId}`,
+        `user:connection-stats:${otherUserId}`,
+        `connection:status:${userId}:${otherUserId}`,
+        `connection:status:${otherUserId}:${userId}`
+    ]);
 };
