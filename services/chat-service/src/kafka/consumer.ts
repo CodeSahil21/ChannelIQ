@@ -176,7 +176,7 @@ const handleChatEvent = async (event: any): Promise<void> => {
 
 const handleMediaEvent = async (event: MediaEvent): Promise<void> => {
   try {
-    const userId = parseInt(event.userId);
+    const userId = typeof event.userId === 'string' ? parseInt(event.userId, 10) : event.userId;
     
     switch (event.eventType) {
       case 'PROFILE_IMAGE_UPLOADED':

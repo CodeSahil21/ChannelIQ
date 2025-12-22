@@ -10,7 +10,7 @@ export interface CreateUser{
 
 export interface MediaEvent {
     eventType: 'PROFILE_IMAGE_UPLOADED' | 'PROFILE_IMAGE_DELETED' | 'GROUP_PROFILE_IMAGE_UPLOADED' | 'GROUP_PROFILE_IMAGE_DELETED';
-    userId: string;
+    userId: number;
     imageUrl?: string;
     timestamp: string;
     metadata?: {
@@ -25,6 +25,7 @@ export interface MediaEvent {
 interface User{
     id:number,
     email:string,
+    fullName:string,
 }
 
 export interface AuthenticatedRequest extends Request {

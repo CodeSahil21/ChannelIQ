@@ -9,6 +9,7 @@ import helmet from 'helmet';
 import prisma from './db';
 import { connectRedis, redis } from './redis';
 import groupRouter from './routes/group.route';
+import messageRouter from './routes/message.route';
 
 const app = express();
 
@@ -72,6 +73,7 @@ app.get('/health', async (_req, res) => {
 
 // Register routes
 app.use('/groups', groupRouter);
+app.use('/groups', messageRouter);
 
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error(err.stack);

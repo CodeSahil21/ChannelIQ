@@ -1,85 +1,46 @@
-// import { Server, Socket } from 'socket.io';
-// import jwt, { JwtPayload } from 'jsonwebtoken';
-// import { SendMessageData, MessageWithSender } from '../utils/socket.types';
-// import { randomUUID } from 'crypto';
+import { Server } from "socket.io";
+import http from "http";
+import { TypedServer } from "./types";
+import { verifySocketAuth } from "../middleware/socketMiddleware";
+import { registerChatHandlers } from "./chatHandlers";
 
-// interface AuthenticatedSocket extends Socket {
-//   userId?: number;
-// }
+export const initSocket = (server: http.Server): TypedServer => {
+  // Use same CORS configuration as REST API
+  const corsOrigins = process.env.NODE_ENV === 'production' 
+    ? process.env.FRONTEND_URLS?.split(',').filter(origin => origin.trim()) || []
+    : ["http://localhost:3000", "http://localhost:5173", "http://localhost:4000"];
+  
+  if (corsOrigins.length === 0) {
+    throw new Error('FRONTEND_URLS must be configured for production');
+  }
+  
+  const io: TypedServer = new Server(server, {
+    cors: {
+      origin: corsOrigins,
+      credentials: true,
+    },
+  });
 
-// export class SocketServer {
-//   private io: Server;
+  io.use(verifySocketAuth);
 
-//   constructor(server: any) {
-//     this.io = new Server(server, {
-//       cors: { origin: "*" }
-//     });
+  io.on("connection", (socket) => {
+    try {
+      // Sanitize user ID for logging to prevent log injection
+      const sanitizedUserId = socket.user?.id?.toString().replace(/[\x00-\x1F\x7F\r\n]/g, '') || 'Unknown';
+      console.log("Connected:", sanitizedUserId);
+      
+      if (!socket.user?.id) {
+        socket.disconnect();
+        return;
+      }
 
-//     this.setupMiddleware();
-//     this.setupEventHandlers();
-//   }
+      socket.join(`user:${socket.user.id}`);
+      registerChatHandlers(io, socket);
+    } catch (error) {
+      console.error('Socket connection error:', error);
+      socket.disconnect();
+    }
+  });
 
-//   private setupMiddleware() {
-//     this.io.use(async (socket: AuthenticatedSocket, next) => {
-//       try {
-//         const token = socket.handshake.auth.token;
-//         if (!token) {
-//           return next(new Error('No token provided'));
-//         }
-        
-//         const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload & { id: number };
-//         socket.userId = decoded.id;
-//         next();
-//       } catch (err) {
-//         next(new Error('Authentication failed'));
-//       }
-//     });
-//   }
-
-//   private setupEventHandlers() {
-//     this.io.on('connection', (socket: AuthenticatedSocket) => {
-//       console.log(`User ${socket.userId} connected`);
-
-//       socket.on('join-group', (groupId: string) => {
-//         socket.join(`group:${groupId}`);
-//         console.log(`User ${socket.userId} joined group ${groupId}`);
-//       });
-
-//       socket.on('leave-group', (groupId: string) => {
-//         socket.leave(`group:${groupId}`);
-//         console.log(`User ${socket.userId} left group ${groupId}`);
-//       });
-
-//       socket.on('send-message', (data: SendMessageData) => {
-//         const messageData: MessageWithSender = {
-//           id: randomUUID(),
-//           content: data.content || '',
-//           type: data.type,
-//           fileUrl: data.fileUrl,
-//           replyToId: data.replyToId,
-//           groupId: data.groupId,
-//           senderId: socket.userId!,
-//           isDeleted: false,
-//           createdAt: new Date(),
-//           updatedAt: new Date(),
-//           sender: {
-//             id: socket.userId!,
-//             fullName: 'User Name'
-//           }
-//         };
-
-//         // Emit to group members immediately
-//         this.io.to(`group:${data.groupId}`).emit('new-message', messageData);
-//         console.log(`Message sent to group ${data.groupId} by user ${socket.userId}`);
-//       });
-
-//       socket.on('disconnect', () => {
-//         console.log(`User ${socket.userId} disconnected`);
-//       });
-//     });
-//   }
-
-//   public emitToGroup(groupId: string, event: string, data: any) {
-//     this.io.to(`group:${groupId}`).emit(event, data);
-//   }
-// }
+  return io;
+};

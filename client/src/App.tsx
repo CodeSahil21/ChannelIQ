@@ -15,7 +15,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Profile } from './pages/Profile';
 import { Preferences } from './pages/Preferences';
 import ConnectionsWithContext from './pages/Connections';
-import { ChatPage } from './pages/ChatPage';
+import { ChatPage } from './pages/ChatPage';''
 function AnimatedRoutes() {
   const location = useLocation();
   

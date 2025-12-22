@@ -3,12 +3,16 @@ import app from './app';
 import { initializeKafka, disconnectKafka } from './kafka/kafkaManager';
 import { startConsumer } from './kafka/consumer';
 import { connectRedis, redis } from './redis';
-// import { SocketServer } from './socket/SocketServer';
+import { initSocket } from './socket/SocketServer';
+import { setSocketServer } from './socket/socketService';
 
-const PORT = process.env.PORT || 3003;
+const PORT = process.env.PORT || 3004;
 
 const server = http.createServer(app);
-  // const socketServer = new SocketServer(server);
+const io = initSocket(server);
+
+// Set socket server for controller integration
+setSocketServer(io);
 
 // Add kafka and redis initialization 
 const startServer = async() => {
@@ -25,7 +29,7 @@ const startServer = async() => {
 
     server.listen(PORT, () => {
       console.log(`🚀 Chat Service with Socket.IO running on port ${PORT}`);
-      // console.log(`🔌 Socket server initialized:`, !!socketServer);
+      console.log(`🔌 Socket server initialized: ${io.sockets.sockets.size} users connected`);
     });
 
   } catch(error) {

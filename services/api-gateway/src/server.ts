@@ -2,10 +2,12 @@ import express from 'express';
 import cors from 'cors';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import dotenv from 'dotenv';
+import http from 'http';
 
 dotenv.config();
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 4000;
 
 // CORS configuration
@@ -154,6 +156,19 @@ app.use('/api/media', createProxyMiddleware({
     }
 }));
 
+// Socket.IO Proxy for WebSocket connections
+app.use('/socket.io/', createProxyMiddleware({
+    target: 'http://localhost:3004',
+    changeOrigin: true,
+    ws: true, // Enable WebSocket proxying
+    onProxyReq: (proxyReq, req) => {
+        console.log(`→ Socket.IO: ${req.method} ${req.path}`);
+    },
+    onError: (err, req, res) => {
+        console.error(`❌ Socket.IO proxy error:`, err.message);
+    }
+}));
+
 // Groups/Chat Service Proxy
 app.use('/api/groups', createProxyMiddleware({
     target: 'http://localhost:3004',
@@ -194,7 +209,7 @@ app.use('*', (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`🚀 API Gateway running on http://localhost:${PORT}`);
     console.log(`🔗 Proxying:`);
     console.log(`   /api/auth/* → http://localhost:3001/api/v1/auth/*`);
@@ -202,6 +217,7 @@ app.listen(PORT, () => {
     console.log(`   /api/connections/* → http://localhost:3002/api/v1/connections/*`);
     console.log(`   /api/media/* → http://localhost:3003/api/v1/media/*`);
     console.log(`   /api/groups/* → http://localhost:3004/groups/*`);
+    console.log(`   /socket.io/* → http://localhost:3004/socket.io/* (WebSocket)`);
 });
 
 export default app;
