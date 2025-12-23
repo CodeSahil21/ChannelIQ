@@ -2,7 +2,7 @@ import { Response, NextFunction } from 'express';
 import jwt,{JwtPayload} from 'jsonwebtoken';
 import prisma from '../db';
 import { AuthenticatedRequest } from '../utils/types';
-import { getSession, isBlacklisted, getCache, setCache } from '../redis';
+import { getAuthState, getCache, setCache } from '../redis';
 
 // Combined middleware with SMART CACHING - eliminates most DB calls
 export const authenticateAndRequireChatUser = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
@@ -27,17 +27,13 @@ export const authenticateAndRequireChatUser = async (req: AuthenticatedRequest, 
         const cachedUser = await getCache<{ id: number; email: string; fullName: string; profileUrl: string | null }>(userCacheKey);
         
         if (cachedUser) {
-            // Still need to check session and blacklist, but skip DB query
-            const [blacklisted, session] = await Promise.all([
-                isBlacklisted(decoded.jti),
-                getSession<{ id: number; email?: string }>(decoded.jti)
-            ]);
+            // ✅ Cached-user path: auth checks in 1 Redis RTT
+            const { blacklisted, session } = await getAuthState<{ id: number }>(decoded.jti);
 
             if (blacklisted) {
                 res.status(401).json({ success: false, message: "Unauthorized - Token revoked" });
                 return;
             }
-
             if (!session || session.id !== decoded.id) {
                 res.status(401).json({ success: false, message: "Unauthorized - Session expired" });
                 return;
@@ -47,10 +43,9 @@ export const authenticateAndRequireChatUser = async (req: AuthenticatedRequest, 
             return next();
         }
 
-        // Only if not cached - do all checks including DB
-        const [blacklisted, session, chatUser] = await Promise.all([
-            isBlacklisted(decoded.jti),
-            getSession<{ id: number; email?: string }>(decoded.jti),
+        // ✅ Miss path: run auth state + DB in parallel
+        const [{ blacklisted, session }, chatUser] = await Promise.all([
+            getAuthState<{ id: number }>(decoded.jti),
             prisma.user.findUnique({
                 where: { id: decoded.id },
                 select: { id: true, email: true, fullName: true, profileUrl: true }
@@ -76,7 +71,7 @@ export const authenticateAndRequireChatUser = async (req: AuthenticatedRequest, 
         }
 
         // Cache user for future requests
-        await setCache(userCacheKey, chatUser, 6000); // 100 minutes
+        await setCache(userCacheKey, chatUser, 6000);
         
         req.user = chatUser;
         next();

@@ -5,6 +5,7 @@ import { verifySocketAuth } from "../middleware/socketMiddleware";
 import { registerChatHandlers } from "./chatHandlers";
 import prisma from "../db/index";
 import { SessionManager } from "./sessionManager";
+import { getCachedGroupIds, setCachedGroupIds } from '../redis';
 
 export const initSocket = (server: http.Server): TypedServer => {
   // Use same CORS configuration as REST API
@@ -38,21 +39,32 @@ export const initSocket = (server: http.Server): TypedServer => {
 
       socket.join(`user:${socket.user.id}`);
       
-      // Auto-rejoin user's groups
+      // ✅ Cache groupIds for reconnect storms
+      let groupIds: string[] | null = null;
+
       try {
+        groupIds = await getCachedGroupIds(socket.user.id);
+      } catch {
+        // ignore redis issues; fallback to DB
+      }
+
+      if (!groupIds) {
         const memberships = await prisma.groupMember.findMany({
           where: { userId: socket.user.id },
-          select: { groupId: true }
+          select: { groupId: true },
         });
-        
-        for (const { groupId } of memberships) {
-          socket.join(`group:${groupId}`);
-          SessionManager.addUserToGroup(socket.id, groupId);
+        groupIds = memberships.map(m => m.groupId);
+
+        try {
+          await setCachedGroupIds(socket.user.id, groupIds);
+        } catch {
+          // ignore
         }
-      } catch (dbError) {
-        console.error('Failed to rejoin groups:', dbError);
-        socket.disconnect();
-        return;
+      }
+
+      for (const groupId of groupIds) {
+        socket.join(`group:${groupId}`);
+        SessionManager.addUserToGroup(socket.id, groupId);
       }
       
       registerChatHandlers(io, socket);

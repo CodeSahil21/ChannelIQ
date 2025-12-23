@@ -25,8 +25,12 @@ const corsOptions = {
 };
 
 app.use(helmet());
-app.use(compression()); // Add compression
-app.use(morgan('dev'));
+app.use(compression());
+app.disable('x-powered-by');
+
+if (process.env.NODE_ENV !== 'production') {
+  app.use(morgan('dev'));
+}
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());

@@ -110,22 +110,17 @@ export const getGroupMessages = async (
   limit: number = 50, 
   cursor?: string
 ): Promise<MessageWithDetails[]> => {
-  // Verify user is member
-  const membership = await prisma.groupMember.findUnique({
-    where: {
-      userId_groupId: { userId, groupId }
-    }
-  });
-
-  if (!membership) {
-    throw new Error('Not authorized to view messages');
-  }
-
-  return await prisma.message.findMany({
+  // ✅ Single query for the common case: group has messages
+  const messages = await prisma.message.findMany({
     where: {
       groupId,
       isDeleted: false,
-      ...(cursor && { id: { lt: cursor } })
+      ...(cursor && { id: { lt: cursor } }),
+      group: {
+        members: {
+          some: { userId }, // membership enforced in same query
+        },
+      },
     },
     include: {
       sender: {
@@ -151,4 +146,15 @@ export const getGroupMessages = async (
     orderBy: { createdAt: 'desc' },
     take: limit
   });
+
+  // Preserve previous behavior: if no messages, verify membership to decide between [] vs error
+  if (messages.length === 0) {
+    const membership = await prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId, groupId } },
+      select: { id: true },
+    });
+    if (!membership) throw new Error('Not authorized to view messages');
+  }
+
+  return messages;
 };
