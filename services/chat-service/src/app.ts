@@ -4,6 +4,7 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
+import compression from 'compression';
 import { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import prisma from './db';
@@ -24,11 +25,12 @@ const corsOptions = {
 };
 
 app.use(helmet());
+app.use(compression()); // Add compression
 app.use(morgan('dev'));
 app.use(cors(corsOptions));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 
 app.get('/health', async (_req, res) => {

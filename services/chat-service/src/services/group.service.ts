@@ -104,7 +104,7 @@ export const getMyGroups = async (userId: number): Promise<MyGroupsResponse> => 
   const cached = await getCache<MyGroupsResponse>(cacheKey);
   if (cached) return cached;
 
-  // Single optimized query with all needed data
+  // Single optimized query with minimal fields
   const memberships = await prisma.groupMember.findMany({
     where: { userId },
     select: {
@@ -134,10 +134,11 @@ export const getMyGroups = async (userId: number): Promise<MyGroupsResponse> => 
       },
     },
     orderBy: { joinedAt: 'desc' },
+    take: 50, // Limit results
   });
   
   const result = memberships as MyGroupsResponse;
-  await setCache(cacheKey, result, CacheTTL.SHORT);
+  await setCache(cacheKey, result, CacheTTL.MEDIUM);
   return result;
 };
 
@@ -145,7 +146,6 @@ export const getGroupDetails = async (groupId: string, userId: number): Promise<
   const cacheKey = CacheKeys.group(groupId);
   const cached = await getCache<GroupDetailResponse>(cacheKey);
   if (cached) {
-    // Check membership in cached data
     const membership = cached.members?.find(m => m.userId === userId);
     if (!membership && cached.isPrivate) {
       throw new ForbiddenError('You do not have access to this private group');
@@ -153,20 +153,64 @@ export const getGroupDetails = async (groupId: string, userId: number): Promise<
     return cached;
   }
 
-  // Optimized single query with selective fields
-  const group = await prisma.group.findUnique({
-    where: { id: groupId },
+  // Parallel queries for better performance
+  const [group, membershipCheck] = await Promise.all([
+    prisma.group.findUnique({
+      where: { id: groupId },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        imageUrl: true,
+        isPrivate: true,
+        maxMembers: true,
+        creatorId: true,
+        createdAt: true,
+        updatedAt: true,
+        creator: {
+          select: {
+            id: true,
+            email: true,
+            fullName: true,
+            profileUrl: true,
+          },
+        },
+        _count: {
+          select: {
+            members: true,
+            messages: true,
+          },
+        },
+      },
+    }),
+    prisma.groupMember.findUnique({
+      where: {
+        userId_groupId: { userId, groupId },
+      },
+      select: { id: true },
+    }),
+  ]);
+
+  if (!group) {
+    throw new NotFoundError('Group not found');
+  }
+
+  if (!membershipCheck && group.isPrivate) {
+    throw new ForbiddenError('You do not have access to this private group');
+  }
+
+  // Only fetch members if user has access
+  const members = membershipCheck ? await prisma.groupMember.findMany({
+    where: { groupId },
     select: {
       id: true,
-      name: true,
-      description: true,
-      imageUrl: true,
-      isPrivate: true,
-      maxMembers: true,
-      creatorId: true,
-      createdAt: true,
-      updatedAt: true,
-      creator: {
+      userId: true,
+      groupId: true,
+      role: true,
+      isMuted: true,
+      muteUntil: true,
+      joinedAt: true,
+      user: {
         select: {
           id: true,
           email: true,
@@ -174,46 +218,12 @@ export const getGroupDetails = async (groupId: string, userId: number): Promise<
           profileUrl: true,
         },
       },
-      members: {
-        select: {
-          id: true,
-          userId: true,
-          groupId: true,
-          role: true,
-          isMuted: true,
-          muteUntil: true,
-          joinedAt: true,
-          user: {
-            select: {
-              id: true,
-              email: true,
-              fullName: true,
-              profileUrl: true,
-            },
-          },
-        },
-        orderBy: { joinedAt: 'asc' },
-      },
-      _count: {
-        select: {
-          members: true,
-          messages: true,
-        },
-      },
     },
-  });
+    orderBy: { joinedAt: 'asc' },
+    take: 100, // Limit members
+  }) : [];
 
-  if (!group) {
-    throw new NotFoundError('Group not found');
-  }
-
-  // Check membership in memory (faster than separate query)
-  const membership = group.members.find(m => m.userId === userId);
-  if (!membership && group.isPrivate) {
-    throw new ForbiddenError('You do not have access to this private group');
-  }
-
-  const result = group as GroupDetailResponse;
+  const result = { ...group, members } as GroupDetailResponse;
   await setCache(cacheKey, result, CacheTTL.MEDIUM);
   return result;
 };
@@ -227,63 +237,51 @@ export const searchGroups = async (
   if (cached) return cached;
 
   const skip = (page - 1) * limit;
-  const safeLimit = Math.min(limit, 20); // Reduce max limit
+  const safeLimit = Math.min(limit, 10); // Reduce to 10 for faster response
 
-  // Optimized parallel queries with minimal fields
-  const [groups, total] = await Promise.all([
-    prisma.group.findMany({
-      where: {
-        isPrivate: false,
-        name: {
-          contains: query,
-          mode: 'insensitive',
+  // Single optimized query with minimal fields
+  const groups = await prisma.group.findMany({
+    where: {
+      isPrivate: false,
+      name: {
+        contains: query,
+        mode: 'insensitive',
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      imageUrl: true,
+      maxMembers: true,
+      createdAt: true,
+      creator: {
+        select: {
+          id: true,
+          fullName: true,
         },
       },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        imageUrl: true,
-        maxMembers: true,
-        createdAt: true,
-        creator: {
-          select: {
-            id: true,
-            fullName: true,
-          },
-        },
-        _count: {
-          select: {
-            members: true,
-          },
+      _count: {
+        select: {
+          members: true,
         },
       },
-      orderBy: [
-        { members: { _count: 'desc' } },
-        { createdAt: 'desc' },
-      ],
-      take: safeLimit,
-      skip,
-    }),
-    // Only count if we need pagination info
-    skip === 0 ? prisma.group.count({
-      where: {
-        isPrivate: false,
-        name: {
-          contains: query,
-          mode: 'insensitive',
-        },
-      },
-    }) : Promise.resolve(0),
-  ]);
+    },
+    orderBy: [
+      { members: { _count: 'desc' } },
+      { createdAt: 'desc' },
+    ],
+    take: safeLimit,
+    skip,
+  });
 
   const result = {
     groups: groups as PublicGroupItem[],
     pagination: {
       page,
       limit: safeLimit,
-      total: skip === 0 ? total : 0,
-      totalPages: skip === 0 ? Math.ceil(total / safeLimit) : 0,
+      total: 0, // Skip count for performance
+      totalPages: 0,
     },
   };
   
@@ -350,46 +348,22 @@ export const inviteUserToGroup = async (
 ): Promise<InviteUserResponse> => {
   const { targetUserId, message } = input;
 
-  // Batch 1: Validate admin and group
-  const [adminMember, group] = await Promise.all([
+  // Single parallel batch - all validations at once
+  const [adminMember, group, targetUser, existingMember, existingRequests] = await Promise.all([
     prisma.groupMember.findUnique({
-      where: {
-        userId_groupId: { userId: adminUserId, groupId },
-      },
+      where: { userId_groupId: { userId: adminUserId, groupId } },
       select: { role: true },
     }),
     prisma.group.findUnique({
       where: { id: groupId },
-      select: {
-        id: true,
-        maxMembers: true,
-        _count: { select: { members: true } },
-      },
+      select: { id: true, maxMembers: true, _count: { select: { members: true } } },
     }),
-  ]);
-
-  if (!adminMember || (adminMember.role !== GroupRole.ADMIN && adminMember.role !== GroupRole.CO_ADMIN)) {
-    throw new UnauthorizedError('Only admins can invite users to the group');
-  }
-
-  if (!group) {
-    throw new NotFoundError('Group not found');
-  }
-
-  if (group._count.members >= group.maxMembers) {
-    throw new ConflictError('Group has reached maximum capacity');
-  }
-
-  // Batch 2: Check conflicts
-  const [targetUser, existingMember, existingRequests] = await Promise.all([
     prisma.user.findUnique({
       where: { id: targetUserId },
       select: { id: true },
     }),
     prisma.groupMember.findUnique({
-      where: {
-        userId_groupId: { userId: targetUserId, groupId },
-      },
+      where: { userId_groupId: { userId: targetUserId, groupId } },
       select: { id: true },
     }),
     prisma.groupRequest.findMany({
@@ -400,37 +374,36 @@ export const inviteUserToGroup = async (
           { senderId: targetUserId, type: RequestType.JOIN_REQUEST, status: RequestStatus.PENDING }
         ]
       },
-      select: { id: true, type: true },
+      select: { id: true },
     }),
   ]);
 
-  if (!targetUser) {
-    throw new NotFoundError('Target user not found');
+  // Fast validation checks
+  if (!adminMember || (adminMember.role !== GroupRole.ADMIN && adminMember.role !== GroupRole.CO_ADMIN)) {
+    throw new UnauthorizedError('Only admins can invite users to the group');
   }
+  if (!group) throw new NotFoundError('Group not found');
+  if (!targetUser) throw new NotFoundError('Target user not found');
+  if (existingMember) throw new ConflictError('User is already a member of this group');
+  if (group._count.members >= group.maxMembers) throw new ConflictError('Group has reached maximum capacity');
 
-  if (existingMember) {
-    throw new ConflictError('User is already a member of this group');
-  }
+  // Clean up and create invite in parallel
+  const [, invite] = await Promise.all([
+    existingRequests.length > 0 ? cleanupPendingRequests(groupId, targetUserId) : Promise.resolve(),
+    prisma.groupRequest.create({
+      data: {
+        groupId,
+        senderId: adminUserId,
+        receiverId: targetUserId,
+        type: RequestType.INVITE,
+        status: RequestStatus.PENDING,
+        message: message || null,
+      },
+    }),
+  ]);
 
-  // Clean up any existing pending requests before creating new invite
-  if (existingRequests.length > 0) {
-    await cleanupPendingRequests(groupId, targetUserId);
-  }
-
-  // Create invite
-  const invite = await prisma.groupRequest.create({
-    data: {
-      groupId,
-      senderId: adminUserId,
-      receiverId: targetUserId,
-      type: RequestType.INVITE,
-      status: RequestStatus.PENDING,
-      message: message || null,
-    },
-  });
-
-  // Invalidate cache
-  await deleteCachePatterns([
+  // Async cache invalidation
+  deleteCachePatterns([
     `chat:user:${targetUserId}:requests`,
     `chat:user:${adminUserId}:requests`
   ]);
