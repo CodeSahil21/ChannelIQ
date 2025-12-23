@@ -102,10 +102,10 @@ export const CacheKeys = {
   groupSearch: (query: string, page: number) => `chat:search:${query}:${page}`,
 };
 
-// TTL constants (optimized for performance)
+// TTL constants (aggressive caching)
 export const CacheTTL = {
-  SHORT: 60,    // 1min for frequently changing data
-  MEDIUM: 300,  // 5min for group details
-  LONG: 900,    // 15min for user groups
-  SEARCH: 180,  // 3min for search results
+  SHORT: 120,   // 2min
+  MEDIUM: 600,  // 10min  
+  LONG: 1800,   // 30min
+  SEARCH: 300,  // 5min
 };

@@ -112,18 +112,11 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
             <HiInformationCircle className="tab-icon" />
             Details
           </button>
-          <button
-            className={`group-detail-tab ${activeTab === 'members' ? 'active' : ''}`}
-            onClick={() => setActiveTab('members')}
-          >
-            <HiUsers className="tab-icon" />
-            Members
-          </button>
         </div>
       </div>
 
       <div className="group-detail-content">
-        {activeTab === 'details' && (
+        <div className="details-tab-content">
           <GroupProfile 
             group={group} 
             onUpdate={() => setShowUpdateModal(true)}
@@ -132,15 +125,14 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
             canManage={isCreator}
             isCreator={isCreator}
             onImageUpdate={(imageUrl) => {
-              // Handle image update with optimistic update + refetch
               handleImageUpdate(group.id, imageUrl);
               console.log('Group image updated:', imageUrl);
             }}
           />
-        )}
-        {activeTab === 'members' && (
-          <div className="members-tab-content">
-            <h3>All Members ({group._count?.members || 0})</h3>
+          
+          {/* Members Section */}
+          <div className="members-section" style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid #e5e7eb' }}>
+            <h3>Members ({group._count?.members || 0})</h3>
             <div className="members-list-container">
               {group.members?.map(member => {
                 const currentUserMembership = group.members?.find(m => m.userId === currentUserId);
@@ -158,27 +150,6 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
                     MEMBER: { text: 'Member', class: 'role-member' }
                   };
                   return badges[role as keyof typeof badges] || badges.MEMBER;
-                };
-                
-                const canRemoveMember = () => {
-                  if (member.userId === currentUserId) return false;
-                  if (member.role === 'ADMIN' && !memberIsCreator) return false;
-                  if (currentUserRole === 'CO_ADMIN' && ['ADMIN', 'CO_ADMIN'].includes(member.role)) return false;
-                  return ['ADMIN', 'CO_ADMIN'].includes(currentUserRole);
-                };
-                
-                const canLeaveGroup = () => {
-                  return member.userId === currentUserId && !memberIsCreator;
-                };
-                
-                const canChangeRole = () => {
-                  if (member.userId === currentUserId) return false;
-                  if (currentUserRole !== 'ADMIN') return false;
-                  return member.role !== 'ADMIN';
-                };
-                
-                const canMuteSettings = () => {
-                  return member.userId === currentUserId;
                 };
                 
                 return (
@@ -231,50 +202,46 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
                               minWidth: '150px'
                             }}
                           >
-                            {member.userId !== currentUserId && (
-                              <>
-                                <button 
-                                  className="member-dropdown-item"
-                                  onClick={() => {
-                                    handleRoleChange(member.userId, 'CO_ADMIN');
-                                    setActiveDropdown(null);
-                                  }}
-                                >
-                                  <HiCog />
-                                  Make Co-Admin
-                                </button>
-                                <button 
-                                  className="member-dropdown-item"
-                                  onClick={() => {
-                                    handleRoleChange(member.userId, 'MEMBER');
-                                    setActiveDropdown(null);
-                                  }}
-                                >
-                                  <HiCog />
-                                  Make Member
-                                </button>
-                                <button 
-                                  className="member-dropdown-item"
-                                  onClick={() => {
-                                    handleMuteToggle(member.userId);
-                                    setActiveDropdown(null);
-                                  }}
-                                >
-                                  {member.isMuted ? <HiVolumeUp /> : <HiVolumeOff />}
-                                  {member.isMuted ? 'Unmute' : 'Mute'}
-                                </button>
-                                <button 
-                                  className="member-dropdown-item danger"
-                                  onClick={() => {
-                                    handleRemoveMemberClick(member.userId, member.user.fullName);
-                                    setActiveDropdown(null);
-                                  }}
-                                >
-                                  <HiUserRemove />
-                                  Remove Member
-                                </button>
-                              </>
-                            )}
+                            <button 
+                              className="member-dropdown-item"
+                              onClick={() => {
+                                handleRoleChange(member.userId, 'CO_ADMIN');
+                                setActiveDropdown(null);
+                              }}
+                            >
+                              <HiCog />
+                              Make Co-Admin
+                            </button>
+                            <button 
+                              className="member-dropdown-item"
+                              onClick={() => {
+                                handleRoleChange(member.userId, 'MEMBER');
+                                setActiveDropdown(null);
+                              }}
+                            >
+                              <HiCog />
+                              Make Member
+                            </button>
+                            <button 
+                              className="member-dropdown-item"
+                              onClick={() => {
+                                handleMuteToggle(member.userId);
+                                setActiveDropdown(null);
+                              }}
+                            >
+                              {member.isMuted ? <HiVolumeUp /> : <HiVolumeOff />}
+                              {member.isMuted ? 'Unmute' : 'Mute'}
+                            </button>
+                            <button 
+                              className="member-dropdown-item danger"
+                              onClick={() => {
+                                handleRemoveMemberClick(member.userId, member.user.fullName);
+                                setActiveDropdown(null);
+                              }}
+                            >
+                              <HiUserRemove />
+                              Remove Member
+                            </button>
                           </div>
                         )}
                       </div>
@@ -294,7 +261,7 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
               </div>
             )}
           </div>
-        )}
+        </div>
       </div>
 
       <UpdateGroupModal

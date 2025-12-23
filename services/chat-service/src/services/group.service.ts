@@ -92,9 +92,9 @@ export const CreateGroup = async (input: CreateGroupInput, creatorId: number): P
     },
   });
 
-  // Invalidate cache
-  await deleteCachePattern(`chat:user:${creatorId}:*`);
-  await deleteCachePattern('chat:search:*');
+  // Invalidate cache (non-blocking)
+  deleteCachePattern(`chat:user:${creatorId}:*`);
+  deleteCachePattern('chat:search:*');
 
   return group as GroupResponse;
 };
@@ -104,7 +104,6 @@ export const getMyGroups = async (userId: number): Promise<MyGroupsResponse> => 
   const cached = await getCache<MyGroupsResponse>(cacheKey);
   if (cached) return cached;
 
-  // Single optimized query with minimal fields
   const memberships = await prisma.groupMember.findMany({
     where: { userId },
     select: {
@@ -118,113 +117,77 @@ export const getMyGroups = async (userId: number): Promise<MyGroupsResponse> => 
         select: {
           id: true,
           name: true,
-          description: true,
           imageUrl: true,
           isPrivate: true,
-          maxMembers: true,
           creatorId: true,
-          createdAt: true,
-          updatedAt: true,
-          _count: {
-            select: {
-              members: true,
-            },
-          },
+          _count: { select: { members: true } },
         },
       },
     },
     orderBy: { joinedAt: 'desc' },
-    take: 50, // Limit results
+    take: 20,
   });
   
   const result = memberships as MyGroupsResponse;
-  await setCache(cacheKey, result, CacheTTL.MEDIUM);
+  setCache(cacheKey, result, CacheTTL.LONG); // Non-blocking
   return result;
 };
 
 export const getGroupDetails = async (groupId: string, userId: number): Promise<GroupDetailResponse | null> => {
   const cacheKey = CacheKeys.group(groupId);
   const cached = await getCache<GroupDetailResponse>(cacheKey);
-  if (cached) {
-    const membership = cached.members?.find(m => m.userId === userId);
-    if (!membership && cached.isPrivate) {
-      throw new ForbiddenError('You do not have access to this private group');
-    }
-    return cached;
-  }
+  if (cached) return cached;
 
-  // Parallel queries for better performance
-  const [group, membershipCheck] = await Promise.all([
-    prisma.group.findUnique({
-      where: { id: groupId },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        imageUrl: true,
-        isPrivate: true,
-        maxMembers: true,
-        creatorId: true,
-        createdAt: true,
-        updatedAt: true,
-        creator: {
-          select: {
-            id: true,
-            email: true,
-            fullName: true,
-            profileUrl: true,
-          },
-        },
-        _count: {
-          select: {
-            members: true,
-            messages: true,
-          },
-        },
-      },
-    }),
-    prisma.groupMember.findUnique({
-      where: {
-        userId_groupId: { userId, groupId },
-      },
-      select: { id: true },
-    }),
-  ]);
-
-  if (!group) {
-    throw new NotFoundError('Group not found');
-  }
-
-  if (!membershipCheck && group.isPrivate) {
-    throw new ForbiddenError('You do not have access to this private group');
-  }
-
-  // Only fetch members if user has access
-  const members = membershipCheck ? await prisma.groupMember.findMany({
-    where: { groupId },
+  const group = await prisma.group.findUnique({
+    where: { id: groupId },
     select: {
       id: true,
-      userId: true,
-      groupId: true,
-      role: true,
-      isMuted: true,
-      muteUntil: true,
-      joinedAt: true,
-      user: {
+      name: true,
+      description: true,
+      imageUrl: true,
+      isPrivate: true,
+      maxMembers: true,
+      creatorId: true,
+      createdAt: true,
+      creator: {
         select: {
           id: true,
-          email: true,
           fullName: true,
           profileUrl: true,
         },
       },
+      members: {
+        select: {
+          id: true,
+          userId: true,
+          role: true,
+          isMuted: true,
+          joinedAt: true,
+          user: {
+            select: {
+              id: true,
+              email: true,
+              fullName: true,
+              profileUrl: true,
+            },
+          },
+        },
+        orderBy: { joinedAt: 'asc' },
+        take: 50,
+      },
+      _count: { select: { members: true } },
     },
-    orderBy: { joinedAt: 'asc' },
-    take: 100, // Limit members
-  }) : [];
+  });
 
-  const result = { ...group, members } as GroupDetailResponse;
-  await setCache(cacheKey, result, CacheTTL.MEDIUM);
+  if (!group) throw new NotFoundError('Group not found');
+
+  const membership = group.members.find(m => m.userId === userId);
+  if (!membership && group.isPrivate) {
+    throw new ForbiddenError('You do not have access to this private group');
+  }
+
+  const result = group as GroupDetailResponse;
+  setCache(cacheKey, result, CacheTTL.LONG); // Non-blocking
   return result;
 };
 
