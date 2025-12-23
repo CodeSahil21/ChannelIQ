@@ -5,7 +5,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  // url      = env("DATABASE_URL")
+   url      = env("DATABASE_URL")
 }
 
 
@@ -90,6 +90,8 @@ model Group {
   @@index([name])
   @@index([creatorId])
   @@index([isPrivate])
+  @@index([createdAt])
+  @@index([name, isPrivate]) // Composite index for search queries
   @@map("groups")
 }
 
@@ -112,6 +114,8 @@ model GroupMember {
   @@index([groupId]) // Speed up "Get all members"
   @@index([userId]) // Speed up user's groups
   @@index([role]) // Speed up admin queries
+  @@index([userId, groupId]) // Composite for membership checks
+  @@index([joinedAt]) // For ordering by join date
   @@map("group_members")
 }
 

@@ -1,12 +1,17 @@
 import React from 'react';
 
-export const Loader: React.FC = () => {
+interface LoaderProps {
+  text?: string;
+  size?: 'small' | 'medium' | 'large';
+}
+
+export const Loader: React.FC<LoaderProps> = ({ text = 'Loading...', size = 'medium' }) => {
   return (
-    <div className="loader-container">
-      <div className="loader">
-        <div className="loader-spinner"></div>
+    <div className="theme-loader-container">
+      <div className={`theme-loader ${size}`}>
+        <div className="theme-loader-spinner"></div>
       </div>
-      <p className="loader-text">Loading...</p>
+      <p className="theme-loader-text">{text}</p>
     </div>
   );
 };

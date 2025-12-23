@@ -226,8 +226,6 @@ export const fetchUserProfileController = async (req: AuthenticatedRequest, res:
 export const deleteProfileController = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
         const userId = req.user!.id;
-        const userAgent = req.headers['user-agent'];
-        const ipAddress = req.ip || req.connection.remoteAddress;
         
         await deleteUserProfile(userId, userId);
         
@@ -270,9 +268,6 @@ export const restoreUserController = async (req: AuthenticatedRequest, res: Resp
             });
             return;
         }
-        
-        const userAgent = req.headers['user-agent'];
-        const ipAddress = req.ip || req.connection.remoteAddress;
         
         await restoreUser(userId);
         

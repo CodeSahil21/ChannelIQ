@@ -102,10 +102,10 @@ export const CacheKeys = {
   groupSearch: (query: string, page: number) => `chat:search:${query}:${page}`,
 };
 
-// TTL constants
+// TTL constants (optimized for chat service)
 export const CacheTTL = {
-  SHORT: 60,
-  MEDIUM: 300,
-  LONG: 1800,
-  SEARCH: 120,
+  SHORT: 30,    // 30s for frequently changing data
+  MEDIUM: 120,  // 2min for group details
+  LONG: 300,    // 5min for user groups
+  SEARCH: 60,   // 1min for search results
 };

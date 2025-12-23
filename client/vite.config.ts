@@ -13,14 +13,23 @@ export default defineConfig({
         manualChunks: {
           vendor: ['react', 'react-dom'],
           router: ['react-router-dom'],
-          ui: ['framer-motion', 'react-hot-toast', 'react-icons'],
-          state: ['@reduxjs/toolkit', 'react-redux']
+          ui: ['framer-motion', 'react-hot-toast'],
+          icons: ['react-icons/hi', 'react-icons/fa', 'react-icons/md'],
+          state: ['@reduxjs/toolkit', 'react-redux'],
+          utils: ['axios']
         }
       }
     },
-    chunkSizeWarningLimit: 1000
+    chunkSizeWarningLimit: 1000,
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true
+      }
+    }
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom', 'framer-motion']
+    include: ['react', 'react-dom', 'react-router-dom', 'framer-motion', 'axios']
   }
 })

@@ -1,8 +1,12 @@
 import { redis, connectRedis } from '../redis';
 
+const ensureRedis = async (): Promise<void> => {
+  if (!redis.isOpen) await connectRedis();
+};
+
 export const getCache = async <T = any>(key: string): Promise<T | null> => {
   try {
-    await connectRedis();
+    await ensureRedis();
     const cached = await redis.get(key);
     return cached ? JSON.parse(cached) : null;
   } catch (error) {
@@ -13,7 +17,7 @@ export const getCache = async <T = any>(key: string): Promise<T | null> => {
 
 export const setCache = async (key: string, value: any, ttl: number): Promise<void> => {
   try {
-    await connectRedis();
+    await ensureRedis();
     await redis.setEx(key, ttl, JSON.stringify(value));
   } catch (error) {
     console.error(`Cache set error for key ${key}:`, error);
@@ -22,7 +26,7 @@ export const setCache = async (key: string, value: any, ttl: number): Promise<vo
 
 export const deleteCache = async (key: string): Promise<void> => {
   try {
-    await connectRedis();
+    await ensureRedis();
     await redis.del(key);
   } catch (error) {
     console.error(`Cache delete error for key ${key}:`, error);
@@ -31,7 +35,7 @@ export const deleteCache = async (key: string): Promise<void> => {
 
 export const incrementCache = async (key: string, ttl?: number): Promise<number> => {
   try {
-    await connectRedis();
+    await ensureRedis();
     const count = await redis.incr(key);
     if (ttl && count === 1) {
       await redis.expire(key, ttl);

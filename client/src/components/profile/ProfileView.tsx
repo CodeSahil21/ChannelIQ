@@ -50,9 +50,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onProfileDeleted }) =>
 
   if (isLoading) {
     return (
-      <div className="profile-loading">
-        <div className="loading-spinner"></div>
-        <p>Loading your profile...</p>
+      <div className="inline-loader">
+        <div className="theme-loader medium">
+          <div className="theme-loader-spinner"></div>
+        </div>
+        <p className="theme-loader-text">Loading your profile...</p>
       </div>
     );
   }
@@ -86,6 +88,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onProfileDeleted }) =>
                     src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(profile.fullName || profile.email)}&backgroundColor=2a5298`}
                     alt={profile.fullName || 'Profile'}
                     className="avatar-image"
+                    loading="lazy"
+                    decoding="async"
                   />
                 }
               />
@@ -94,6 +98,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onProfileDeleted }) =>
                 src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(profile.fullName || profile.email)}&backgroundColor=2a5298`}
                 alt={profile.fullName || 'Profile'}
                 className="avatar-image"
+                loading="lazy"
+                decoding="async"
               />
             )}
             <button 

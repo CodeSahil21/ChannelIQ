@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { Input } from '../ui/Input';
 import { PasswordInput } from '../ui/PasswordInput';
 import { Button } from '../ui/Button';
+import { Loader } from '../ui/Loader';
 import type { RegisterFormData } from '../../types';
 import { setUser } from '../../store/userSlice';
 import axios from 'axios';
@@ -15,8 +16,35 @@ export const RegisterForm: React.FC = () => {
     password: ''
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const navigate = useNavigate();
   const dispatch = useDispatch();
+
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      try {
+        const response = await axios.get(
+          'http://localhost:4000/api/auth/get-profile',
+          { withCredentials: true }
+        );
+        
+        if (response.status === 200) {
+          dispatch(setUser(response.data.data.user));
+          navigate('/profile');
+        }
+      } catch (err) {
+        // User not authenticated, stay on register page
+      } finally {
+        setIsCheckingAuth(false);
+      }
+    };
+
+    checkAuthStatus();
+  }, [dispatch, navigate]);
+
+  if (isCheckingAuth) {
+    return <Loader text="Checking authentication..." />;
+  }
 
 
 

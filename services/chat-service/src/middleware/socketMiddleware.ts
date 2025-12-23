@@ -2,6 +2,7 @@ import { Socket } from "socket.io";
 import jwt from "jsonwebtoken";
 import cookie from "cookie";
 import prisma from "../db/index";
+import { connectRedis, redis } from "../redis";
 import { SocketUser } from "../socket/types";
 
 declare module "socket.io" {
@@ -18,27 +19,37 @@ export const verifySocketAuth = async (
     const rawCookie = socket.handshake.headers.cookie;
     if (!rawCookie) return next(new Error("No cookies"));
 
-    const { accessToken } = cookie.parse(rawCookie);
-    if (!accessToken) return next(new Error("No token"));
+    const parsed = cookie.parse(rawCookie);
+    const token = parsed.token ?? parsed.accessToken;
+    if (!token) return next(new Error("No token"));
 
-    const payload = jwt.verify(
-      accessToken,
-      process.env.JWT_SECRET!
-    ) as { userId: number };
+    const payload = jwt.verify(token, process.env.JWT_SECRET!) as { userId: number };
+
+    await connectRedis();
+    const cacheKey = `chat_user:${payload.userId}`;
+
+    const cached = await redis.get(cacheKey);
+    if (cached) {
+      socket.user = JSON.parse(cached);
+      return next();
+    }
 
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
+      select: { id: true, email: true, fullName: true },
     });
 
     if (!user) return next(new Error("User not found"));
 
-    // Attach user to socket
     socket.user = user;
+    await redis.setEx(cacheKey, 300, JSON.stringify(user));
+
     next();
-  } catch (err) {
+  } catch {
     next(new Error("Unauthorized"));
   }
 };
+
 export const requireGroupMember = async (
   userId: number,
   groupId: string

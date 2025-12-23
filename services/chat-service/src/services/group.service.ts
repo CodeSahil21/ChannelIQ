@@ -104,11 +104,16 @@ export const getMyGroups = async (userId: number): Promise<MyGroupsResponse> => 
   const cached = await getCache<MyGroupsResponse>(cacheKey);
   if (cached) return cached;
 
+  // Single optimized query with all needed data
   const memberships = await prisma.groupMember.findMany({
-    where: {
-      userId,
-    },
-    include: {
+    where: { userId },
+    select: {
+      id: true,
+      userId: true,
+      groupId: true,
+      role: true,
+      isMuted: true,
+      joinedAt: true,
       group: {
         select: {
           id: true,
@@ -128,9 +133,7 @@ export const getMyGroups = async (userId: number): Promise<MyGroupsResponse> => 
         },
       },
     },
-    orderBy: {
-      joinedAt: 'desc',
-    },
+    orderBy: { joinedAt: 'desc' },
   });
   
   const result = memberships as MyGroupsResponse;
@@ -138,15 +141,31 @@ export const getMyGroups = async (userId: number): Promise<MyGroupsResponse> => 
   return result;
 };
 
-export const getGroupDetails = async (groupId: string,userId: number): Promise<GroupDetailResponse | null> => {
+export const getGroupDetails = async (groupId: string, userId: number): Promise<GroupDetailResponse | null> => {
   const cacheKey = CacheKeys.group(groupId);
   const cached = await getCache<GroupDetailResponse>(cacheKey);
-  if (cached) return cached;
+  if (cached) {
+    // Check membership in cached data
+    const membership = cached.members?.find(m => m.userId === userId);
+    if (!membership && cached.isPrivate) {
+      throw new ForbiddenError('You do not have access to this private group');
+    }
+    return cached;
+  }
 
-  // Single optimized query with all includes
+  // Optimized single query with selective fields
   const group = await prisma.group.findUnique({
     where: { id: groupId },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      imageUrl: true,
+      isPrivate: true,
+      maxMembers: true,
+      creatorId: true,
+      createdAt: true,
+      updatedAt: true,
       creator: {
         select: {
           id: true,
@@ -208,10 +227,9 @@ export const searchGroups = async (
   if (cached) return cached;
 
   const skip = (page - 1) * limit;
-  
-  // Ensure strict limit
-  const safeLimit = Math.min(limit, 50);
+  const safeLimit = Math.min(limit, 20); // Reduce max limit
 
+  // Optimized parallel queries with minimal fields
   const [groups, total] = await Promise.all([
     prisma.group.findMany({
       where: {
@@ -221,13 +239,17 @@ export const searchGroups = async (
           mode: 'insensitive',
         },
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        imageUrl: true,
+        maxMembers: true,
+        createdAt: true,
         creator: {
           select: {
             id: true,
-            email: true,
             fullName: true,
-            profileUrl: true,
           },
         },
         _count: {
@@ -237,13 +259,14 @@ export const searchGroups = async (
         },
       },
       orderBy: [
-        { members: { _count: 'desc' } }, // Popular groups first
+        { members: { _count: 'desc' } },
         { createdAt: 'desc' },
       ],
       take: safeLimit,
       skip,
     }),
-    prisma.group.count({
+    // Only count if we need pagination info
+    skip === 0 ? prisma.group.count({
       where: {
         isPrivate: false,
         name: {
@@ -251,7 +274,7 @@ export const searchGroups = async (
           mode: 'insensitive',
         },
       },
-    }),
+    }) : Promise.resolve(0),
   ]);
 
   const result = {
@@ -259,8 +282,8 @@ export const searchGroups = async (
     pagination: {
       page,
       limit: safeLimit,
-      total,
-      totalPages: Math.ceil(total / safeLimit),
+      total: skip === 0 ? total : 0,
+      totalPages: skip === 0 ? Math.ceil(total / safeLimit) : 0,
     },
   };
   

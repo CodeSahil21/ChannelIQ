@@ -114,7 +114,12 @@ export const ChatPage: React.FC = () => {
           {/* Groups List */}
           <div className="chat-groups-list">
             {loading ? (
-              <div className="chat-loading">Loading groups...</div>
+              <div className="inline-loader">
+                <div className="theme-loader small">
+                  <div className="theme-loader-spinner"></div>
+                </div>
+                <p className="theme-loader-text">Loading groups...</p>
+              </div>
             ) : groups.length === 0 ? (
               <div className="chat-empty">No groups found</div>
             ) : (
@@ -152,8 +157,10 @@ export const ChatPage: React.FC = () => {
           {loadingGroupDetails ? (
             <div className="chat-welcome">
               <div className="chat-welcome-content">
-                <div className="loading-spinner"></div>
-                <p>Loading group details...</p>
+                <div className="theme-loader medium">
+                  <div className="theme-loader-spinner"></div>
+                </div>
+                <p className="theme-loader-text">Loading group details...</p>
               </div>
             </div>
           ) : currentGroup ? (
@@ -192,3 +199,6 @@ export const ChatPage: React.FC = () => {
     </div>
   );
 };
+
+const ChatPageComponent = ChatPage;
+export default ChatPageComponent;

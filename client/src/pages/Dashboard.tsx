@@ -2,7 +2,7 @@ import React from 'react';
 import { Layout } from '../components/layout/Layout';
 import { HiShieldCheck, HiLightningBolt, HiUserGroup, HiGlobe } from 'react-icons/hi';
 
-export const Dashboard: React.FC = () => {
+const Dashboard: React.FC = () => {
   return (
     <Layout>
       <div className="dashboard-container">
@@ -64,3 +64,6 @@ export const Dashboard: React.FC = () => {
     </Layout>
   );
 };
+
+export default Dashboard;
+export { Dashboard };

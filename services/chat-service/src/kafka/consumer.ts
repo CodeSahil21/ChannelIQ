@@ -4,6 +4,8 @@ import { updateGroupProfileImage } from '../services/group.service';
 import { MediaEvent } from '../utils/types';
 import { EachMessagePayload } from 'kafkajs';
 
+const KAFKA_DEBUG = process.env.KAFKA_DEBUG === 'true';
+
 export const startConsumer = async (): Promise<void> => {
   try {
     console.log('🔄 Starting Kafka consumer...');
@@ -26,11 +28,13 @@ export const startConsumer = async (): Promise<void> => {
 
           const parsedMessage = JSON.parse(value);
 
-          console.log(`📨 Received message from ${topic}:${partition}`, {
-            key: message.key?.toString(),
-            eventType: parsedMessage.eventType,
-            userId: parsedMessage.userId
-          });
+          if (KAFKA_DEBUG) {
+            console.log(`📨 Received message from ${topic}:${partition}`, {
+              key: message.key?.toString(),
+              eventType: parsedMessage.eventType,
+              userId: parsedMessage.userId
+            });
+          }
 
           switch (topic) {
             case 'user-management-events':

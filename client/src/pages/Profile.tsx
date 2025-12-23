@@ -5,7 +5,7 @@ import { ProfileView } from '../components/profile/ProfileView';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-export const Profile: React.FC = () => {
+const Profile: React.FC = () => {
   const [profileData, setProfileData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -49,7 +49,12 @@ export const Profile: React.FC = () => {
   if (isLoading) {
     return (
       <Layout>
-        <div className="dashboard-loading">Loading profile...</div>
+        <div className="inline-loader">
+          <div className="theme-loader medium">
+            <div className="theme-loader-spinner"></div>
+          </div>
+          <p className="theme-loader-text">Loading profile...</p>
+        </div>
       </Layout>
     );
   }
@@ -64,3 +69,6 @@ export const Profile: React.FC = () => {
     </Layout>
   );
 };
+
+export default Profile;
+export { Profile };

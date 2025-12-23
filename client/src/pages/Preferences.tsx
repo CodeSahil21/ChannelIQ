@@ -9,3 +9,6 @@ export const Preferences: React.FC = () => {
     </Layout>
   );
 };
+
+const PreferencesPage = Preferences;
+export default PreferencesPage;

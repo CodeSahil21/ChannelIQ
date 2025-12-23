@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-export const Home: React.FC = () => {
+const Home: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -10,3 +10,6 @@ export const Home: React.FC = () => {
 
   return null;
 };
+
+export default Home;
+export { Home };

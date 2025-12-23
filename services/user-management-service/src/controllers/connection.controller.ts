@@ -250,10 +250,6 @@ export const blockUserController = async (req: AuthenticatedRequest, res: Respon
         }
 
         const { userId } = validationResult.data;
-
-
-        const userAgent = req.headers['user-agent'];
-        const ipAddress = req.ip || req.connection.remoteAddress;
         
         await blockUser(senderId, userId);
 
@@ -314,8 +310,6 @@ export const unblockUserController = async (req: AuthenticatedRequest, res: Resp
         }
 
         const { userId } = validationResult.data;
-        const userAgent = req.headers['user-agent'];
-        const ipAddress = req.ip || req.connection.remoteAddress;
         
         await unblockUser(senderId, userId);
 
@@ -376,9 +370,6 @@ export const removeConnectionController = async (req: AuthenticatedRequest, res:
         }
 
         const { userId:targetUserId } = validationResult.data;
-
-        const userAgent = req.headers['user-agent'];
-        const ipAddress = req.ip || req.connection.remoteAddress;
         
         await removeConnection(senderId, targetUserId);
 

@@ -1,8 +1,12 @@
 import { redis, connectRedis } from '../redis';
 
+const ensureRedis = async (): Promise<void> => {
+  if (!redis.isOpen) await connectRedis();
+};
+
 export const getCache = async <T = any>(key: string): Promise<T | null> => {
   try {
-    await connectRedis();
+    await ensureRedis();
     const cached = await redis.get(key);
     return cached ? JSON.parse(cached) : null;
   } catch (error) {
@@ -13,7 +17,7 @@ export const getCache = async <T = any>(key: string): Promise<T | null> => {
 
 export const setCache = async (key: string, value: any, ttl: number): Promise<void> => {
   try {
-    await connectRedis();
+    await ensureRedis();
     await redis.setEx(key, ttl, JSON.stringify(value));
   } catch (error) {
     console.error(`Cache set error for key ${key}:`, error);
@@ -22,7 +26,7 @@ export const setCache = async (key: string, value: any, ttl: number): Promise<vo
 
 export const deleteCache = async (key: string): Promise<void> => {
   try {
-    await connectRedis();
+    await ensureRedis();
     await redis.del(key);
   } catch (error) {
     console.error(`Cache delete error for key ${key}:`, error);
@@ -31,9 +35,8 @@ export const deleteCache = async (key: string): Promise<void> => {
 
 export const deleteMultipleCache = async (keys: string[]): Promise<void> => {
   try {
-    await connectRedis();
+    await ensureRedis();
     if (keys.length > 0) {
-      // Batch delete all keys in single operation
       await redis.del(keys);
     }
   } catch (error) {
@@ -43,16 +46,14 @@ export const deleteMultipleCache = async (keys: string[]): Promise<void> => {
 
 export const deleteCachePatterns = async (patterns: string[]): Promise<void> => {
   try {
-    await connectRedis();
+    await ensureRedis();
     const allKeys: string[] = [];
     
-    // Batch all pattern matches
     for (const pattern of patterns) {
       const keys = await redis.keys(pattern);
       allKeys.push(...keys);
     }
     
-    // Single delete operation
     if (allKeys.length > 0) {
       await redis.del(allKeys);
     }
@@ -63,7 +64,7 @@ export const deleteCachePatterns = async (patterns: string[]): Promise<void> => 
 
 export const deleteCachePattern = async (pattern: string): Promise<void> => {
   try {
-    await connectRedis();
+    await ensureRedis();
     const keys = await redis.keys(pattern);
     if (keys.length > 0) {
       await redis.del(keys);
