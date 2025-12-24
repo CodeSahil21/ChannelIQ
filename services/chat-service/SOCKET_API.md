@@ -7,6 +7,7 @@ Real-time chat system using Socket.IO with TypeScript support, JWT authenticatio
 - **Method**: JWT token via HTTP cookies
 - **Middleware**: `verifySocketAuth` validates token and attaches user to socket
 - **User Type**: `SocketUser { id: number, email: string, fullName: string }`
+- **JWT Payload**: Uses `userId` field in token payload
 - **Auto-Rejoin**: Users automatically rejoin all their groups on reconnection
 
 ## Connection
@@ -302,6 +303,7 @@ socket.on('user:status', (data) => {
 });
 ```
 - **Payload**: `{ userId: number, status: "online" | "offline", lastSeen?: Date }`
+- **Note**: Currently only emitted on user disconnect
 
 ### Group Management Events
 
@@ -313,6 +315,7 @@ socket.on('group:member:added', (data) => {
 });
 ```
 - **Payload**: `{ groupId: string, userId: number, fullName: string, role: GroupRole }`
+- **Note**: Not currently implemented in socket handlers
 
 #### `group:member:removed`
 Receive notifications when members leave.
@@ -322,6 +325,7 @@ socket.on('group:member:removed', (data) => {
 });
 ```
 - **Payload**: `{ groupId: string, userId: number, fullName: string }`
+- **Note**: Not currently implemented in socket handlers
 
 #### `group:member:role:updated`
 Receive role change notifications.
@@ -331,6 +335,7 @@ socket.on('group:member:role:updated', (data) => {
 });
 ```
 - **Payload**: `{ groupId: string, userId: number, fullName: string, newRole: GroupRole }`
+- **Note**: Not currently implemented in socket handlers
 
 #### `system:message`
 Receive system announcements.
@@ -340,6 +345,7 @@ socket.on('system:message', (data) => {
 });
 ```
 - **Payload**: `{ content: string, groupId: string, createdAt: Date }`
+- **Note**: Not currently implemented in socket handlers
 
 ---
 
@@ -371,7 +377,7 @@ enum GroupRole {
 enum DeliveryStatus {
   SENT = 'SENT',
   DELIVERED = 'DELIVERED',
-  READ = 'read'
+  READ = 'READ'
 }
 ```
 
