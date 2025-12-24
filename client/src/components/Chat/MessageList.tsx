@@ -1,7 +1,10 @@
 import React, { useEffect, useRef } from 'react';
+import { useSelector } from 'react-redux';
 import { MessageItem } from './MessageItem';
 import { TypingIndicator } from './TypingIndicator';
 import { useChatContext } from './ChatProvider';
+import { Loader } from '../ui/Loader';
+import type { RootState } from '../../store';
 
 interface MessageListProps {
   groupId: string;
@@ -9,6 +12,7 @@ interface MessageListProps {
 
 export const MessageList: React.FC<MessageListProps> = ({ groupId }) => {
   const { messages, typingUsers } = useChatContext();
+  const loading = useSelector((state: RootState) => state.messages.loading);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -20,6 +24,16 @@ export const MessageList: React.FC<MessageListProps> = ({ groupId }) => {
   }, [messages]);
 
   const groupMessages = messages.filter(msg => msg.groupId === groupId);
+
+  if (loading) {
+    return (
+      <div className="message-list">
+        <div className="messages-container loading-container">
+          <Loader text="Loading messages..." size="medium" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="message-list">

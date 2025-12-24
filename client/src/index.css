@@ -4377,6 +4377,27 @@ input:checked + .toggle-slider:before {
   overflow: hidden;
 }
 
+.chat-messages.full-height {
+  height: 100%;
+  border-radius: 0;
+  border: none;
+}
+
+.chat-messages-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 200px;
+}
+
 .chat-messages-header {
   display: flex;
   justify-content: space-between;
@@ -4420,6 +4441,27 @@ input:checked + .toggle-slider:before {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
+  display: flex;
+  flex-direction: column;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+}
+
+.message-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.message-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.message-list::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+.message-list::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }
 
 .messages-container {

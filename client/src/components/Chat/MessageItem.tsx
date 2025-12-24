@@ -55,7 +55,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, showAvatar })
   };
 
   const handleReaction = (emoji: string) => {
-    const existingReaction = message.reactions.find(r => r.emoji === emoji && r.userId === currentUserId);
+    const reactions = message.reactions || [];
+    const existingReaction = reactions.find(r => r.emoji === emoji && r.userId === currentUserId);
     if (existingReaction) {
       removeReaction(message.id, emoji);
     } else {
@@ -71,7 +72,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, showAvatar })
     return new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const groupedReactions = message.reactions.reduce((acc, reaction) => {
+  const groupedReactions = (message.reactions || []).reduce((acc, reaction) => {
     if (!acc[reaction.emoji]) {
       acc[reaction.emoji] = [];
     }

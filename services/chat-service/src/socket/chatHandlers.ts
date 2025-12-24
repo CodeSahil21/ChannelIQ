@@ -69,8 +69,21 @@ export const registerChatHandlers: SocketHandler = (io: TypedServer, socket: Typ
       if (fileUrl !== undefined) messageData.fileUrl = fileUrl;
       if (replyToId !== undefined) messageData.replyToId = replyToId;
 
-      const message = await SocketMessageService.createMessage(messageData);
-      io.to(`group:${groupId}`).emit("message:persisted", message);
+      // Parallel operations: create message and emit immediately
+      const [message] = await Promise.all([
+        SocketMessageService.createMessage(messageData),
+        // Could add other parallel operations here
+      ]);
+      
+      // Add missing properties for type compatibility
+      const messageWithRelations = {
+        ...message,
+        reactions: [],
+        statuses: []
+      };
+      
+      // Emit immediately after message creation
+      io.to(`group:${groupId}`).emit("message:persisted", messageWithRelations);
       handleSuccess(cb, { messageId: message.id });
     } catch (err: any) {
       handleError(cb, err.message);
@@ -110,24 +123,31 @@ export const registerChatHandlers: SocketHandler = (io: TypedServer, socket: Typ
     }
   });
 
-  // Reactions
+  // Reactions with optimized flow
   const handleReaction = async (messageId: string, emoji: string, action: "add" | "remove", cb: SocketCallback | undefined) => {
     try {
       const message = await SocketMessageService.findMessageForReaction(messageId);
       if (!message) return handleError(cb, "Message not found");
       
-      // Verify user is still a group member in database
+      // Use cached membership verification
       await SocketMessageService.verifyGroupMember(socket.user.id, message.groupId);
       
-      if (action === "add") {
-        await SocketMessageService.addReaction(messageId, socket.user.id, emoji);
-      } else {
-        await SocketMessageService.removeReaction(messageId, socket.user.id, emoji);
-      }
-
+      // Execute reaction update and emit in parallel
+      const reactionPromise = action === "add" 
+        ? SocketMessageService.addReaction(messageId, socket.user.id, emoji)
+        : SocketMessageService.removeReaction(messageId, socket.user.id, emoji);
+      
+      // Don't wait for DB update to emit (optimistic update)
       io.to(`group:${message.groupId}`).emit("reaction:updated", {
         messageId, emoji, userId: socket.user.id, action
       });
+      
+      // Complete DB update in background
+      reactionPromise.catch(error => {
+        console.error('Reaction update failed:', error);
+        // Could emit a correction event here if needed
+      });
+      
       handleSuccess(cb);
     } catch (err: any) {
       handleError(cb, err.message);

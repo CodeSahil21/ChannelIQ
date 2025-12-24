@@ -11,7 +11,7 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({ groupId }) => {
   const { isConnected } = useChatContext();
 
   return (
-    <div className="chat-messages">
+    <div className="chat-messages full-height">
       <div className="chat-messages-header">
         <h3>Messages</h3>
         <div className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
@@ -20,8 +20,10 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({ groupId }) => {
         </div>
       </div>
       
-      <MessageList groupId={groupId} />
-      <MessageInput groupId={groupId} />
+      <div className="chat-messages-body">
+        <MessageList groupId={groupId} />
+        <MessageInput groupId={groupId} />
+      </div>
     </div>
   );
 };

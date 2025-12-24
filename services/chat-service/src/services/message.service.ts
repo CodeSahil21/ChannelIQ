@@ -143,7 +143,7 @@ export const getGroupMessages = async (
         }
       }
     },
-    orderBy: { createdAt: 'desc' },
+    orderBy: { createdAt: 'asc' },
     take: limit
   });
 

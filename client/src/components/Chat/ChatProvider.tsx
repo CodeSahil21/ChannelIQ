@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useSocketChat } from '../../hooks/useSocketChat';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchMessages, clearMessages, addMessage, updateMessage, updateReaction } from '../../store/messagesSlice';
+import type { RootState, AppDispatch } from '../../store';
 
 interface ChatContextType {
   socket: any;
@@ -34,10 +37,12 @@ interface ChatProviderProps {
 
 export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const [currentGroupId, setCurrentGroupId] = useState<string | null>(null);
+  const dispatch = useDispatch<AppDispatch>();
+  const messages = useSelector((state: RootState) => state.messages.messages);
+  
   const {
     socket,
     isConnected,
-    messages,
     typingUsers,
     joinGroup: socketJoinGroup,
     leaveGroup: socketLeaveGroup,
@@ -47,16 +52,46 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     addReaction: socketAddReaction,
     removeReaction: socketRemoveReaction,
     startTyping: socketStartTyping,
-    stopTyping: socketStopTyping,
-    clearMessages
+    stopTyping: socketStopTyping
   } = useSocketChat();
 
-  const joinGroup = (groupId: string) => {
+  // Socket listeners for real-time updates
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewMessage = (message: any) => {
+      dispatch(addMessage(message));
+    };
+
+    const handleMessageUpdate = (data: any) => {
+      dispatch(updateMessage(data));
+    };
+
+    const handleReactionUpdate = (data: any) => {
+      dispatch(updateReaction(data));
+    };
+
+    socket.on('message:persisted', handleNewMessage);
+    socket.on('message:updated', handleMessageUpdate);
+    socket.on('reaction:updated', handleReactionUpdate);
+
+    return () => {
+      socket.off('message:persisted', handleNewMessage);
+      socket.off('message:updated', handleMessageUpdate);
+      socket.off('reaction:updated', handleReactionUpdate);
+    };
+  }, [socket, dispatch]);
+
+  const joinGroup = async (groupId: string) => {
     if (currentGroupId && currentGroupId !== groupId) {
       socketLeaveGroup(currentGroupId);
     }
     setCurrentGroupId(groupId);
-    clearMessages();
+    dispatch(clearMessages());
+    
+    // Fetch initial messages via async thunk
+    dispatch(fetchMessages(groupId));
+    
     socketJoinGroup(groupId, (response) => {
       if (!response.success) {
         console.error('Failed to join group:', response.error);
@@ -68,7 +103,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     socketLeaveGroup(groupId);
     if (currentGroupId === groupId) {
       setCurrentGroupId(null);
-      clearMessages();
+      dispatch(clearMessages());
     }
   };
 

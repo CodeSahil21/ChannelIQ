@@ -1,5 +1,6 @@
 import prisma from "../db";
 import { MessageType, DeliveryStatus } from "@prisma/client";
+import { redis } from "../redis";
 
 export class SocketMessageService {
   // Message Operations
@@ -11,43 +12,48 @@ export class SocketMessageService {
     senderId: number;
     replyToId?: string;
   }) {
-    return prisma.$transaction(async (tx) => {
-      // Create the message
-      const message = await tx.message.create({
-        data: {
-          content: data.content ?? null,
-          type: data.type,
-          fileUrl: data.fileUrl ?? null,
-          groupId: data.groupId,
-          senderId: data.senderId,
-          replyToId: data.replyToId ?? null
-        }
-      });
+    // Fast message creation without MessageStatus
+    const message = await prisma.message.create({
+      data: {
+        content: data.content ?? null,
+        type: data.type,
+        fileUrl: data.fileUrl ?? null,
+        groupId: data.groupId,
+        senderId: data.senderId,
+        replyToId: data.replyToId ?? null
+      },
+      include: {
+        sender: true
+      }
+    });
 
-      // Get all group members
-      const members = await tx.groupMember.findMany({
-        where: { groupId: data.groupId },
+    // Create MessageStatus asynchronously (non-blocking)
+    this.createMessageStatusAsync(message.id, data.groupId, data.senderId);
+
+    return message;
+  }
+
+  // Async MessageStatus creation (background)
+  private static async createMessageStatusAsync(messageId: string, groupId: string, senderId: number) {
+    try {
+      const members = await prisma.groupMember.findMany({
+        where: { groupId },
         select: { userId: true }
       });
 
-      // Create MessageStatus for all members
       const statusData = members.map(({ userId }) => ({
-        messageId: message.id,
+        messageId,
         userId,
-        status: userId === data.senderId ? "SENT" as const : "DELIVERED" as const
+        status: userId === senderId ? "SENT" as const : "DELIVERED" as const
       }));
 
-      await tx.messageStatus.createMany({
+      await prisma.messageStatus.createMany({
         data: statusData,
         skipDuplicates: true
       });
-
-      // Return message with relations
-      return tx.message.findUniqueOrThrow({
-        where: { id: message.id },
-        include: { sender: true, reactions: true, statuses: true }
-      });
-    });
+    } catch (error) {
+      console.error('Background MessageStatus creation failed:', error);
+    }
   }
 
   static async findMessageWithAuth(messageId: string, userId: number) {
@@ -125,13 +131,42 @@ export class SocketMessageService {
     });
   }
 
-  // Group Membership
+  // Group Membership with Redis caching
   static async verifyGroupMember(userId: number, groupId: string) {
+    const cacheKey = `membership:${userId}:${groupId}`;
+    
+    try {
+      // Check Redis cache first
+      const cached = await redis.get(cacheKey);
+      if (cached === 'true') {
+        return { userId, groupId }; // Return minimal object
+      }
+      if (cached === 'false') {
+        throw new Error("Not a group member");
+      }
+    } catch (redisError) {
+      // Continue to DB if Redis fails
+    }
+
+    // Fallback to database
     const member = await prisma.groupMember.findUnique({
-      where: { userId_groupId: { userId, groupId } }
+      where: { userId_groupId: { userId, groupId } },
+      select: { userId: true, groupId: true }
     });
     
-    if (!member) throw new Error("Not a group member");
+    if (!member) {
+      // Cache negative result for 5 minutes
+      try {
+        await redis.setEx(cacheKey, 300, 'false');
+      } catch {}
+      throw new Error("Not a group member");
+    }
+
+    // Cache positive result for 30 minutes
+    try {
+      await redis.setEx(cacheKey, 1800, 'true');
+    } catch {}
+    
     return member;
   }
 }
