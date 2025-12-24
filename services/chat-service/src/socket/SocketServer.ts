@@ -21,7 +21,10 @@ export const initSocket = (server: http.Server): TypedServer => {
     cors: {
       origin: corsOrigins,
       credentials: true,
+      methods: ["GET", "POST"]
     },
+    allowEIO3: true,
+    transports: ['websocket', 'polling']
   });
 
   io.use(verifySocketAuth);

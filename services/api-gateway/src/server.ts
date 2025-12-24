@@ -157,17 +157,43 @@ app.use('/api/media', createProxyMiddleware({
 }));
 
 // Socket.IO Proxy for WebSocket connections
-app.use('/socket.io/', createProxyMiddleware({
+const socketProxy = createProxyMiddleware({
     target: 'http://localhost:3004',
     changeOrigin: true,
     ws: true, // Enable WebSocket proxying
+    logLevel: 'debug',
+    headers: {
+        'Connection': 'upgrade',
+        'Upgrade': 'websocket'
+    },
     onProxyReq: (proxyReq, req) => {
         console.log(`→ Socket.IO: ${req.method} ${req.path}`);
+        // Forward cookies for authentication
+        if (req.headers.cookie) {
+            proxyReq.setHeader('cookie', req.headers.cookie);
+        }
+    },
+    onProxyReqWs: (proxyReq, req, socket) => {
+        console.log(`→ Socket.IO WS: ${req.url}`);
+        // Forward cookies for WebSocket authentication
+        if (req.headers.cookie) {
+            proxyReq.setHeader('cookie', req.headers.cookie);
+        }
     },
     onError: (err, req, res) => {
         console.error(`❌ Socket.IO proxy error:`, err.message);
     }
-}));
+});
+
+app.use('/socket.io/', socketProxy);
+
+// Handle WebSocket upgrade
+server.on('upgrade', (request, socket, head) => {
+    if (request.url?.startsWith('/socket.io/')) {
+        console.log('🔌 WebSocket upgrade for Socket.IO');
+        socketProxy.upgrade?.(request as any, socket as any, head);
+    }
+});
 
 // Groups/Chat Service Proxy
 app.use('/api/groups', createProxyMiddleware({

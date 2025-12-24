@@ -293,7 +293,7 @@ const groupSlice = createSlice({
     updateGroupImage: (state, action) => {
       const { groupId, imageUrl } = action.payload;
       // Update current group image
-      if (state.currentGroup?.id === groupId) {
+      if (state.currentGroup && state.currentGroup.id === groupId) {
         state.currentGroup.imageUrl = imageUrl;
       }
       // Update in groups list
@@ -327,7 +327,7 @@ const groupSlice = createSlice({
     updateMemberCount: (state, action) => {
       const { groupId, count } = action.payload;
       // Update current group member count
-      if (state.currentGroup?.id === groupId && state.currentGroup._count) {
+      if (state.currentGroup?.id === groupId && state.currentGroup?._count) {
         state.currentGroup._count.members = count;
       }
       // Update in groups list

@@ -23,10 +23,10 @@ export const verifySocketAuth = async (
     const token = parsed.token ?? parsed.accessToken;
     if (!token) return next(new Error("No token"));
 
-    const payload = jwt.verify(token, process.env.JWT_SECRET!) as { userId: number };
+    const payload = jwt.verify(token, process.env.JWT_SECRET!) as { id: number };
 
     await connectRedis();
-    const cacheKey = `chat_user:${payload.userId}`;
+    const cacheKey = `chat_user:${payload.id}`;
 
     const cached = await redis.get(cacheKey);
     if (cached) {
@@ -35,7 +35,7 @@ export const verifySocketAuth = async (
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
+      where: { id: payload.id },
       select: { id: true, email: true, fullName: true },
     });
 

@@ -1,26 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
-import { HiInformationCircle, HiUsers, HiDotsVertical, HiUserRemove, HiLogout, HiVolumeOff, HiVolumeUp, HiCog } from 'react-icons/hi';
+import { HiInformationCircle, HiUsers, HiDotsVertical, HiUserRemove, HiLogout, HiVolumeOff, HiVolumeUp, HiCog, HiChat } from 'react-icons/hi';
 import GroupProfile from './GroupProfile';
 import UpdateGroupModal from './UpdateGroupModal';
 import DeleteGroupModal from './DeleteGroupModal';
 import AddMembersModal from './AddMembersModal';
 import RemoveMemberModal from './RemoveMemberModal';
 import LeaveGroupModal from './LeaveGroupModal';
+import { ChatProvider, useChatContext } from './ChatProvider';
+import { ChatMessages } from './ChatMessages';
 import type { Group, UpdateGroupRequest } from '../../types/group.types';
 import type { RootState } from '../../store';
 import { useGroups } from '../../hooks/useGroups';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { updateGroupImage } from '../../store/groupSlice';
 
-type GroupDetailTab = 'details' | 'members';
+type GroupDetailTab = 'details' | 'members' | 'messages';
 
 interface GroupDetailViewProps {
   group: Group;
 }
 
 const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
-  const [activeTab, setActiveTab] = useState<GroupDetailTab>('details');
+  const [activeTab, setActiveTab] = useState<GroupDetailTab>('messages');
   const { updateMemberRole, updateMemberSettings, handleImageUpdate } = useGroups();
   const dispatch = useAppDispatch();
   const [showUpdateModal, setShowUpdateModal] = useState(false);
@@ -102,21 +104,34 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
   });
 
   return (
-    <div className="group-detail-view">
-      <div className="group-detail-header">
-        <div className="group-detail-tabs">
-          <button
-            className={`group-detail-tab ${activeTab === 'details' ? 'active' : ''}`}
-            onClick={() => setActiveTab('details')}
-          >
-            <HiInformationCircle className="tab-icon" />
-            Details
-          </button>
+    <ChatProvider>
+      <div className="group-detail-view">
+        <div className="group-detail-header">
+          <div className="group-detail-tabs">
+            <button
+              className={`group-detail-tab ${activeTab === 'messages' ? 'active' : ''}`}
+              onClick={() => setActiveTab('messages')}
+            >
+              <HiChat className="tab-icon" />
+              Messages
+            </button>
+            <button
+              className={`group-detail-tab ${activeTab === 'details' ? 'active' : ''}`}
+              onClick={() => setActiveTab('details')}
+            >
+              <HiInformationCircle className="tab-icon" />
+              Details
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div className="group-detail-content">
-        <div className="details-tab-content">
+        <div className="group-detail-content">
+          {activeTab === 'messages' && (
+            <ChatMessagesWrapper groupId={group.id} />
+          )}
+          
+          {activeTab === 'details' && (
+            <div className="details-tab-content">
           <GroupProfile 
             group={group} 
             onUpdate={() => setShowUpdateModal(true)}
@@ -261,8 +276,9 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
               </div>
             )}
           </div>
+            </div>
+          )}
         </div>
-      </div>
 
       <UpdateGroupModal
         isOpen={showUpdateModal}
@@ -300,9 +316,23 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
         groupName={group.name}
         onConfirm={handleConfirmLeaveGroup}
       />
-    </div>
+      </div>
+    </ChatProvider>
   );
 };
 
 export { GroupDetailView };
 export default GroupDetailView;
+
+// Wrapper component to handle chat context
+const ChatMessagesWrapper: React.FC<{ groupId: string }> = ({ groupId }) => {
+  const { joinGroup, currentGroupId } = useChatContext();
+  
+  useEffect(() => {
+    if (groupId && groupId !== currentGroupId) {
+      joinGroup(groupId);
+    }
+  }, [groupId, currentGroupId, joinGroup]);
+  
+  return <ChatMessages groupId={groupId} />;
+};
