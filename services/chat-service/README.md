@@ -706,6 +706,43 @@ interface RespondToRequestRequest {
 
 ### Message Management Endpoints
 
+#### GET /api/groups/:groupId/messages
+**Description:** Get paginated messages for a group
+
+**Query Parameters:**
+- `limit`: number (default: 50, max: 100)
+- `cursor`: string (UUID for pagination, optional)
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "message-uuid",
+      "content": "Hello everyone!",
+      "type": "TEXT",
+      "fileUrl": null,
+      "replyToId": null,
+      "groupId": "group-uuid",
+      "senderId": 1,
+      "createdAt": "2024-01-01T12:00:00Z",
+      "sender": {
+        "id": 1,
+        "fullName": "John Doe",
+        "profileUrl": "http://localhost:9000/profile-images/user-1.jpg"
+      }
+    }
+  ],
+  "pagination": {
+    "hasMore": true,
+    "cursor": "next-message-uuid"
+  }
+}
+```
+
+---
+
 #### POST /api/groups/:groupId/messages/:messageId/pin
 **Description:** Pin message in group (Admin/Co-Admin only)
 
@@ -831,10 +868,10 @@ interface CreateAnnouncementRequest {
 
 ---
 
-## Section 3: Proposed Real-Time Contract (Future Implementation)
+## Section 3: Real-Time WebSocket API (Implemented)
 
-> **⚠️ DRAFT / COMING SOON**  
-> This section outlines the planned WebSocket implementation. These events are not yet implemented.
+> **✅ FULLY IMPLEMENTED**  
+> Real-time messaging via Socket.IO is fully operational. See SOCKET_API.md for complete documentation.
 
 ### WebSocket Connection
 
