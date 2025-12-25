@@ -1376,6 +1376,7 @@ export const getPolls = async (
 
   return polls.map(message => ({
     id: message.poll!.id,
+    messageId: message.id,
     question: message.poll!.question,
     allowMultiple: message.poll!.allowMultiple,
     expiresAt: message.poll!.expiresAt,
