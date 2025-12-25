@@ -18,6 +18,10 @@ import {
   unpinMessageController,
   getPinnedMessagesController,
   createAnnouncementController,
+  getAnnouncementsController,
+  createPollController,
+  getPollController,
+  deletePollController,
 } from '../controllers/group.controller';
 import { authenticateAndRequireChatUser } from '../middleware/middleware';
 
@@ -48,5 +52,11 @@ router.post('/:groupId/messages/:messageId/pin', authenticateAndRequireChatUser,
 router.delete('/:groupId/messages/:messageId/pin', authenticateAndRequireChatUser, unpinMessageController);
 router.get('/:groupId/messages/pinned', authenticateAndRequireChatUser, getPinnedMessagesController);
 router.post('/:groupId/announcements', authenticateAndRequireChatUser, createAnnouncementController);
+router.get('/:groupId/announcements', authenticateAndRequireChatUser, getAnnouncementsController);
+
+// Poll Management
+router.post('/:groupId/polls', authenticateAndRequireChatUser, createPollController);
+router.get('/polls/:messageId', authenticateAndRequireChatUser, getPollController);
+router.delete('/polls/:messageId', authenticateAndRequireChatUser, deletePollController);
 
 export default router;
