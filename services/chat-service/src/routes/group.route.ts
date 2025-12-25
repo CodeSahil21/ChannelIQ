@@ -21,6 +21,7 @@ import {
   getAnnouncementsController,
   createPollController,
   getPollController,
+  getPollsController,
   deletePollController,
 } from '../controllers/group.controller';
 import { authenticateAndRequireChatUser } from '../middleware/middleware';
@@ -56,6 +57,7 @@ router.get('/:groupId/announcements', authenticateAndRequireChatUser, getAnnounc
 
 // Poll Management
 router.post('/:groupId/polls', authenticateAndRequireChatUser, createPollController);
+router.get('/:groupId/polls', authenticateAndRequireChatUser, getPollsController);
 router.get('/polls/:messageId', authenticateAndRequireChatUser, getPollController);
 router.delete('/polls/:messageId', authenticateAndRequireChatUser, deletePollController);
 

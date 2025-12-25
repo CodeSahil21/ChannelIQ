@@ -44,10 +44,19 @@ import {
   getAnnouncements,
   createPoll,
   getPoll,
+  getPolls,
   deletePoll,
 } from '../services/group.service';
 import { ValidationError, NotFoundError, UnauthorizedError, ConflictError, ForbiddenError } from '../utils/errors';
-import { notifyMemberJoined, notifyMemberLeft } from '../socket/socketService';
+import { 
+  notifyMemberJoined, 
+  notifyMemberLeft, 
+  emitAnnouncementCreated, 
+  emitPollCreated, 
+  emitPollDeleted, 
+  emitMessagePinned, 
+  emitMessageUnpinned 
+} from '../socket/socketService';
 
 // 1. Create Group Controller
 export const createGroupController = async (
@@ -887,6 +896,9 @@ export const pinMessageController = async (
 
     const pinnedMessage = await pinMessage(groupId, messageId, userId);
 
+    // Emit real-time event
+    emitMessagePinned(groupId, messageId, req.user!.fullName);
+
     res.status(201).json({
       success: true,
       message: 'Message pinned successfully',
@@ -952,6 +964,9 @@ export const unpinMessageController = async (
     const { groupId, messageId } = validationResult.data.params;
 
     const result = await unpinMessage(groupId, messageId, userId);
+
+    // Emit real-time event
+    emitMessageUnpinned(groupId, messageId, req.user!.fullName);
 
     res.status(200).json(result);
   } catch (error: any) {
@@ -1060,6 +1075,9 @@ export const createAnnouncementController = async (
     const announcementData = validationResult.data.body;
 
     const announcement = await createAnnouncement(groupId, userId, announcementData);
+
+    // Emit real-time event
+    emitAnnouncementCreated(groupId, announcement.id, announcement.content || '', req.user!.fullName);
 
     res.status(201).json({
       success: true,
@@ -1180,6 +1198,9 @@ export const createPollController = async (
     };
 
     const poll = await createPoll(groupId, userId, createPollInput);
+
+    // Emit real-time event
+    emitPollCreated(groupId, poll.id, poll.poll.question, req.user!.fullName);
 
     res.status(201).json({
       success: true,
@@ -1305,6 +1326,11 @@ export const deletePollController = async (
 
     const result = await deletePoll(messageId, userId);
 
+    // Emit real-time event - need to get groupId from result
+    if (result.success && result.poll) {
+      emitPollDeleted(result.poll.message.groupId, messageId, req.user!.fullName);
+    }
+
     res.status(200).json(result);
   } catch (error: any) {
     console.error('Error deleting poll:', error);
@@ -1316,6 +1342,56 @@ export const deletePollController = async (
       });
       return;
     }
+
+    if (error instanceof UnauthorizedError) {
+      res.status(403).json({
+        success: false,
+        message: error.message,
+      });
+      return;
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+// 23. Get Polls Controller
+export const getPollsController = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const validationResult = getAnnouncementsSchema.safeParse({ params: req.params });
+
+    if (!validationResult.success) {
+      const fieldErrors = validationResult.error.issues.map(error => ({
+        field: error.path.join('.'),
+        message: error.message,
+      }));
+
+      res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: fieldErrors,
+      });
+      return;
+    }
+
+    const userId = req.user!.id;
+    const { groupId } = validationResult.data.params;
+
+    const polls = await getPolls(groupId, userId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Polls retrieved successfully',
+      data: polls,
+    });
+  } catch (error: any) {
+    console.error('Error fetching polls:', error);
 
     if (error instanceof UnauthorizedError) {
       res.status(403).json({

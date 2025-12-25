@@ -31,7 +31,8 @@ import {
   CreatePollInput,
   CreatePollResponse,
   GetPollResponse,
-  DeletePollResponse,  
+  DeletePollResponse,
+  Poll,
   GroupWithMembershipAndRequests,
   RequestWithGroupAndMembers,
   GroupMemberWithRole,
@@ -1255,6 +1256,9 @@ export const createAnnouncement = async (
     },
   });
 
+  // Invalidate announcements cache
+  await deleteCachePattern(`chat:announcements:${groupId}`);
+
   return {
     ...announcement,
     metadata: {
@@ -1268,6 +1272,10 @@ export const getAnnouncements = async (
   groupId: string,
   userId: number
 ): Promise<GetAnnouncementsListResponse> => {
+  const cacheKey = CacheKeys.announcements(groupId);
+  const cached = await getCache<GetAnnouncementsListResponse>(cacheKey);
+  if (cached) return cached;
+
   const fiveDaysAgo = new Date();
   fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
 
@@ -1304,13 +1312,89 @@ export const getAnnouncements = async (
     orderBy: { createdAt: 'desc' },
   });
 
-  return announcements.map(announcement => ({
+  const result = announcements.map(announcement => ({
     ...announcement,
     metadata: {
       title: announcement.content?.split(': ')[0] || 'Announcement',
       isAnnouncement: true,
     },
   })) as GetAnnouncementsListResponse;
+
+  await setCache(cacheKey, result, CacheTTL.MEDIUM);
+  return result;
+};
+
+export const getPolls = async (
+  groupId: string,
+  userId: number
+): Promise<Poll[]> => {
+  const cacheKey = CacheKeys.polls(groupId);
+  const cached = await getCache<Poll[]>(cacheKey);
+  if (cached) return cached;
+
+  const polls = await prisma.message.findMany({
+    where: {
+      groupId,
+      type: MessageType.POLL,
+      group: {
+        members: {
+          some: { userId }
+        }
+      }
+    },
+    select: {
+      id: true,
+      groupId: true,
+      senderId: true,
+      createdAt: true,
+      sender: {
+        select: {
+          id: true,
+          email: true,
+          fullName: true,
+          profileUrl: true,
+        },
+      },
+      poll: {
+        select: {
+          id: true,
+          question: true,
+          allowMultiple: true,
+          expiresAt: true,
+          options: {
+            select: {
+              id: true,
+              text: true,
+              _count: { select: { votes: true } },
+              votes: {
+                where: { userId },
+                select: { id: true }
+              }
+            }
+          }
+        }
+      }
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  const result = polls.map(message => ({
+    id: message.poll!.id,
+    question: message.poll!.question,
+    allowMultiple: message.poll!.allowMultiple,
+    expiresAt: message.poll!.expiresAt,
+    createdAt: message.createdAt,
+    createdBy: message.sender,
+    options: message.poll!.options.map(option => ({
+      id: option.id,
+      text: option.text,
+      votes: option._count.votes,
+      hasVoted: option.votes.length > 0
+    }))
+  }));
+
+  await setCache(cacheKey, result, CacheTTL.MEDIUM);
+  return result;
 };
 
 export const createPoll = async (
@@ -1380,6 +1464,9 @@ export const createPoll = async (
       }
     },
   });
+
+  // Invalidate polls cache
+  await deleteCachePattern(`chat:polls:${groupId}`);
 
   return {
     ...message,
@@ -1458,6 +1545,7 @@ export const deletePoll = async (
     include: {
       group: {
         select: {
+          id: true,
           members: {
             where: { userId },
             select: { role: true }
@@ -1485,9 +1573,17 @@ export const deletePoll = async (
     where: { id: messageId }
   });
 
+  // Invalidate polls cache
+  await deleteCachePattern(`chat:polls:${message.group.id}`);
+
   return {
     success: true,
-    message: 'Poll deleted successfully'
+    message: 'Poll deleted successfully',
+    poll: {
+      message: {
+        groupId: message.group.id
+      }
+    }
   };
 };
 
@@ -1528,3 +1624,84 @@ export const updateGroupProfileImage = async (
 
   console.log(`✅ Group profile image updated: ${groupId} -> ${imageUrl}`);
 };       
+export const votePoll = async (
+  pollId: string,
+  optionId: string,
+  userId: number
+): Promise<{ groupId: string; voteCount: number }> => {
+  const poll = await prisma.poll.findUnique({
+    where: { id: pollId },
+    include: {
+      message: {
+        select: {
+          groupId: true,
+          group: {
+            select: {
+              members: {
+                where: { userId },
+                select: { id: true }
+              }
+            }
+          }
+        }
+      },
+      options: {
+        where: { id: optionId },
+        select: { id: true }
+      }
+    }
+  });
+
+  if (!poll) {
+    throw new NotFoundError('Poll not found');
+  }
+
+  if (!poll.message.group.members[0]) {
+    throw new UnauthorizedError('You are not a member of this group');
+  }
+
+  if (poll.options.length === 0) {
+    throw new NotFoundError('Poll option not found');
+  }
+
+  if (poll.expiresAt && poll.expiresAt < new Date()) {
+    throw new ConflictError('Poll has expired');
+  }
+
+  // Check if user already voted on this poll
+  if (!poll.allowMultiple) {
+    const existingVote = await prisma.pollVote.findFirst({
+      where: {
+        userId,
+        option: {
+          pollId
+        }
+      }
+    });
+
+    if (existingVote) {
+      throw new ConflictError('You have already voted on this poll');
+    }
+  }
+
+  // Create the vote
+  await prisma.pollVote.create({
+    data: {
+      userId,
+      optionId
+    }
+  });
+
+  // Get updated vote count
+  const voteCount = await prisma.pollVote.count({
+    where: { optionId }
+  });
+
+  // Invalidate polls cache to refresh vote counts
+  await deleteCachePattern(`chat:polls:${poll.message.groupId}`);
+
+  return {
+    groupId: poll.message.groupId,
+    voteCount
+  };
+};
