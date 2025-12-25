@@ -112,13 +112,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({ groupId }) => {
 
   return (
     <>
-      <div className="chat-messages-header">
-        <h3>Messages</h3>
-        <div className="connection-status">
-          <div className={`status-dot ${isConnected ? 'online' : 'offline'}`}></div>
-          {isConnected ? 'Connected' : 'Connecting...'}
-        </div>
-      </div>
       <div className="message-input-container">
       <div className="message-input-wrapper">
         <div className="input-actions-left">

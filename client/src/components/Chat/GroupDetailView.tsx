@@ -23,7 +23,10 @@ interface GroupDetailViewProps {
 
 const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
   const [activeTab, setActiveTab] = useState<GroupDetailTab>('messages');
-  const { updateMemberRole, updateMemberSettings, handleImageUpdate } = useGroups();
+  const { updateMemberRole, updateMemberSettings, handleImageUpdate, currentGroup } = useGroups();
+  
+  // Use full group details when available, fallback to prop
+  const fullGroup = currentGroup && currentGroup.id === group.id ? currentGroup : group;
   const dispatch = useAppDispatch();
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -90,13 +93,13 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
 
   const currentUser = useSelector((state: RootState) => state.user.user);
   const currentUserId = currentUser ? parseInt(currentUser.id) : null;
-  const currentUserMembership = currentUserId ? group.members?.find(m => m.userId === currentUserId) : null;
-  const isCreator = currentUserId !== null && group.creatorId === currentUserId;
+  const currentUserMembership = currentUserId ? fullGroup.members?.find(m => m.userId === currentUserId) : null;
+  const isCreator = currentUserId !== null && fullGroup.creatorId === currentUserId;
   const isMember = currentUserMembership !== null;
   
   console.log('Debug GroupDetailView:', {
     currentUserId,
-    groupCreatorId: group.creatorId,
+    groupCreatorId: fullGroup.creatorId,
     isCreator,
     isMember,
     currentUserMembership,
@@ -127,32 +130,32 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
 
         <div className="group-detail-content">
           {activeTab === 'messages' && (
-            <ChatMessagesWrapper groupId={group.id} />
+            <ChatMessagesWrapper groupId={fullGroup.id} />
           )}
           
           {activeTab === 'details' && (
             <div className="details-tab-content">
           <GroupProfile 
-            group={group} 
+            group={fullGroup} 
             onUpdate={() => setShowUpdateModal(true)}
             onDelete={() => setShowDeleteModal(true)}
             onAddMembers={() => setShowAddMembersModal(true)}
             canManage={isCreator}
             isCreator={isCreator}
             onImageUpdate={(imageUrl) => {
-              handleImageUpdate(group.id, imageUrl);
+              handleImageUpdate(fullGroup.id, imageUrl);
               console.log('Group image updated:', imageUrl);
             }}
           />
           
           {/* Members Section */}
           <div className="members-section" style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid #e5e7eb' }}>
-            <h3>Members ({group._count?.members || 0})</h3>
+            <h3>Members ({fullGroup._count?.members || 0})</h3>
             <div className="members-list-container">
-              {group.members?.map(member => {
-                const currentUserMembership = group.members?.find(m => m.userId === currentUserId);
+              {fullGroup.members?.map(member => {
+                const currentUserMembership = fullGroup.members?.find(m => m.userId === currentUserId);
                 const currentUserRole = currentUserMembership?.role || 'MEMBER';
-                const memberIsCreator = group.creatorId === currentUserId;
+                const memberIsCreator = fullGroup.creatorId === currentUserId;
                 
                 const getInitials = (name: string) => {
                   return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
@@ -283,21 +286,21 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
       <UpdateGroupModal
         isOpen={showUpdateModal}
         onClose={() => setShowUpdateModal(false)}
-        group={group}
+        group={fullGroup}
         onUpdate={handleUpdateGroup}
       />
       
       <DeleteGroupModal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
-        group={group}
+        group={fullGroup}
         onDelete={handleDeleteGroup}
       />
       
       <AddMembersModal
         isOpen={showAddMembersModal}
         onClose={() => setShowAddMembersModal(false)}
-        groupId={group.id}
+        groupId={fullGroup.id}
       />
       
       <RemoveMemberModal
@@ -313,7 +316,7 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
       <LeaveGroupModal
         isOpen={showLeaveGroupModal}
         onClose={() => setShowLeaveGroupModal(false)}
-        groupName={group.name}
+        groupName={fullGroup.name}
         onConfirm={handleConfirmLeaveGroup}
       />
       </div>

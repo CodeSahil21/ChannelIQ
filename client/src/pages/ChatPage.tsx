@@ -58,16 +58,21 @@ export const ChatPage: React.FC = () => {
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showPendingModal, setShowPendingModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { groups, getMyGroups, getGroupDetails, loading } = useGroups();
+  const { groups, currentGroup, getMyGroups, getGroupDetails, loading } = useGroups();
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [localCurrentGroup, setLocalCurrentGroup] = useState<any>(null);
+
+  // Use full group details when available, fallback to local
+  const displayGroup = currentGroup && currentGroup.id === selectedGroupId ? currentGroup : localCurrentGroup;
 
   const handleGroupClick = useCallback(async (userGroup: any) => {
     if (selectedGroupId === userGroup.groupId) return;
     
     setSelectedGroupId(userGroup.groupId);
     setLocalCurrentGroup(userGroup.group);
-  }, [selectedGroupId]);
+    // Fetch full details in background for details tab
+    getGroupDetails(userGroup.groupId);
+  }, [selectedGroupId, getGroupDetails]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -161,8 +166,8 @@ export const ChatPage: React.FC = () => {
 
         {/* Main Chat Area */}
         <div className="chat-main">
-          {localCurrentGroup ? (
-            <MemoizedGroupDetailView group={localCurrentGroup} />
+          {displayGroup ? (
+            <MemoizedGroupDetailView group={displayGroup} />
           ) : (
             <div className="chat-welcome">
               <div className="chat-welcome-content">
