@@ -12,6 +12,7 @@ export interface CreateAnnouncementRequest {
 
 export interface Poll {
   id: string;
+  messageId?: string;
   question: string;
   options: PollOption[];
   allowMultiple: boolean;
@@ -49,6 +50,11 @@ export interface GroupContentState {
   };
   announcements: {
     items: Announcement[];
+    loading: boolean;
+    error: string | null;
+  };
+  pinnedMessages: {
+    items: any[];
     loading: boolean;
     error: string | null;
   };

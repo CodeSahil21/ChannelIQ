@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { HiSpeakerphone, HiChartBar } from 'react-icons/hi';
-import { CreatePollModal, CreateAnnouncementModal } from './index';
+import { HiSpeakerphone, HiChartBar, HiBookmark } from 'react-icons/hi';
+import { CreatePollModal, CreateAnnouncementModal, PinnedMessagesModal } from './index';
 
 interface GroupActionsProps {
   groupId: string;
@@ -15,6 +15,7 @@ const GroupActions: React.FC<GroupActionsProps> = ({
 }) => {
   const [isPollModalOpen, setIsPollModalOpen] = useState(false);
   const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
+  const [isPinnedMessagesModalOpen, setIsPinnedMessagesModalOpen] = useState(false);
 
   return (
     <div className="flex gap-2">
@@ -34,6 +35,14 @@ const GroupActions: React.FC<GroupActionsProps> = ({
         Create Announcement
       </button>
 
+      <button
+        onClick={() => setIsPinnedMessagesModalOpen(true)}
+        className="btn btn-secondary flex items-center gap-2"
+      >
+        <HiBookmark />
+        Pinned Messages
+      </button>
+
       <CreatePollModal
         isOpen={isPollModalOpen}
         onClose={() => setIsPollModalOpen(false)}
@@ -46,6 +55,11 @@ const GroupActions: React.FC<GroupActionsProps> = ({
         onClose={() => setIsAnnouncementModalOpen(false)}
         groupId={groupId}
         onAnnouncementCreated={onAnnouncementCreated}
+      />
+      <PinnedMessagesModal
+        isOpen={isPinnedMessagesModalOpen}
+        onClose={() => setIsPinnedMessagesModalOpen(false)}
+        groupId={groupId}
       />
     </div>
   );

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { HiX, HiTrash, HiChartBar } from 'react-icons/hi';
 import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
-import { fetchPolls } from '../../store/groupContentSlice';
+import { fetchPolls, deletePoll } from '../../store/groupContentSlice';
 import { useSocketChat } from '../../hooks/useSocketChat';
 
 interface PollsListModalProps {
@@ -70,9 +70,12 @@ const PollsListModal: React.FC<PollsListModalProps> = ({ isOpen, onClose, groupI
     });
   };
 
-  const handleDeletePoll = (pollId: string) => {
-    // TODO: Implement poll deletion
-    console.log('Deleting poll:', pollId);
+  const handleDeletePoll = async (messageId: string) => {
+    try {
+      await dispatch(deletePoll(messageId)).unwrap();
+    } catch (error) {
+      console.error('Failed to delete poll:', error);
+    }
   };
 
   if (!isOpen) return null;
@@ -106,7 +109,7 @@ const PollsListModal: React.FC<PollsListModalProps> = ({ isOpen, onClose, groupI
                     <h3 className="poll-question">{poll.question}</h3>
                     <div className="poll-actions">
                       <button
-                        onClick={() => handleDeletePoll(poll.id)}
+                        onClick={() => handleDeletePoll(poll.messageId!)}
                         className="poll-delete-btn"
                         title="Delete Poll"
                       >

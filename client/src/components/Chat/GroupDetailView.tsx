@@ -7,7 +7,7 @@ import DeleteGroupModal from './DeleteGroupModal';
 import AddMembersModal from './AddMembersModal';
 import RemoveMemberModal from './RemoveMemberModal';
 import LeaveGroupModal from './LeaveGroupModal';
-import { PollsListModal, AnnouncementsListModal } from './index';
+import { PollsListModal, AnnouncementsListModal, PinnedMessagesModal } from './index';
 import { ChatProvider, useChatContext } from './ChatProvider';
 import { ChatMessages } from './ChatMessages';
 import type { Group, UpdateGroupRequest } from '../../types/group.types';
@@ -36,6 +36,7 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
   const [showLeaveGroupModal, setShowLeaveGroupModal] = useState(false);
   const [showPollsModal, setShowPollsModal] = useState(false);
   const [showAnnouncementsModal, setShowAnnouncementsModal] = useState(false);
+  const [showPinnedMessagesModal, setShowPinnedMessagesModal] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<{ userId: number; name: string } | null>(null);
   const [activeDropdown, setActiveDropdown] = useState<number | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -135,8 +136,10 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
           {activeTab === 'messages' && (
             <ChatMessagesWrapper 
               groupId={fullGroup.id} 
+              userRole={currentUserMembership?.role}
               onShowPolls={() => setShowPollsModal(true)}
               onShowAnnouncements={() => setShowAnnouncementsModal(true)}
+              onShowPinnedMessages={() => setShowPinnedMessagesModal(true)}
             />
           )}
           
@@ -333,6 +336,12 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
         groupId={fullGroup.id}
       />
       
+      <PinnedMessagesModal
+        isOpen={showPinnedMessagesModal}
+        onClose={() => setShowPinnedMessagesModal(false)}
+        groupId={fullGroup.id}
+        userRole={currentUserMembership?.role}
+      />
       <AnnouncementsListModal
         isOpen={showAnnouncementsModal}
         onClose={() => setShowAnnouncementsModal(false)}
@@ -340,6 +349,7 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
       />
       </div>
     </ChatProvider>
+
   );
 };
 
@@ -349,9 +359,11 @@ export default GroupDetailView;
 // Wrapper component to handle chat context
 const ChatMessagesWrapper: React.FC<{ 
   groupId: string;
+  userRole?: string;
   onShowPolls?: () => void;
   onShowAnnouncements?: () => void;
-}> = ({ groupId, onShowPolls, onShowAnnouncements }) => {
+  onShowPinnedMessages?: () => void;
+}> = ({ groupId, userRole, onShowPolls, onShowAnnouncements, onShowPinnedMessages }) => {
   const { joinGroup, currentGroupId } = useChatContext();
   
   useEffect(() => {
@@ -362,9 +374,11 @@ const ChatMessagesWrapper: React.FC<{
   
   return (
     <ChatMessages 
-      groupId={groupId} 
+      groupId={groupId}
+      userRole={userRole}
       onShowPolls={onShowPolls}
       onShowAnnouncements={onShowAnnouncements}
+      onShowPinnedMessages={onShowPinnedMessages}
     />
   );
 };

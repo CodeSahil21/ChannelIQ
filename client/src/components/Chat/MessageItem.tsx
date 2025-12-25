@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
-import { HiDotsVertical, HiReply, HiPencil, HiTrash } from 'react-icons/hi';
+import { HiDotsVertical, HiReply, HiPencil, HiTrash, HiBookmark } from 'react-icons/hi';
+import { useAppDispatch } from '../../hooks/useAppDispatch';
+import { pinMessage, unpinMessage } from '../../store/groupContentSlice';
 import { useChatContext } from './ChatProvider';
 import { useSelector } from 'react-redux';
+import toast from 'react-hot-toast';
 import type { RootState } from '../../store';
 
 interface Message {
@@ -13,6 +16,7 @@ interface Message {
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
+  isPinned?: boolean;
   sender: {
     id: number;
     fullName: string;
@@ -29,20 +33,38 @@ interface Message {
 interface MessageItemProps {
   message: Message;
   showAvatar: boolean;
+  userRole?: string;
 }
 
-export const MessageItem: React.FC<MessageItemProps> = ({ message, showAvatar }) => {
+export const MessageItem: React.FC<MessageItemProps> = ({ message, showAvatar, userRole }) => {
   const [showActions, setShowActions] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content || '');
   const { editMessage, deleteMessage, addReaction, removeReaction } = useChatContext();
+  const dispatch = useAppDispatch();
   const currentUser = useSelector((state: RootState) => state.user.user);
   const currentUserId = currentUser?.id || null;
 
   const isOwnMessage = currentUserId === message.senderId;
   const isDeleted = message.isDeleted;
   const messageAge = Date.now() - new Date(message.createdAt).getTime();
-  const canEdit = isOwnMessage && !isDeleted && messageAge < 10 * 60 * 1000; // 10 minutes in milliseconds
+  const canEdit = isOwnMessage && !isDeleted && messageAge < 10 * 60 * 1000;
+  const canPin = userRole === 'ADMIN' || userRole === 'CO_ADMIN';
+
+  const handlePin = async () => {
+    try {
+      if (message.isPinned) {
+        await dispatch(unpinMessage({ groupId: message.groupId, messageId: message.id })).unwrap();
+        toast.success('Message unpinned');
+      } else {
+        await dispatch(pinMessage({ groupId: message.groupId, messageId: message.id })).unwrap();
+        toast.success('Message pinned');
+      }
+    } catch (error) {
+      toast.error(message.isPinned ? 'Failed to unpin message' : 'Failed to pin message');
+    }
+    setShowActions(false);
+  };
 
   const handleEdit = () => {
     if (editContent.trim() && editContent !== message.content) {
@@ -126,16 +148,23 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, showAvatar })
             <span className="message-text">{message.content}</span>
           )}
           
-          {showActions && isOwnMessage && !isDeleted && (
+          {showActions && !isDeleted && (
             <div className="message-actions">
-              {canEdit && (
+              {canPin && (
+                <button onClick={handlePin} className="action-btn" title={message.isPinned ? 'Unpin message' : 'Pin message'}>
+                  <HiBookmark className={message.isPinned ? 'text-blue-500' : ''} />
+                </button>
+              )}
+              {isOwnMessage && canEdit && (
                 <button onClick={() => setIsEditing(true)} className="action-btn">
                   <HiPencil />
                 </button>
               )}
-              <button onClick={handleDelete} className="action-btn">
-                <HiTrash />
-              </button>
+              {isOwnMessage && (
+                <button onClick={handleDelete} className="action-btn">
+                  <HiTrash />
+                </button>
+              )}
             </div>
           )}
         </div>

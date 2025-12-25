@@ -10,3 +10,4 @@ export { CreateAnnouncementModal } from './CreateAnnouncementModal';
 export { GroupActions } from './GroupActions';
 export { PollsListModal } from './PollsListModal';
 export { AnnouncementsListModal } from './AnnouncementsListModal';
+export { PinnedMessagesModal } from './PinnedMessagesModal';

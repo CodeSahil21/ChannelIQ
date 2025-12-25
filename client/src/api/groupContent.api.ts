@@ -16,9 +16,21 @@ export const groupContentApi = {
   getPolls: (groupId: string) =>
     groupContentApiClient.get<ApiResponse<Poll[]>>(`/${groupId}/polls`),
 
+  deletePoll: (messageId: string) =>
+    groupContentApiClient.delete<ApiResponse<any>>(`/polls/${messageId}`),
+
   createAnnouncement: (groupId: string, announcementData: CreateAnnouncementRequest) =>
     groupContentApiClient.post<ApiResponse<Announcement>>(`/${groupId}/announcements`, announcementData),
 
   getAnnouncements: (groupId: string) =>
     groupContentApiClient.get<ApiResponse<Announcement[]>>(`/${groupId}/announcements`),
+
+  pinMessage: (groupId: string, messageId: string) =>
+    groupContentApiClient.post<ApiResponse<any>>(`/${groupId}/messages/${messageId}/pin`),
+
+  unpinMessage: (groupId: string, messageId: string) =>
+    groupContentApiClient.delete<ApiResponse<any>>(`/${groupId}/messages/${messageId}/pin`),
+
+  getPinnedMessages: (groupId: string) =>
+    groupContentApiClient.get<ApiResponse<any[]>>(`/${groupId}/messages/pinned`),
 };

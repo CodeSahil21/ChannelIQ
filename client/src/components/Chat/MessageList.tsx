@@ -8,9 +8,10 @@ import type { RootState } from '../../store';
 
 interface MessageListProps {
   groupId: string;
+  userRole?: string;
 }
 
-export const MessageList: React.FC<MessageListProps> = ({ groupId }) => {
+export const MessageList: React.FC<MessageListProps> = ({ groupId, userRole }) => {
   const { messages, typingUsers } = useChatContext();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -41,6 +42,7 @@ export const MessageList: React.FC<MessageListProps> = ({ groupId }) => {
                 key={message.id}
                 message={message}
                 showAvatar={showAvatar}
+                userRole={userRole}
               />
             );
           })
