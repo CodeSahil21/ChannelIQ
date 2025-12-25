@@ -26,12 +26,22 @@ import {
   UnpinMessageResponse,
   PinnedMessagesResponse,
   CreateAnnouncementInput,
-  CreateAnnouncementResponse,          
+  CreateAnnouncementResponse,
+  GetAnnouncementsListResponse,
+  CreatePollInput,
+  CreatePollResponse,
+  GetPollResponse,
+  DeletePollResponse,  
+  GroupWithMembershipAndRequests,
+  RequestWithGroupAndMembers,
+  GroupMemberWithRole,
+  PendingRequestWithDetails,
+  GroupWithMembersAndCount,
+  GroupWithMembers        
 } from '../utils/types';
 import { ValidationError, NotFoundError, UnauthorizedError, ConflictError, ForbiddenError } from '../utils/errors';
 import { getCache, setCache, deleteCachePattern, deleteCachePatterns, CacheKeys, CacheTTL } from '../redis';
 
-// Helper function to clean up pending requests for a user in a group
 const cleanupPendingRequests = async (groupId: string, userId: number) => {
   return prisma.groupRequest.deleteMany({
     where: {
@@ -129,7 +139,7 @@ export const getMyGroups = async (userId: number): Promise<MyGroupsResponse> => 
   });
   
   const result = memberships as MyGroupsResponse;
-  setCache(cacheKey, result, CacheTTL.LONG); // Non-blocking
+  setCache(cacheKey, result, CacheTTL.LONG); 
   return result;
 };
 
@@ -200,9 +210,7 @@ export const searchGroups = async (
   if (cached) return cached;
 
   const skip = (page - 1) * limit;
-  const safeLimit = Math.min(limit, 10); // Reduce to 10 for faster response
-
-  // Single optimized query with minimal fields
+  const safeLimit = Math.min(limit, 10);
   const groups = await prisma.group.findMany({
     where: {
       isPrivate: false,
@@ -252,10 +260,6 @@ export const searchGroups = async (
   return result;
 };      
 
-
-// BEFORE: ~80ms (sequential queries)
-// AFTER: ~25ms (single optimized query)
-// CACHED: ~3ms (Redis cache hit)
 export const getGroupMembers = async (groupId: string,userId: number): Promise<GroupMembersResponse> => {
   const cacheKey = CacheKeys.groupMembers(groupId);
   const cached = await getCache<GroupMembersResponse>(cacheKey);
@@ -290,7 +294,6 @@ export const getGroupMembers = async (groupId: string,userId: number): Promise<G
     ],
   });
 
-  // Check membership in memory (faster than separate query)
   const isMember = members.some(member => member.userId === userId);
   if (!isMember) {
     throw new UnauthorizedError('You are not a member of this group');
@@ -301,58 +304,79 @@ export const getGroupMembers = async (groupId: string,userId: number): Promise<G
   return result;
 };
 
+type GroupWithMembersAndRequests = {
+  id: string;
+  name: string;
+  description: string | null;
+  imageUrl: string | null;
+  isPrivate: boolean;
+  maxMembers: number;
+  creatorId: number;
+  createdAt: Date;
+  updatedAt: Date;
+  _count: {
+    members: number;
+  };
+  members: {
+    userId: number;
+    role: GroupRole;
+  }[];
+  requests: {
+    id: string;
+  }[];
+};
 
-// BEFORE: ~200ms (6 sequential queries)
-// AFTER: ~60ms (3 parallel batches)
 export const inviteUserToGroup = async (
   groupId: string,
   adminUserId: number,
   input: InviteUserInput
 ): Promise<InviteUserResponse> => {
   const { targetUserId, message } = input;
-
-  // Single parallel batch - all validations at once
-  const [adminMember, group, targetUser, existingMember, existingRequests] = await Promise.all([
-    prisma.groupMember.findUnique({
-      where: { userId_groupId: { userId: adminUserId, groupId } },
-      select: { role: true },
-    }),
-    prisma.group.findUnique({
-      where: { id: groupId },
-      select: { id: true, maxMembers: true, _count: { select: { members: true } } },
-    }),
-    prisma.user.findUnique({
-      where: { id: targetUserId },
-      select: { id: true },
-    }),
-    prisma.groupMember.findUnique({
-      where: { userId_groupId: { userId: targetUserId, groupId } },
-      select: { id: true },
-    }),
-    prisma.groupRequest.findMany({
-      where: {
-        groupId,
-        OR: [
-          { receiverId: targetUserId, type: RequestType.INVITE, status: RequestStatus.PENDING },
-          { senderId: targetUserId, type: RequestType.JOIN_REQUEST, status: RequestStatus.PENDING }
-        ]
+  const result = await prisma.group.findUnique({
+    where: { id: groupId },
+    include: {
+      _count: { select: { members: true } },
+      members: {
+        where: {
+          OR: [
+            { userId: adminUserId },
+            { userId: targetUserId }
+          ]
+        },
+        select: {
+          userId: true,
+          role: true
+        }
       },
-      select: { id: true },
-    }),
-  ]);
+      requests: {
+        where: {
+          OR: [
+            { receiverId: targetUserId, type: RequestType.INVITE, status: RequestStatus.PENDING },
+            { senderId: targetUserId, type: RequestType.JOIN_REQUEST, status: RequestStatus.PENDING }
+          ]
+        },
+        select: { id: true }
+      }
+    }
+  }) as GroupWithMembersAndRequests | null;
 
-  // Fast validation checks
+  if (!result) throw new NotFoundError('Group not found');
+  
+  const adminMember = result.members.find(m => m.userId === adminUserId);
+  const existingMember = result.members.find(m => m.userId === targetUserId);
+  
+  // Validation checks
   if (!adminMember || (adminMember.role !== GroupRole.ADMIN && adminMember.role !== GroupRole.CO_ADMIN)) {
     throw new UnauthorizedError('Only admins can invite users to the group');
   }
-  if (!group) throw new NotFoundError('Group not found');
-  if (!targetUser) throw new NotFoundError('Target user not found');
   if (existingMember) throw new ConflictError('User is already a member of this group');
-  if (group._count.members >= group.maxMembers) throw new ConflictError('Group has reached maximum capacity');
-
-  // Clean up and create invite in parallel
+  
+  const targetUser = await prisma.user.findUnique({ where: { id: targetUserId }, select: { id: true } });
+  if (!targetUser) throw new NotFoundError('Target user not found');
+  
+  if (result._count.members >= result.maxMembers) throw new ConflictError('Group has reached maximum capacity');
   const [, invite] = await Promise.all([
-    existingRequests.length > 0 ? cleanupPendingRequests(groupId, targetUserId) : Promise.resolve(),
+    result.requests.length > 0 ? cleanupPendingRequests(groupId, targetUserId) : Promise.resolve(),
     prisma.groupRequest.create({
       data: {
         groupId,
@@ -364,8 +388,6 @@ export const inviteUserToGroup = async (
       },
     }),
   ]);
-
-  // Async cache invalidation
   deleteCachePatterns([
     `chat:user:${targetUserId}:requests`,
     `chat:user:${adminUserId}:requests`
@@ -374,71 +396,56 @@ export const inviteUserToGroup = async (
   return invite as InviteUserResponse;
 };
 
+
+
 export const joinGroupRequest = async (
   groupId: string,
   userId: number,
   message?: string
 ): Promise<JoinGroupResponse> => {
-  // Check if group exists
-  const group = await prisma.group.findUnique({
+  const result = await prisma.group.findUnique({
     where: { id: groupId },
     include: {
-      _count: {
-        select: { members: true },
+      _count: { select: { members: true } },
+      members: {
+        where: { userId },
+        select: { userId: true }
       },
-    },
-  });
+      requests: {
+        where: {
+          OR: [
+            { senderId: userId, type: RequestType.JOIN_REQUEST, status: RequestStatus.PENDING },
+            { receiverId: userId, type: RequestType.INVITE, status: RequestStatus.PENDING }
+          ]
+        },
+        select: { id: true }
+      }
+    }
+  }) as GroupWithMembershipAndRequests | null;
 
-  if (!group) {
-    throw new Error('Group not found');
-  }
-
-  // Check if already a member
-  const existingMember = await prisma.groupMember.findUnique({
-    where: {
-      userId_groupId: {
-        userId,
-        groupId,
-      },
-    },
-  });
-
-  if (existingMember) {
-    throw new Error('You are already a member of this group');
-  }
-
-  // Check if group is full
-  if (group._count.members >= group.maxMembers) {
+  if (!result) throw new Error('Group not found');
+  
+  const existingMember = result.members.length > 0;
+  if (existingMember) throw new Error('You are already a member of this group');
+  
+  if (result._count.members >= result.maxMembers) {
     throw new Error('Group has reached maximum capacity');
   }
 
-  // Check for existing pending requests and clean them up
-  const existingRequests = await prisma.groupRequest.findMany({
-    where: {
-      groupId,
-      OR: [
-        { senderId: userId, type: RequestType.JOIN_REQUEST, status: RequestStatus.PENDING },
-        { receiverId: userId, type: RequestType.INVITE, status: RequestStatus.PENDING }
-      ]
-    },
-  });
-  
-  // Clean up any existing pending requests before creating new join request
-  if (existingRequests.length > 0) {
-    await cleanupPendingRequests(groupId, userId);
-  }
-
-  // Create join request (receiver is the group creator/admin)
-  const request = await prisma.groupRequest.create({
-    data: {
-      groupId,
-      senderId: userId,
-      receiverId: group.creatorId,
-      type: RequestType.JOIN_REQUEST,
-      status: RequestStatus.PENDING,
-      message: message || null,
-    },
-  });
+  // Clean up and create request in parallel
+  const [, request] = await Promise.all([
+    result.requests.length > 0 ? cleanupPendingRequests(groupId, userId) : Promise.resolve(),
+    prisma.groupRequest.create({
+      data: {
+        groupId,
+        senderId: userId,
+        receiverId: result.creatorId,
+        type: RequestType.JOIN_REQUEST,
+        status: RequestStatus.PENDING,
+        message: message || null,
+      },
+    }),
+  ]);
 
   return request as JoinGroupResponse;
 };  
@@ -461,6 +468,14 @@ export const getPendingRequests = async (
       },
       include: {
         sender: {
+          select: {
+            id: true,
+            email: true,
+            fullName: true,
+            profileUrl: true,
+          },
+        },
+        receiver: {
           select: {
             id: true,
             email: true,
@@ -504,6 +519,14 @@ export const getPendingRequests = async (
             profileUrl: true,
           },
         },
+        receiver: {
+          select: {
+            id: true,
+            email: true,
+            fullName: true,
+            profileUrl: true,
+          },
+        },
         group: {
           select: {
             id: true,
@@ -520,8 +543,8 @@ export const getPendingRequests = async (
   ]);
 
   const result = {
-    invites: invites as any,
-    joinRequests: joinRequests as any,
+    invites: invites as PendingRequestWithDetails[],
+    joinRequests: joinRequests as PendingRequestWithDetails[],
   };
   
   await setCache(cacheKey, result, CacheTTL.SHORT);
@@ -536,128 +559,104 @@ export const respondToRequest = async (
 ): Promise<RespondToRequestResponse> => {
   const { status } = input;
 
-  // Validate status
   if (status !== 'ACCEPTED' && status !== 'REJECTED') {
     throw new Error('Invalid status. Must be ACCEPTED or REJECTED');
   }
 
-  // Fetch the request
+  // First get the request to determine target user
+  const basicRequest = await prisma.groupRequest.findUnique({
+    where: { id: requestId },
+    select: { id: true, type: true, status: true, senderId: true, receiverId: true, groupId: true }
+  });
+
+  if (!basicRequest) throw new Error('Request not found');
+  if (basicRequest.status !== RequestStatus.PENDING) {
+    throw new Error('This request has already been processed');
+  }
+
+  const newMemberId = basicRequest.type === RequestType.INVITE ? basicRequest.receiverId! : basicRequest.senderId;
+
+  // Single optimized query with all needed data
   const request = await prisma.groupRequest.findUnique({
     where: { id: requestId },
     include: {
       group: {
-        include: {
-          _count: {
-            select: { members: true },
-          },
+        select: {
+          id: true,
+          maxMembers: true,
+          _count: { select: { members: true } },
           members: {
             where: {
-              userId,
+              OR: [
+                { userId }, // Current user's membership
+                { userId: newMemberId } // Target user's membership
+              ]
             },
-            select: {
-              role: true,
-            },
-          },
-        },
-      },
-    },
-  });
+            select: { userId: true, role: true }
+          }
+        }
+      }
+    }
+  }) as RequestWithGroupAndMembers | null;
 
-if (!request) {
-    throw new Error('Request not found');
-  }
+  const currentUserMembership = request!.group.members.find((m: GroupMemberWithRole) => m.userId === userId);
+  const targetUserMembership = request!.group.members.find((m: GroupMemberWithRole) => m.userId === newMemberId);
 
-  // Check if request is already processed
-  if (request.status !== RequestStatus.PENDING) {
-    throw new Error('This request has already been processed');
-  }
-
-  // Verify permissions
+  // Check permissions
   let hasPermission = false;
-
-  if (request.type === RequestType.INVITE) {
-    // For invites, the receiver (invitee) can respond
-    hasPermission = request.receiverId === userId;
-  } else if (request.type === RequestType.JOIN_REQUEST) {
-    // For join requests, admins/co-admins of the group can respond
-    const userMembership = request.group.members[0];
+  if (request!.type === RequestType.INVITE) {
+    hasPermission = request!.receiverId === userId;
+  } else {
     hasPermission = Boolean(
-      userMembership &&
-      (userMembership.role === GroupRole.ADMIN ||
-        userMembership.role === GroupRole.CO_ADMIN)
+      currentUserMembership &&
+      (currentUserMembership.role === GroupRole.ADMIN || currentUserMembership.role === GroupRole.CO_ADMIN)
     );
   }
 
   if (!hasPermission) {
     throw new Error('You do not have permission to respond to this request');
-  } 
- // Determine the user who will become a member if accepted
-  const newMemberId =
-    request.type === RequestType.INVITE
-      ? request.receiverId!
-      : request.senderId;
-
-  // Check if group is full (only if accepting)
-  if (
-    status === 'ACCEPTED' &&
-    request.group._count.members >= request.group.maxMembers
-  ) {
-    throw new Error('Group has reached maximum capacity');
   }
 
-  // Check if user is already a member (only if newMemberId is valid)
-  if (!newMemberId) {
-    throw new Error('Invalid request: missing user ID');
+  if (status === 'ACCEPTED') {
+    if (request!.group._count.members >= request!.group.maxMembers) {
+      throw new Error('Group has reached maximum capacity');
+    }
+    
+    if (targetUserMembership) {
+      throw new Error('User is already a member of this group');
+    }
   }
 
-  const existingMember = await prisma.groupMember.findUnique({
-    where: {
-      userId_groupId: {
-        userId: newMemberId,
-        groupId: request.groupId,
-      },
-    },
-  });
-
-  if (existingMember) {
-    throw new Error('User is already a member of this group');
-  }
-  // Start transaction
+  // Transaction for atomic operations
   return await prisma.$transaction(async (tx) => {
-    // Update request status
     const updatedRequest = await tx.groupRequest.update({
       where: { id: requestId },
       data: {
-        status:
-          status === 'ACCEPTED'
-            ? RequestStatus.ACCEPTED
-            : RequestStatus.REJECTED,
+        status: status === 'ACCEPTED' ? RequestStatus.ACCEPTED : RequestStatus.REJECTED,
       },
     });
 
     let membership = undefined;
-
-    // If accepted, create group member
     if (status === 'ACCEPTED') {
       membership = await tx.groupMember.create({
         data: {
           userId: newMemberId,
-          groupId: request.groupId,
+          groupId: request!.groupId,
           role: GroupRole.MEMBER,
         },
       });
     }
 
-    // Invalidate cache if accepted
+    // Cache invalidation (non-blocking)
     if (status === 'ACCEPTED' && membership) {
-      await deleteCachePatterns([
+      deleteCachePatterns([
         `chat:user:${newMemberId}:*`,
-        `chat:group:${request.groupId}`,
-        `chat:members:${request.groupId}`,
+        `chat:group:${request!.groupId}`,
+        `chat:members:${request!.groupId}`,
         `chat:user:${userId}:requests`
       ]);
     } else {
-      await deleteCachePattern(`chat:user:${userId}:requests`);
+      deleteCachePattern(`chat:user:${userId}:requests`);
     }
 
     return {
@@ -672,52 +671,41 @@ export const updateGroup = async (
   userId: number,
   input: UpdateGroupInput
 ): Promise<UpdateGroupResponse> => {
-  // Check if user is admin of the group
-  const membership = await prisma.groupMember.findUnique({
-    where: {
-      userId_groupId: {
-        userId,
-        groupId,
-      },
-    },
+  // Single optimized query to get group with user membership and member count
+  const result = await prisma.group.findUnique({
+    where: { id: groupId },
+    include: {
+      _count: { select: { members: true } },
+      members: {
+        where: { userId },
+        select: { role: true }
+      }
+    }
   });
 
-  if (!membership) {
-    throw new Error('You are not a member of this group');
-  }
-
+  if (!result) throw new Error('Group not found');
+  
+  const membership = result.members[0];
+  if (!membership) throw new Error('You are not a member of this group');
+  
   if (membership.role !== GroupRole.ADMIN && membership.role !== GroupRole.CO_ADMIN) {
     throw new Error('Only admins can update group information');
   }
 
-  // Check if group exists
-  const existingGroup = await prisma.group.findUnique({
-    where: { id: groupId },
-  });
-
-  if (!existingGroup) {
-    throw new Error('Group not found');
-  }
   // Validate maxMembers if provided
   if (input.maxMembers !== undefined) {
     if (input.maxMembers < 2) {
       throw new Error('Maximum members must be at least 2');
     }
-
-    // Check current member count
-    const currentMemberCount = await prisma.groupMember.count({
-      where: { groupId },
-    });
-
-    if (input.maxMembers < currentMemberCount) {
+    if (input.maxMembers < result._count.members) {
       throw new Error(
-        `Cannot reduce max members below current member count (${currentMemberCount})`
+        `Cannot reduce max members below current member count (${result._count.members})`
       );
     }
   }
 
   // Prepare update data
-  const updateData: any = {};
+  const updateData: Partial<UpdateGroupInput> = {};
   
   if (input.name !== undefined) updateData.name = input.name;
   if (input.description !== undefined) updateData.description = input.description;
@@ -731,8 +719,8 @@ export const updateGroup = async (
     data: updateData,
   });
   
-  // Invalidate cache
-  await deleteCachePatterns([
+  // Invalidate cache (non-blocking)
+  deleteCachePatterns([
     `chat:group:${groupId}`,
     'chat:search:*'
   ]);
@@ -740,77 +728,58 @@ export const updateGroup = async (
   return updatedGroup as UpdateGroupResponse;
 };
 
-// BEFORE: ~100ms (4 sequential queries)
-// AFTER: ~35ms (parallel validation)
 export const removeMember = async (
   groupId: string,
   targetUserId: number,
   currentUserId: number
 ): Promise<RemoveMemberResponse> => {
-  // Parallel validation
-  const [group, currentMembership, targetMembership] = await Promise.all([
-    prisma.group.findUnique({
-      where: { id: groupId },
-      select: { id: true, creatorId: true },
-    }),
-    prisma.groupMember.findUnique({
-      where: {
-        userId_groupId: { userId: currentUserId, groupId },
-      },
-      select: { role: true },
-    }),
-    prisma.groupMember.findUnique({
-      where: {
-        userId_groupId: { userId: targetUserId, groupId },
-      },
-      select: { role: true },
-    }),
-  ]);
+  // Single optimized query to get all needed data
+  const result = await prisma.group.findUnique({
+    where: { id: groupId },
+    include: {
+      _count: { select: { members: true } },
+      members: {
+        where: {
+          OR: [
+            { userId: currentUserId },
+            { userId: targetUserId }
+          ]
+        },
+        select: { userId: true, role: true }
+      }
+    }
+  }) as GroupWithMembersAndCount | null;
 
-  if (!group) {
-    throw new Error('Group not found');
-  }
-
-  if (!currentMembership) {
-    throw new Error('You are not a member of this group');
-  }
-
-  if (!targetMembership) {
-    throw new Error('Target user is not a member of this group');
-  }
+  if (!result) throw new Error('Group not found');
+  
+  const currentMembership = result.members.find((m: GroupMemberWithRole) => m.userId === currentUserId);
+  const targetMembership = result.members.find((m: GroupMemberWithRole) => m.userId === targetUserId);
+  
+  if (!currentMembership) throw new Error('You are not a member of this group');
+  if (!targetMembership) throw new Error('Target user is not a member of this group');
 
   const isLeavingGroup = targetUserId === currentUserId;
-  const isKicking = targetUserId !== currentUserId;
 
   // Scenario 1: User is leaving the group
   if (isLeavingGroup) {
-    // Check if user is the creator/only admin
+    // Check if user is the only admin
     if (currentMembership.role === GroupRole.ADMIN) {
-      const [adminCount, totalMembers] = await Promise.all([
-        prisma.groupMember.count({
-          where: { groupId, role: GroupRole.ADMIN },
-        }),
-        prisma.groupMember.count({ where: { groupId } }),
-      ]);
+      const adminCount = await prisma.groupMember.count({
+        where: { groupId, role: GroupRole.ADMIN },
+      });
       
-      if (adminCount === 1 && totalMembers > 1) {
+      if (adminCount === 1 && result._count.members > 1) {
         throw new Error(
           'You are the only admin. Please promote another member to admin before leaving or delete the group'
         );
       }
     }
 
-    // Remove the member and cleanup pending requests
+    // Remove member and cleanup
     const [removedMember] = await Promise.all([
       prisma.groupMember.delete({
-        where: {
-          userId_groupId: {
-            userId: currentUserId,
-            groupId,
-          },
-        },
+        where: { userId_groupId: { userId: currentUserId, groupId } },
       }),
-      // Clean up any pending requests for this user in this group
       prisma.groupRequest.deleteMany({
         where: {
           groupId,
@@ -822,8 +791,7 @@ export const removeMember = async (
       })
     ]);
 
-    // Invalidate cache
-    await deleteCachePatterns([
+    deleteCachePatterns([
       `chat:user:${currentUserId}:*`,
       `chat:group:${groupId}`,
       `chat:members:${groupId}`
@@ -835,73 +803,53 @@ export const removeMember = async (
       removedMember,
     };
   }
+  
   // Scenario 2: Admin is kicking another member
-  if (isKicking) {
-    // Check if current user has permission to kick
-    if (
-      currentMembership.role !== GroupRole.ADMIN &&
-      currentMembership.role !== GroupRole.CO_ADMIN
-    ) {
-      throw new Error('Only admins can remove members from the group');
-    }
-
-    // Prevent kicking the group creator (main admin)
-    if (targetUserId === group.creatorId) {
-      throw new Error('Cannot remove the group creator');
-    }
-
-    // Co-admins cannot kick admins
-    if (
-      currentMembership.role === GroupRole.CO_ADMIN &&
-      targetMembership.role === GroupRole.ADMIN
-    ) {
-      throw new Error('Co-admins cannot remove admins');
-    }
-
-    // Co-admins cannot kick other co-admins
-    if (
-      currentMembership.role === GroupRole.CO_ADMIN &&
-      targetMembership.role === GroupRole.CO_ADMIN
-    ) {
-      throw new Error('Co-admins cannot remove other co-admins');
-    }   
-     // Remove the member and cleanup pending requests
-    const [removedMember] = await Promise.all([
-      prisma.groupMember.delete({
-        where: {
-          userId_groupId: {
-            userId: targetUserId,
-            groupId,
-          },
-        },
-      }),
-      // Clean up any pending requests for this user in this group
-      prisma.groupRequest.deleteMany({
-        where: {
-          groupId,
-          OR: [
-            { senderId: targetUserId, status: RequestStatus.PENDING },
-            { receiverId: targetUserId, status: RequestStatus.PENDING }
-          ]
-        }
-      })
-    ]);
-
-    // Invalidate cache
-    await deleteCachePatterns([
-      `chat:user:${targetUserId}:*`,
-      `chat:group:${groupId}`,
-      `chat:members:${groupId}`
-    ]);
-
-    return {
-      success: true,
-      message: 'Member removed successfully',
-      removedMember,
-    };
+  if (currentMembership.role !== GroupRole.ADMIN && currentMembership.role !== GroupRole.CO_ADMIN) {
+    throw new Error('Only admins can remove members from the group');
   }
 
-  throw new Error('Invalid operation');
+  if (targetUserId === result.creatorId) {
+    throw new Error('Cannot remove the group creator');
+  }
+
+  // Co-admin permission checks
+  if (currentMembership.role === GroupRole.CO_ADMIN) {
+    if (targetMembership.role === GroupRole.ADMIN) {
+      throw new Error('Co-admins cannot remove admins');
+    }
+    if (targetMembership.role === GroupRole.CO_ADMIN) {
+      throw new Error('Co-admins cannot remove other co-admins');
+    }
+  }
+
+  // Remove member and cleanup
+  const [removedMember] = await Promise.all([
+    prisma.groupMember.delete({
+      where: { userId_groupId: { userId: targetUserId, groupId } },
+    }),
+    prisma.groupRequest.deleteMany({
+      where: {
+        groupId,
+        OR: [
+          { senderId: targetUserId, status: RequestStatus.PENDING },
+          { receiverId: targetUserId, status: RequestStatus.PENDING }
+        ]
+      }
+    })
+  ]);
+
+  deleteCachePatterns([
+    `chat:user:${targetUserId}:*`,
+    `chat:group:${groupId}`,
+    `chat:members:${groupId}`
+  ]);
+
+  return {
+    success: true,
+    message: 'Member removed successfully',
+    removedMember,
+  };
 };
 
 export const deleteGroup = async (
@@ -961,66 +909,47 @@ export const updateMemberRole = async (
     throw new ValidationError('Invalid role');
   }
 
-  // Use transaction for concurrency control
   return await prisma.$transaction(async (tx) => {
+    // Single query to get group with memberships and admin count
+    const [groupData, adminCount] = await Promise.all([
+      tx.group.findUnique({
+        where: { id: groupId },
+        include: {
+          members: {
+            where: {
+              userId: { in: [currentUserId, targetUserId] }
+            }
+          }
+        }
+      }) as Promise<GroupWithMembers | null>,
+      role === GroupRole.ADMIN ? tx.groupMember.count({
+        where: { groupId, role: GroupRole.ADMIN }
+      }) : Promise.resolve(0)
+    ]);
 
-    // Check if current user is admin
-    const currentMembership = await tx.groupMember.findUnique({
-      where: {
-        userId_groupId: {
-          userId: currentUserId,
-          groupId,
-        },
-      },
-    });
+    if (!groupData) {
+      throw new NotFoundError('Group not found');
+    }
+
+    const currentMembership = groupData.members.find((m: { userId: number; role: GroupRole }) => m.userId === currentUserId);
+    const targetMembership = groupData.members.find((m: { userId: number; role: GroupRole }) => m.userId === targetUserId);
 
     if (!currentMembership || currentMembership.role !== GroupRole.ADMIN) {
       throw new UnauthorizedError('Only admins can change member roles');
     }
 
-    // Check if target user is a member
-    const targetMembership = await tx.groupMember.findUnique({
-      where: {
-        userId_groupId: {
-          userId: targetUserId,
-          groupId,
-        },
-      },
-    });
-
     if (!targetMembership) {
       throw new NotFoundError('Target user is not a member of this group');
     }
 
-    // Get group to check creator
-    const group = await tx.group.findUnique({
-      where: { id: groupId },
-    });
-
-    if (!group) {
-      throw new NotFoundError('Group not found');
-    }
-
-    // Prevent demoting the group creator
-    if (targetUserId === group.creatorId && role !== GroupRole.ADMIN) {
+    if (targetUserId === groupData.creatorId && role !== GroupRole.ADMIN) {
       throw new ForbiddenError('Cannot demote the group creator');
-    } 
-
-    // Check admin limit if promoting to ADMIN
-    if (role === GroupRole.ADMIN) {
-      const adminCount = await tx.groupMember.count({
-        where: {
-          groupId,
-          role: GroupRole.ADMIN,
-        },
-      });
-
-      if (adminCount >= 3 && targetMembership.role !== GroupRole.ADMIN) {
-        throw new ConflictError('Maximum of 3 admins allowed per group');
-      }
     }
 
-    // Update member role
+    if (role === GroupRole.ADMIN && adminCount >= 3 && targetMembership.role !== GroupRole.ADMIN) {
+      throw new ConflictError('Maximum of 3 admins allowed per group');
+    }
+
     const updatedMember = await tx.groupMember.update({
       where: {
         userId_groupId: {
@@ -1028,9 +957,7 @@ export const updateMemberRole = async (
           groupId,
         },
       },
-      data: {
-        role,
-      },
+      data: { role },
       include: {
         user: {
           select: {
@@ -1043,7 +970,6 @@ export const updateMemberRole = async (
       },
     });
 
-    // Invalidate cache
     await deleteCachePatterns([
       `chat:group:${groupId}`,
       `chat:members:${groupId}`
@@ -1058,20 +984,6 @@ export const updateMemberSettings = async (
   userId: number,
   input: UpdateMemberSettingsInput
 ): Promise<UpdateMemberSettingsResponse> => {
-  // Check if user is a member
-  const membership = await prisma.groupMember.findUnique({
-    where: {
-      userId_groupId: {
-        userId,
-        groupId,
-      },
-    },
-  });
-
-  if (!membership) {
-    throw new UnauthorizedError('You are not a member of this group');
-  }
-
   // Prepare update data
   const updateData: Partial<{ isMuted: boolean; muteUntil: Date | null }> = {};
 
@@ -1082,18 +994,26 @@ export const updateMemberSettings = async (
   if (input.muteUntil !== undefined) {
     updateData.muteUntil = input.muteUntil ? new Date(input.muteUntil) : null;
   }
-  // Update member settings
-  const updatedMember = await prisma.groupMember.update({
-    where: {
-      userId_groupId: {
-        userId,
-        groupId,
-      },
-    },
-    data: updateData,
-  });
 
-  return updatedMember as UpdateMemberSettingsResponse;
+  try {
+    // Single query - update will fail if user is not a member
+    const updatedMember = await prisma.groupMember.update({
+      where: {
+        userId_groupId: {
+          userId,
+          groupId,
+        },
+      },
+      data: updateData,
+    });
+
+    return updatedMember as UpdateMemberSettingsResponse;
+  } catch (error: any) {
+    if (error.code === 'P2025') {
+      throw new UnauthorizedError('You are not a member of this group');
+    }
+    throw error;
+  }
 };
 
 export const pinMessage = async (
@@ -1101,44 +1021,47 @@ export const pinMessage = async (
   messageId: string,
   userId: number
 ): Promise<PinMessageResponse> => {
-  // Check if user is admin or co-admin
-  const membership = await prisma.groupMember.findUnique({
-    where: {
-      userId_groupId: {
-        userId,
-        groupId,
-      },
-    },
-  });
+  const [messageData, existingPin, pinnedCount] = await Promise.all([
+    prisma.message.findUnique({
+      where: { id: messageId },
+      include: {
+        group: {
+          select: {
+            id: true,
+            members: {
+              where: { userId },
+              select: { role: true }
+            }
+          }
+        }
+      }
+    }),
+    prisma.pinnedMessage.findUnique({
+      where: { messageId },
+      select: { id: true }
+    }),
+    prisma.pinnedMessage.count({
+      where: { groupId }
+    })
+  ]);
 
-  if (
-    !membership ||
-    (membership.role !== GroupRole.ADMIN && membership.role !== GroupRole.CO_ADMIN)
-  ) {
-    throw new UnauthorizedError('Only admins can pin messages');
-  }
-
-  // Check if message exists and belongs to the group
-  const message = await prisma.message.findUnique({
-    where: { id: messageId },
-  });
-
-  if (!message || message.groupId !== groupId) {
+  if (!messageData || messageData.groupId !== groupId) {
     throw new NotFoundError('Message not found in this group');
   }
 
-  // Check if message is already pinned
-  const existingPin = await prisma.pinnedMessage.findUnique({
-    where: {
-      messageId: messageId,
-    }
-  });
+  const membership = messageData.group.members[0];
+  if (!membership || (membership.role !== GroupRole.ADMIN && membership.role !== GroupRole.CO_ADMIN)) {
+    throw new UnauthorizedError('Only admins can pin messages');
+  }
 
   if (existingPin) {
     throw new ConflictError('Message is already pinned');
   }
 
-  // Create pinned message
+  if (pinnedCount >= 4) {
+    throw new ConflictError('Maximum of 4 messages can be pinned per group');
+  }
+
   const pinnedMessage = await prisma.pinnedMessage.create({
     data: {
       groupId,
@@ -1158,7 +1081,6 @@ export const pinMessage = async (
     },
   });
 
-  // Invalidate cache
   await deleteCachePattern(`chat:pinned:${groupId}`);
 
   return {
@@ -1172,42 +1094,33 @@ export const unpinMessage = async (
   messageId: string,
   userId: number
 ): Promise<UnpinMessageResponse> => {
-  // Check if user is admin or co-admin
-  const membership = await prisma.groupMember.findUnique({
-    where: {
-      userId_groupId: {
-        userId,
-        groupId,
-      },
-    },
-  });
-
-  if (
-    !membership ||
-    (membership.role !== GroupRole.ADMIN && membership.role !== GroupRole.CO_ADMIN)
-  ) {
-    throw new Error('Only admins can unpin messages');
-  }
-
-  // Check if pin exists
   const pinnedMessage = await prisma.pinnedMessage.findUnique({
-    where: {
-      messageId: messageId,
-    },
+    where: { messageId },
+    include: {
+      group: {
+        select: {
+          members: {
+            where: { userId },
+            select: { role: true }
+          }
+        }
+      }
+    }
   });
 
   if (!pinnedMessage) {
     throw new Error('Message is not pinned');
   }
 
-  // Delete pinned message
+  const membership = pinnedMessage.group.members[0];
+  if (!membership || (membership.role !== GroupRole.ADMIN && membership.role !== GroupRole.CO_ADMIN)) {
+    throw new Error('Only admins can unpin messages');
+  }
+
   await prisma.pinnedMessage.delete({
-    where: {
-      messageId: messageId,
-    },
+    where: { messageId }
   });
 
-  // Invalidate cache
   await deleteCachePattern(`chat:pinned:${groupId}`);
 
   return {
@@ -1216,9 +1129,6 @@ export const unpinMessage = async (
   };
 };  
 
-// BEFORE: ~90ms (sequential membership check + pinned messages)
-// AFTER: ~30ms (single query with membership validation)
-// CACHED: ~3ms (Redis cache hit)
 export const getPinnedMessages = async (
   groupId: string,
   userId: number
@@ -1227,7 +1137,7 @@ export const getPinnedMessages = async (
   const cached = await getCache<PinnedMessagesResponse>(cacheKey);
   if (cached) return cached;
 
-  // Single query with membership check in WHERE clause
+  // Single query with membership check - will return empty array if not a member
   const pinnedMessages = await prisma.pinnedMessage.findMany({
     where: {
       groupId,
@@ -1272,16 +1182,19 @@ export const getPinnedMessages = async (
     orderBy: { pinnedAt: 'desc' },
   });
 
-  // If no results and we need to check if user is member
+  // Check if user exists in group when no pinned messages found
   if (pinnedMessages.length === 0) {
-    const membership = await prisma.groupMember.findUnique({
+    const groupExists = await prisma.group.findUnique({
       where: {
-        userId_groupId: { userId, groupId },
+        id: groupId,
+        members: {
+          some: { userId }
+        }
       },
-      select: { id: true },
+      select: { id: true }
     });
     
-    if (!membership) {
+    if (!groupExists) {
       throw new UnauthorizedError('You are not a member of this group');
     }
   }
@@ -1303,32 +1216,26 @@ export const createAnnouncement = async (
 ): Promise<CreateAnnouncementResponse> => {
   const { title, content } = input;
 
-  // Check if user is admin or co-admin
-  const membership = await prisma.groupMember.findUnique({
-    where: {
-      userId_groupId: {
-        userId,
-        groupId,
-      },
-    },
-  });
-
-  if (
-    !membership ||
-    (membership.role !== GroupRole.ADMIN && membership.role !== GroupRole.CO_ADMIN)
-  ) {
-    throw new UnauthorizedError('Only admins can create announcements');
-  }
- // Check if group exists
+  // Single query to check group existence and user membership
   const group = await prisma.group.findUnique({
     where: { id: groupId },
+    include: {
+      members: {
+        where: { userId },
+        select: { role: true }
+      }
+    }
   });
 
   if (!group) {
     throw new NotFoundError('Group not found');
   }
 
-  // Create announcement message
+  const membership = group.members[0];
+  if (!membership || (membership.role !== GroupRole.ADMIN && membership.role !== GroupRole.CO_ADMIN)) {
+    throw new UnauthorizedError('Only admins can create announcements');
+  }
+
   const announcement = await prisma.message.create({
     data: {
       groupId,
@@ -1345,7 +1252,7 @@ export const createAnnouncement = async (
           profileUrl: true,
         },
       },
-     },
+    },
   });
 
   return {
@@ -1355,6 +1262,233 @@ export const createAnnouncement = async (
       isAnnouncement: true,
     },
   } as CreateAnnouncementResponse;
+};
+
+export const getAnnouncements = async (
+  groupId: string,
+  userId: number
+): Promise<GetAnnouncementsListResponse> => {
+  const fiveDaysAgo = new Date();
+  fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+
+  // Single query with membership check and date filter
+  const announcements = await prisma.message.findMany({
+    where: {
+      groupId,
+      type: MessageType.ANNOUNCEMENT,
+      createdAt: {
+        gte: fiveDaysAgo
+      },
+      group: {
+        members: {
+          some: { userId }
+        }
+      }
+    },
+    select: {
+      id: true,
+      groupId: true,
+      senderId: true,
+      type: true,
+      content: true,
+      createdAt: true,
+      sender: {
+        select: {
+          id: true,
+          email: true,
+          fullName: true,
+          profileUrl: true,
+        },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return announcements.map(announcement => ({
+    ...announcement,
+    metadata: {
+      title: announcement.content?.split(': ')[0] || 'Announcement',
+      isAnnouncement: true,
+    },
+  })) as GetAnnouncementsListResponse;
+};
+
+export const createPoll = async (
+  groupId: string,
+  userId: number,
+  input: CreatePollInput
+): Promise<CreatePollResponse> => {
+  const { question, options, allowMultiple = false, expiresAt } = input;
+
+  if (options.length < 2) {
+    throw new ValidationError('Poll must have at least 2 options');
+  }
+
+  // Single query to check group existence and user membership
+  const group = await prisma.group.findUnique({
+    where: { id: groupId },
+    include: {
+      members: {
+        where: { userId },
+        select: { id: true }
+      }
+    }
+  });
+
+  if (!group) {
+    throw new NotFoundError('Group not found');
+  }
+
+  if (!group.members[0]) {
+    throw new UnauthorizedError('You are not a member of this group');
+  }
+
+  const message = await prisma.message.create({
+    data: {
+      groupId,
+      senderId: userId,
+      type: MessageType.POLL,
+      content: question,
+      poll: {
+        create: {
+          question,
+          allowMultiple,
+          expiresAt: expiresAt ? new Date(expiresAt) : null,
+          options: {
+            create: options.map(text => ({ text }))
+          }
+        }
+      }
+    },
+    include: {
+      sender: {
+        select: {
+          id: true,
+          email: true,
+          fullName: true,
+          profileUrl: true,
+        },
+      },
+      poll: {
+        include: {
+          options: {
+            include: {
+              _count: { select: { votes: true } }
+            }
+          }
+        }
+      }
+    },
+  });
+
+  return {
+    ...message,
+    poll: {
+      ...message.poll!,
+      options: message.poll!.options.map(option => ({
+        id: option.id,
+        text: option.text,
+        voteCount: option._count.votes,
+        hasVoted: false
+      }))
+    }
+  } as CreatePollResponse;
+};
+
+export const getPoll = async (
+  messageId: string,
+  userId: number
+): Promise<GetPollResponse> => {
+  const message = await prisma.message.findUnique({
+    where: { id: messageId },
+    include: {
+      group: {
+        select: {
+          members: {
+            where: { userId },
+            select: { id: true }
+          }
+        }
+      },
+      poll: {
+        include: {
+          options: {
+            include: {
+              _count: { select: { votes: true } },
+              votes: {
+                where: { userId },
+                select: { id: true }
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!message || !message.poll) {
+    throw new NotFoundError('Poll not found');
+  }
+
+  if (!message.group.members[0]) {
+    throw new UnauthorizedError('You are not a member of this group');
+  }
+
+  return {
+    id: message.poll.id,
+    question: message.poll.question,
+    allowMultiple: message.poll.allowMultiple,
+    expiresAt: message.poll.expiresAt,
+    messageId: message.id,
+    options: message.poll.options.map(option => ({
+      id: option.id,
+      text: option.text,
+      voteCount: option._count.votes,
+      hasVoted: option.votes.length > 0
+    }))
+  };
+};
+
+export const deletePoll = async (
+  messageId: string,
+  userId: number
+): Promise<DeletePollResponse> => {
+  const message = await prisma.message.findUnique({
+    where: { id: messageId },
+    include: {
+      group: {
+        select: {
+          members: {
+            where: { userId },
+            select: { role: true }
+          }
+        }
+      },
+      poll: { select: { id: true } }
+    }
+  });
+
+  if (!message || !message.poll) {
+    throw new NotFoundError('Poll not found');
+  }
+
+  const membership = message.group.members[0];
+  if (!membership) {
+    throw new UnauthorizedError('You are not a member of this group');
+  }
+
+  if (message.senderId !== userId && membership.role !== GroupRole.ADMIN && membership.role !== GroupRole.CO_ADMIN) {
+    throw new UnauthorizedError('Only poll creator or admins can delete polls');
+  }
+
+  await prisma.message.delete({
+    where: { id: messageId }
+  });
+
+  return {
+    success: true,
+    message: 'Poll deleted successfully'
+  };
 };
 
 export const updateGroupProfileImage = async (
