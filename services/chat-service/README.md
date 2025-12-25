@@ -30,8 +30,12 @@ Based on the existing Group/Member endpoints, the frontend requires these UI scr
 
 #### Message Features
 - **Chat Window** - Main messaging interface
-- **Pinned Messages Panel** - View pinned messages
+- **Pinned Messages Panel** - View pinned messages (max 4 per group)
 - **Announcement Creator** - Create group announcements (admin only)
+- **Announcement Feed** - View recent announcements (last 5 days)
+- **Poll Creator** - Create interactive polls with multiple options
+- **Poll Voting** - Vote on polls with real-time results
+- **Poll Management** - Delete polls (creator or admin only)
 
 ### User Journeys
 
@@ -59,7 +63,12 @@ Based on the existing Group/Member endpoints, the frontend requires these UI scr
 1. Admin pins important message → API POST /groups/:id/messages/:messageId/pin
 2. View pinned messages → API GET /groups/:id/messages/pinned
 3. Create announcement → API POST /groups/:id/announcements
-4. Unpin message → API DELETE /groups/:id/messages/:messageId/pin
+4. View recent announcements → API GET /groups/:id/announcements
+5. Create poll → API POST /groups/:id/polls
+6. Vote on poll → API POST /groups/polls/:messageId/vote (Future)
+7. View poll results → API GET /groups/polls/:messageId
+8. Delete poll → API DELETE /groups/polls/:messageId
+9. Unpin message → API DELETE /groups/:id/messages/:messageId/pin
 ```
 
 ### Permission Logic
@@ -76,9 +85,10 @@ const canManageGroup = (userRole: string) => {
 - "Edit Group" button
 - "Remove Member" button  
 - "Change Member Role" dropdown
-- "Pin/Unpin Message" button
+- "Pin/Unpin Message" button (max 4 pinned messages)
 - "Create Announcement" button
 - "Delete Group" button (ADMIN only)
+- "Delete Poll" button (for polls they didn't create)
 ```
 
 #### Member Permissions
@@ -93,6 +103,9 @@ const canLeaveGroup = (userRole: string, isCreator: boolean) => {
 - Send messages (when implemented)
 - Leave group (with restrictions for creators)
 - Update their own notification settings
+- Create polls and vote on existing polls
+- View announcements and pinned messages
+- Delete their own polls
 ```
 
 #### Role Hierarchy
@@ -868,6 +881,151 @@ interface CreateAnnouncementRequest {
 
 ---
 
+#### GET /api/groups/:groupId/announcements
+**Description:** Get recent announcements (last 5 days)
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "message": "Announcements retrieved successfully",
+  "data": [
+    {
+      "id": "message-uuid",
+      "groupId": "group-uuid",
+      "senderId": 1,
+      "type": "ANNOUNCEMENT",
+      "content": "Important Update: Please review the new guidelines",
+      "createdAt": "2024-01-01T12:00:00Z",
+      "sender": {
+        "id": 1,
+        "email": "john@company.com",
+        "fullName": "John Doe",
+        "profileUrl": "http://localhost:9000/profile-images/user-1.jpg"
+      },
+      "metadata": {
+        "title": "Important Update",
+        "isAnnouncement": true
+      }
+    }
+  ]
+}
+```
+
+---
+
+### Poll Management Endpoints
+
+#### POST /api/groups/:groupId/polls
+**Description:** Create poll in group (All members)
+
+**Zod Validation Rules:**
+- `question`: string (min 1 char, max 200 chars, required)
+- `options`: array of strings (min 2, max 10 options, each max 100 chars)
+- `allowMultiple`: boolean (default: false)
+- `expiresAt`: string (ISO datetime, optional)
+
+**Request Body:**
+```typescript
+interface CreatePollRequest {
+  question: string;
+  options: string[];
+  allowMultiple?: boolean;
+  expiresAt?: string;
+}
+```
+
+**Success Response (201):**
+```json
+{
+  "success": true,
+  "message": "Poll created successfully",
+  "data": {
+    "id": "message-uuid",
+    "groupId": "group-uuid",
+    "senderId": 1,
+    "type": "POLL",
+    "content": "What should we have for lunch?",
+    "createdAt": "2024-01-01T12:00:00Z",
+    "sender": {
+      "id": 1,
+      "email": "john@company.com",
+      "fullName": "John Doe",
+      "profileUrl": "http://localhost:9000/profile-images/user-1.jpg"
+    },
+    "poll": {
+      "id": "poll-uuid",
+      "question": "What should we have for lunch?",
+      "allowMultiple": false,
+      "expiresAt": "2024-01-02T12:00:00Z",
+      "options": [
+        {
+          "id": "option-uuid-1",
+          "text": "Pizza",
+          "voteCount": 0,
+          "hasVoted": false
+        },
+        {
+          "id": "option-uuid-2",
+          "text": "Burgers",
+          "voteCount": 0,
+          "hasVoted": false
+        }
+      ]
+    }
+  }
+}
+```
+
+---
+
+#### GET /api/groups/polls/:messageId
+**Description:** Get poll details with vote status
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "message": "Poll retrieved successfully",
+  "data": {
+    "id": "poll-uuid",
+    "question": "What should we have for lunch?",
+    "allowMultiple": false,
+    "expiresAt": "2024-01-02T12:00:00Z",
+    "messageId": "message-uuid",
+    "options": [
+      {
+        "id": "option-uuid-1",
+        "text": "Pizza",
+        "voteCount": 5,
+        "hasVoted": true
+      },
+      {
+        "id": "option-uuid-2",
+        "text": "Burgers",
+        "voteCount": 3,
+        "hasVoted": false
+      }
+    ]
+  }
+}
+```
+
+---
+
+#### DELETE /api/groups/polls/:messageId
+**Description:** Delete poll (Creator or Admin only)
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "message": "Poll deleted successfully"
+}
+```
+
+---
+
 ## Section 3: Real-Time WebSocket API (Implemented)
 
 > **✅ FULLY IMPLEMENTED**  
@@ -1194,6 +1352,10 @@ socket.on('error.group_not_found', {
 | **409** | Request already processed | `"This request has already been processed"` | Refresh requests list |
 | **409** | Message already pinned | `"Message is already pinned"` | Update pin button state |
 | **409** | Max admins reached | `"Maximum of 3 admins allowed per group"` | Disable promote to admin option |
+| **409** | Max pinned messages | `"Maximum of 4 messages can be pinned per group"` | Disable pin button when limit reached |
+| **409** | Poll validation error | `"Poll must have at least 2 options"` | Show validation error on form |
+| **403** | Poll deletion denied | `"Only poll creator or admins can delete polls"` | Hide delete button for non-creators |
+| **404** | Poll not found | `"Poll not found"` | Show "Poll no longer exists" message |
 | **500** | Server error | `"Internal server error"` | Show "Something went wrong" toast |
 
 ### Frontend Error Handling Patterns
