@@ -17,6 +17,10 @@ import {
   unpinMessageSchema,
   getPinnedMessagesSchema,
   createAnnouncementSchema,
+  getAnnouncementsSchema,
+  createPollSchema,
+  getPollSchema,
+  deletePollSchema,
 } from '../utils/schema';
 import {
   CreateGroup,
@@ -37,6 +41,10 @@ import {
   unpinMessage,
   getPinnedMessages,
   createAnnouncement,
+  getAnnouncements,
+  createPoll,
+  getPoll,
+  deletePoll,
 } from '../services/group.service';
 import { ValidationError, NotFoundError, UnauthorizedError, ConflictError, ForbiddenError } from '../utils/errors';
 import { notifyMemberJoined, notifyMemberLeft } from '../socket/socketService';
@@ -1060,6 +1068,246 @@ export const createAnnouncementController = async (
     });
   } catch (error: any) {
     console.error('Error creating announcement:', error);
+
+    if (error instanceof NotFoundError) {
+      res.status(404).json({
+        success: false,
+        message: error.message,
+      });
+      return;
+    }
+
+    if (error instanceof UnauthorizedError) {
+      res.status(403).json({
+        success: false,
+        message: error.message,
+      });
+      return;
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+// 19. Get Announcements Controller
+export const getAnnouncementsController = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const validationResult = getAnnouncementsSchema.safeParse({ params: req.params });
+
+    if (!validationResult.success) {
+      const fieldErrors = validationResult.error.issues.map(error => ({
+        field: error.path.join('.'),
+        message: error.message,
+      }));
+
+      res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: fieldErrors,
+      });
+      return;
+    }
+
+    const userId = req.user!.id;
+    const { groupId } = validationResult.data.params;
+
+    const announcements = await getAnnouncements(groupId, userId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Announcements retrieved successfully',
+      data: announcements,
+    });
+  } catch (error: any) {
+    console.error('Error fetching announcements:', error);
+
+    if (error instanceof UnauthorizedError) {
+      res.status(403).json({
+        success: false,
+        message: error.message,
+      });
+      return;
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+// 20. Create Poll Controller
+export const createPollController = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const validationResult = createPollSchema.safeParse({
+      params: req.params,
+      body: req.body,
+    });
+
+    if (!validationResult.success) {
+      const fieldErrors = validationResult.error.issues.map(error => ({
+        field: error.path.join('.'),
+        message: error.message,
+      }));
+
+      res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: fieldErrors,
+      });
+      return;
+    }
+
+    const userId = req.user!.id;
+    const { groupId } = validationResult.data.params;
+    const pollData = validationResult.data.body;
+
+    // Filter out undefined values to match CreatePollInput type
+    const createPollInput = {
+      question: pollData.question,
+      options: pollData.options,
+      allowMultiple: pollData.allowMultiple,
+      ...(pollData.expiresAt !== undefined && { expiresAt: pollData.expiresAt }),
+    };
+
+    const poll = await createPoll(groupId, userId, createPollInput);
+
+    res.status(201).json({
+      success: true,
+      message: 'Poll created successfully',
+      data: poll,
+    });
+  } catch (error: any) {
+    console.error('Error creating poll:', error);
+
+    if (error instanceof ValidationError) {
+      res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+      return;
+    }
+
+    if (error instanceof NotFoundError) {
+      res.status(404).json({
+        success: false,
+        message: error.message,
+      });
+      return;
+    }
+
+    if (error instanceof UnauthorizedError) {
+      res.status(403).json({
+        success: false,
+        message: error.message,
+      });
+      return;
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+// 21. Get Poll Controller
+export const getPollController = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const validationResult = getPollSchema.safeParse({ params: req.params });
+
+    if (!validationResult.success) {
+      const fieldErrors = validationResult.error.issues.map(error => ({
+        field: error.path.join('.'),
+        message: error.message,
+      }));
+
+      res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: fieldErrors,
+      });
+      return;
+    }
+
+    const userId = req.user!.id;
+    const { messageId } = validationResult.data.params;
+
+    const poll = await getPoll(messageId, userId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Poll retrieved successfully',
+      data: poll,
+    });
+  } catch (error: any) {
+    console.error('Error fetching poll:', error);
+
+    if (error instanceof NotFoundError) {
+      res.status(404).json({
+        success: false,
+        message: error.message,
+      });
+      return;
+    }
+
+    if (error instanceof UnauthorizedError) {
+      res.status(403).json({
+        success: false,
+        message: error.message,
+      });
+      return;
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+// 22. Delete Poll Controller
+export const deletePollController = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const validationResult = deletePollSchema.safeParse({ params: req.params });
+
+    if (!validationResult.success) {
+      const fieldErrors = validationResult.error.issues.map(error => ({
+        field: error.path.join('.'),
+        message: error.message,
+      }));
+
+      res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: fieldErrors,
+      });
+      return;
+    }
+
+    const userId = req.user!.id;
+    const { messageId } = validationResult.data.params;
+
+    const result = await deletePoll(messageId, userId);
+
+    res.status(200).json(result);
+  } catch (error: any) {
+    console.error('Error deleting poll:', error);
 
     if (error instanceof NotFoundError) {
       res.status(404).json({
