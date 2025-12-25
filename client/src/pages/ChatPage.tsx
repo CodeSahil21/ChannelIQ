@@ -7,7 +7,10 @@ import { useGroups } from '../hooks/useGroups';
 import { GroupDetailView } from '../components/Chat/GroupDetailView';
 
 // Memoized components to prevent unnecessary re-renders
-const MemoizedGroupDetailView = memo(GroupDetailView);
+const MemoizedGroupDetailView = memo(({ group }: { group: any }) => (
+  <GroupDetailView group={group} />
+));
+
 const MemoizedGroupsList = memo(({ groups, selectedGroupId, onGroupClick, loading }: any) => (
   <div className="chat-groups-list">
     {loading ? (
@@ -55,15 +58,16 @@ export const ChatPage: React.FC = () => {
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showPendingModal, setShowPendingModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { groups, currentGroup, getMyGroups, getGroupDetails, loading } = useGroups();
+  const { groups, getMyGroups, getGroupDetails, loading } = useGroups();
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [localCurrentGroup, setLocalCurrentGroup] = useState<any>(null);
 
   const handleGroupClick = useCallback(async (userGroup: any) => {
     if (selectedGroupId === userGroup.groupId) return;
     
     setSelectedGroupId(userGroup.groupId);
-    await getGroupDetails(userGroup.groupId);
-  }, [selectedGroupId, getGroupDetails]);
+    setLocalCurrentGroup(userGroup.group);
+  }, [selectedGroupId]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -157,8 +161,8 @@ export const ChatPage: React.FC = () => {
 
         {/* Main Chat Area */}
         <div className="chat-main">
-          {currentGroup ? (
-            <MemoizedGroupDetailView group={currentGroup} />
+          {localCurrentGroup ? (
+            <MemoizedGroupDetailView group={localCurrentGroup} />
           ) : (
             <div className="chat-welcome">
               <div className="chat-welcome-content">

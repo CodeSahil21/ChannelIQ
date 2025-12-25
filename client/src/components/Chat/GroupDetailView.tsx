@@ -23,7 +23,6 @@ interface GroupDetailViewProps {
 
 const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
   const [activeTab, setActiveTab] = useState<GroupDetailTab>('messages');
-  const [isLoading, setIsLoading] = useState(false);
   const { updateMemberRole, updateMemberSettings, handleImageUpdate } = useGroups();
   const dispatch = useAppDispatch();
   const [showUpdateModal, setShowUpdateModal] = useState(false);
@@ -34,12 +33,6 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
   const [memberToRemove, setMemberToRemove] = useState<{ userId: number; name: string } | null>(null);
   const [activeDropdown, setActiveDropdown] = useState<number | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => setIsLoading(false), 300);
-    return () => clearTimeout(timer);
-  }, [group.id]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -133,22 +126,11 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
         </div>
 
         <div className="group-detail-content">
-          {isLoading ? (
-            <div className="chat-welcome">
-              <div className="chat-welcome-content">
-                <div className="theme-loader medium">
-                  <div className="theme-loader-spinner"></div>
-                </div>
-                <p className="theme-loader-text">Loading messages...</p>
-              </div>
-            </div>
-          ) : (
-            <>
-              {activeTab === 'messages' && (
-                <ChatMessagesWrapper groupId={group.id} />
-              )}
-              
-              {activeTab === 'details' && (
+          {activeTab === 'messages' && (
+            <ChatMessagesWrapper groupId={group.id} />
+          )}
+          
+          {activeTab === 'details' && (
             <div className="details-tab-content">
           <GroupProfile 
             group={group} 
@@ -295,8 +277,6 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
             )}
           </div>
             </div>
-          )}
-            </>
           )}
         </div>
 
