@@ -5,3 +5,8 @@ export { MessageItem } from './MessageItem';
 export { MessageInput } from './MessageInput';
 export { TypingIndicator } from './TypingIndicator';
 export { GroupDetailView } from './GroupDetailView';
+export { CreatePollModal } from './CreatePollModal';
+export { CreateAnnouncementModal } from './CreateAnnouncementModal';
+export { GroupActions } from './GroupActions';
+export { PollsListModal } from './PollsListModal';
+export { AnnouncementsListModal } from './AnnouncementsListModal';

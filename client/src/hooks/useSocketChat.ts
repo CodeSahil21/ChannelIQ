@@ -187,6 +187,10 @@ export const useSocketChat = () => {
     setMessages([]);
   }, []);
 
+  const votePoll = useCallback((pollId: string, optionId: string, callback?: (response: SocketResponse) => void) => {
+    socket?.emit('poll:vote', { pollId, optionId }, callback);
+  }, [socket]);
+
   return {
     socket,
     isConnected,
@@ -201,6 +205,7 @@ export const useSocketChat = () => {
     removeReaction,
     startTyping,
     stopTyping,
-    clearMessages
+    clearMessages,
+    votePoll
   };
 };

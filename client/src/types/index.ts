@@ -41,6 +41,7 @@ export interface ResetPasswordFormData {
 export * from './user.types';
 export * from './connection.types';
 export * from './group.types';
+export * from './groupContent.types';
 
 // Additional types for profile operations
 export interface CreateProfileFormData {

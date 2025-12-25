@@ -7,6 +7,7 @@ import DeleteGroupModal from './DeleteGroupModal';
 import AddMembersModal from './AddMembersModal';
 import RemoveMemberModal from './RemoveMemberModal';
 import LeaveGroupModal from './LeaveGroupModal';
+import { PollsListModal, AnnouncementsListModal } from './index';
 import { ChatProvider, useChatContext } from './ChatProvider';
 import { ChatMessages } from './ChatMessages';
 import type { Group, UpdateGroupRequest } from '../../types/group.types';
@@ -33,6 +34,8 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
   const [showAddMembersModal, setShowAddMembersModal] = useState(false);
   const [showRemoveMemberModal, setShowRemoveMemberModal] = useState(false);
   const [showLeaveGroupModal, setShowLeaveGroupModal] = useState(false);
+  const [showPollsModal, setShowPollsModal] = useState(false);
+  const [showAnnouncementsModal, setShowAnnouncementsModal] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<{ userId: number; name: string } | null>(null);
   const [activeDropdown, setActiveDropdown] = useState<number | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -130,7 +133,11 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
 
         <div className="group-detail-content">
           {activeTab === 'messages' && (
-            <ChatMessagesWrapper groupId={fullGroup.id} />
+            <ChatMessagesWrapper 
+              groupId={fullGroup.id} 
+              onShowPolls={() => setShowPollsModal(true)}
+              onShowAnnouncements={() => setShowAnnouncementsModal(true)}
+            />
           )}
           
           {activeTab === 'details' && (
@@ -319,6 +326,18 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
         groupName={fullGroup.name}
         onConfirm={handleConfirmLeaveGroup}
       />
+      
+      <PollsListModal
+        isOpen={showPollsModal}
+        onClose={() => setShowPollsModal(false)}
+        groupId={fullGroup.id}
+      />
+      
+      <AnnouncementsListModal
+        isOpen={showAnnouncementsModal}
+        onClose={() => setShowAnnouncementsModal(false)}
+        groupId={fullGroup.id}
+      />
       </div>
     </ChatProvider>
   );
@@ -328,7 +347,11 @@ export { GroupDetailView };
 export default GroupDetailView;
 
 // Wrapper component to handle chat context
-const ChatMessagesWrapper: React.FC<{ groupId: string }> = ({ groupId }) => {
+const ChatMessagesWrapper: React.FC<{ 
+  groupId: string;
+  onShowPolls?: () => void;
+  onShowAnnouncements?: () => void;
+}> = ({ groupId, onShowPolls, onShowAnnouncements }) => {
   const { joinGroup, currentGroupId } = useChatContext();
   
   useEffect(() => {
@@ -337,5 +360,11 @@ const ChatMessagesWrapper: React.FC<{ groupId: string }> = ({ groupId }) => {
     }
   }, [groupId, currentGroupId, joinGroup]);
   
-  return <ChatMessages groupId={groupId} />;
+  return (
+    <ChatMessages 
+      groupId={groupId} 
+      onShowPolls={onShowPolls}
+      onShowAnnouncements={onShowAnnouncements}
+    />
+  );
 };

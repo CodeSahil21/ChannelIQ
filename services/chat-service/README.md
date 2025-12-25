@@ -65,7 +65,7 @@ Based on the existing Group/Member endpoints, the frontend requires these UI scr
 3. Create announcement → API POST /groups/:id/announcements
 4. View recent announcements → API GET /groups/:id/announcements
 5. Create poll → API POST /groups/:id/polls
-6. Vote on poll → API POST /groups/polls/:messageId/vote (Future)
+6. Vote on poll → Socket: poll:vote (Real-time)
 7. View poll results → API GET /groups/polls/:messageId
 8. Delete poll → API DELETE /groups/polls/:messageId
 9. Unpin message → API DELETE /groups/:id/messages/:messageId/pin
@@ -1031,13 +1031,43 @@ interface CreatePollRequest {
 > **✅ FULLY IMPLEMENTED**  
 > Real-time messaging via Socket.IO is fully operational. See SOCKET_API.md for complete documentation.
 
-### WebSocket Connection
+### ✅ **NEW: Real-Time Features Implemented**
 
-**Connection URL:** `ws://localhost:3004/ws`
+#### **Announcements**
+- **REST API**: `POST /groups/:groupId/announcements` - Create announcements
+- **Real-time Event**: `announcement:created` - Broadcasts to all group members
+- **Data**: `{ groupId, messageId, content, createdBy }`
 
-**Authentication:** JWT token via query parameter or header
-```javascript
-const socket = new WebSocket('ws://localhost:3004/ws?token=jwt_token_here');
+#### **Polls** 
+- **REST API**: Create/delete polls via REST endpoints
+- **Socket Voting**: `poll:vote` - Real-time poll voting
+- **Real-time Events**: 
+  - `poll:created` - When poll is created
+  - `poll:deleted` - When poll is deleted
+  - `poll:vote:update` - Live vote count updates
+
+#### **Message Pin/Unpin**
+- **REST API**: Pin/unpin messages via REST endpoints
+- **Real-time Events**:
+  - `message:pinned` - When message is pinned
+  - `message:unpinned` - When message is unpinned
+- **Data**: `{ groupId, messageId, pinnedBy/unpinnedBy }`
+
+#### **Implementation Pattern**
+```typescript
+// REST API for CRUD operations
+POST /groups/:groupId/polls          // Create poll
+DELETE /polls/:messageId             // Delete poll
+POST /groups/:groupId/announcements  // Create announcement
+POST /groups/:groupId/messages/:messageId/pin    // Pin message
+DELETE /groups/:groupId/messages/:messageId/pin  // Unpin message
+
+// Socket for real-time interactions
+socket.emit('poll:vote', { pollId, optionId })  // Vote on poll
+socket.on('poll:vote:update', data => { ... })  // Receive vote updates
+socket.on('announcement:created', data => { ... }) // Receive announcements
+socket.on('poll:created', data => { ... })       // Receive poll notifications
+socket.on('message:pinned', data => { ... })     // Receive pin notifications
 ```
 
 ### Proposed Client Events (Client → Server)

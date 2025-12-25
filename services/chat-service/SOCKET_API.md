@@ -277,6 +277,61 @@ socket.on('poll:vote:update', (data) => {
 - **Payload**: `{ pollId: string, optionId: string, userId: number, voteCount: number }`
 - **Real-time**: Broadcasts immediately after vote is cast
 
+#### `announcement:created`
+Receive announcement notifications.
+```javascript
+socket.on('announcement:created', (data) => {
+  console.log(`New announcement in group ${data.groupId}: ${data.content}`);
+  console.log(`Created by ${data.createdBy}`);
+});
+```
+- **Payload**: `{ groupId: string, messageId: string, content: string, createdBy: string }`
+- **Real-time**: Broadcasts when admin creates announcement
+
+#### `poll:created`
+Receive poll creation notifications.
+```javascript
+socket.on('poll:created', (data) => {
+  console.log(`New poll in group ${data.groupId}: ${data.question}`);
+  console.log(`Created by ${data.createdBy}`);
+});
+```
+- **Payload**: `{ groupId: string, messageId: string, question: string, createdBy: string }`
+- **Real-time**: Broadcasts when poll is created
+
+#### `poll:deleted`
+Receive poll deletion notifications.
+```javascript
+socket.on('poll:deleted', (data) => {
+  console.log(`Poll deleted in group ${data.groupId}`);
+  console.log(`Deleted by ${data.deletedBy}`);
+});
+```
+- **Payload**: `{ groupId: string, messageId: string, deletedBy: string }`
+- **Real-time**: Broadcasts when poll is deleted
+
+#### `message:pinned`
+Receive message pin notifications.
+```javascript
+socket.on('message:pinned', (data) => {
+  console.log(`Message pinned in group ${data.groupId}`);
+  console.log(`Pinned by ${data.pinnedBy}`);
+});
+```
+- **Payload**: `{ groupId: string, messageId: string, pinnedBy: string }`
+- **Real-time**: Broadcasts when message is pinned
+
+#### `message:unpinned`
+Receive message unpin notifications.
+```javascript
+socket.on('message:unpinned', (data) => {
+  console.log(`Message unpinned in group ${data.groupId}`);
+  console.log(`Unpinned by ${data.unpinnedBy}`);
+});
+```
+- **Payload**: `{ groupId: string, messageId: string, unpinnedBy: string }`
+- **Real-time**: Broadcasts when message is unpinned
+
 ### Real-time Events
 
 #### `typing:updated`

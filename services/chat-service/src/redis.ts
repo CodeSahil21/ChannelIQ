@@ -129,6 +129,8 @@ export const CacheKeys = {
   pendingRequests: (userId: number) => `chat:user:${userId}:requests`,
   pinnedMessages: (groupId: string) => `chat:pinned:${groupId}`,
   groupSearch: (query: string, page: number) => `chat:search:${query}:${page}`,
+  announcements: (groupId: string) => `chat:announcements:${groupId}`,
+  polls: (groupId: string) => `chat:polls:${groupId}`,
 };
 
 // TTL constants

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { HiPaperAirplane, HiPaperClip, HiEmojiHappy, HiPlus, HiChartBar, HiSpeakerphone } from 'react-icons/hi';
 import { useChatContext } from './ChatProvider';
 import { useSelector } from 'react-redux';
+import { CreatePollModal, CreateAnnouncementModal } from './index';
 import type { RootState } from '../../store';
 import { useGroups } from '../../hooks/useGroups';
 
@@ -13,6 +14,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({ groupId }) => {
   const [message, setMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showPollModal, setShowPollModal] = useState(false);
+  const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
   const { sendMessage, startTyping, stopTyping, isConnected } = useChatContext();
   const { currentGroup } = useGroups();
   const currentUser = useSelector((state: RootState) => state.user.user);
@@ -86,13 +89,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({ groupId }) => {
 
   const handleDropdownAction = (action: string) => {
     setShowDropdown(false);
-    // Handle different actions
     switch (action) {
       case 'poll':
-        console.log('Create poll');
+        setShowPollModal(true);
         break;
       case 'announcement':
-        console.log('Create announcement');
+        setShowAnnouncementModal(true);
         break;
       default:
         break;
@@ -182,6 +184,18 @@ export const MessageInput: React.FC<MessageInputProps> = ({ groupId }) => {
         </div>
       )}
     </div>
+
+    <CreatePollModal
+      isOpen={showPollModal}
+      onClose={() => setShowPollModal(false)}
+      groupId={groupId}
+    />
+
+    <CreateAnnouncementModal
+      isOpen={showAnnouncementModal}
+      onClose={() => setShowAnnouncementModal(false)}
+      groupId={groupId}
+    />
     </>
   );
 };

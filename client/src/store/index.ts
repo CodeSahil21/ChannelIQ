@@ -6,6 +6,7 @@ import groupReducer from "./groupSlice";
 import mediaReducer from "./mediaSlice";
 import profileReducer from "./profileSlice";
 import messagesReducer from "./messagesSlice";
+import groupContentReducer from "./groupContentSlice";
 
 export const store = configureStore({
   reducer: {
@@ -16,6 +17,7 @@ export const store = configureStore({
     media: mediaReducer,
     profile: profileReducer,
     messages: messagesReducer,
+    groupContent: groupContentReducer,
   },
 });
 
