@@ -221,6 +221,47 @@ export const createAnnouncementSchema = z.object({
   }),
 });
 
+// 19. Get Announcements Schema
+export const getAnnouncementsSchema = z.object({
+  params: z.object({
+    groupId: uuidSchema,
+  }),
+});
+
+// 20. Create Poll Schema
+export const createPollSchema = z.object({
+  params: z.object({
+    groupId: uuidSchema,
+  }),
+  body: z.object({
+    question: z.string()
+      .min(1, 'Question is required')
+      .max(200, 'Question must be 200 characters or less')
+      .trim(),
+    options: z.array(z.string().min(1, 'Option cannot be empty').max(100, 'Option must be 100 characters or less'))
+      .min(2, 'Poll must have at least 2 options')
+      .max(10, 'Poll cannot have more than 10 options'),
+    allowMultiple: z.boolean().default(false),
+    expiresAt: z.string()
+      .datetime('Invalid datetime format')
+      .optional(),
+  }),
+});
+
+// 21. Get Poll Schema
+export const getPollSchema = z.object({
+  params: z.object({
+    messageId: uuidSchema,
+  }),
+});
+
+// 22. Delete Poll Schema
+export const deletePollSchema = z.object({
+  params: z.object({
+    messageId: uuidSchema,
+  }),
+});
+
 // Export validation helper
 export const validateRequest = <T extends z.ZodType>(
   schema: T,

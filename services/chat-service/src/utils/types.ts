@@ -374,3 +374,177 @@ export interface CreateAnnouncementResponse {
   updatedAt: Date;
   sender: UserBasic;
 }
+
+export interface GetAnnouncementsResponse {
+  id: string;
+  groupId: string;
+  senderId: number;
+  type: MessageType;
+  content: string;
+  createdAt: Date;
+  sender: UserBasic;
+  metadata: AnnouncementMetadata;
+}
+
+export type GetAnnouncementsListResponse = GetAnnouncementsResponse[];
+
+export interface CreatePollInput {
+  question: string;
+  options: string[];
+  allowMultiple?: boolean;
+  expiresAt?: string;
+}
+
+export interface PollOptionResponse {
+  id: string;
+  text: string;
+  voteCount: number;
+  hasVoted: boolean;
+}
+
+export interface CreatePollResponse {
+  id: string;
+  groupId: string;
+  senderId: number;
+  type: MessageType;
+  content: string | null;
+  createdAt: Date;
+  sender: UserBasic;
+  poll: {
+    id: string;
+    question: string;
+    allowMultiple: boolean;
+    expiresAt: Date | null;
+    options: PollOptionResponse[];
+  };
+}
+
+export interface GetPollResponse {
+  id: string;
+  question: string;
+  allowMultiple: boolean;
+  expiresAt: Date | null;
+  messageId: string;
+  options: PollOptionResponse[];
+}
+
+export interface DeletePollResponse {
+  success: boolean;
+  message: string;
+}
+
+export type GroupWithMembershipAndRequests = {
+  id: string;
+  name: string;
+  description: string | null;
+  imageUrl: string | null;
+  isPrivate: boolean;
+  maxMembers: number;
+  creatorId: number;
+  createdAt: Date;
+  updatedAt: Date;
+  _count: {
+    members: number;
+  };
+  members: {
+    userId: number;
+  }[];
+  requests: {
+    id: string;
+  }[];
+};
+
+export type RequestWithGroupAndMembers = {
+  id: string;
+  groupId: string;
+  senderId: number;
+  receiverId: number | null;
+  type: RequestType;
+  status: RequestStatus;
+  message: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  group: {
+    id: string;
+    maxMembers: number;
+    _count: {
+      members: number;
+    };
+    members: {
+      userId: number;
+      role: GroupRole;
+    }[];
+  };
+};
+
+export type GroupMemberWithRole = {
+  userId: number;
+  role: GroupRole;
+};
+
+export type GroupWithMembersAndCount = {
+  id: string;
+  name: string;
+  description: string | null;
+  imageUrl: string | null;
+  isPrivate: boolean;
+  maxMembers: number;
+  creatorId: number;
+  createdAt: Date;
+  updatedAt: Date;
+  _count: {
+    members: number;
+  };
+  members: {
+    userId: number;
+    role: GroupRole;
+  }[];
+};
+
+export type PendingRequestWithDetails = {
+  id: string;
+  groupId: string;
+  senderId: number;
+  receiverId: number;
+  type: RequestType;
+  status: RequestStatus;
+  message: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  sender: {
+    id: number;
+    email: string;
+    fullName: string;
+    profileUrl: string | null;
+  };
+  receiver: {
+    id: number;
+    email: string;
+    fullName: string;
+    profileUrl: string | null;
+  };
+  group: {
+    id: string;
+    name: string;
+    description: string | null;
+    imageUrl: string | null;
+    isPrivate: boolean;
+    creatorId: number;
+  };
+};
+
+export type GroupWithMembers = {
+  id: string;
+  name: string;
+  description: string | null;
+  imageUrl: string | null;
+  isPrivate: boolean;
+  maxMembers: number;
+  creatorId: number;
+  createdAt: Date;
+  updatedAt: Date;
+  members: {
+    userId: number;
+    role: GroupRole;
+  }[];
+};
