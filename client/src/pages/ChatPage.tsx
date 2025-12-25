@@ -1,10 +1,53 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { HiSearch, HiPlus, HiDotsVertical } from 'react-icons/hi';
 import { CreateGroupModal } from '../components/Chat/CreateGroupModal';
 import { SearchGroupModal } from '../components/Chat/SearchGroupModal';
 import { PendingRequestModal } from '../components/Chat/PendingRequestModal';
 import { useGroups } from '../hooks/useGroups';
 import { GroupDetailView } from '../components/Chat/GroupDetailView';
+
+// Memoized components to prevent unnecessary re-renders
+const MemoizedGroupDetailView = memo(GroupDetailView);
+const MemoizedGroupsList = memo(({ groups, selectedGroupId, onGroupClick, loading }: any) => (
+  <div className="chat-groups-list">
+    {loading ? (
+      <div className="inline-loader">
+        <div className="theme-loader small">
+          <div className="theme-loader-spinner"></div>
+        </div>
+        <p className="theme-loader-text">Loading groups...</p>
+      </div>
+    ) : groups.length === 0 ? (
+      <div className="chat-empty">No groups found</div>
+    ) : (
+      groups.map((userGroup: any) => (
+        <div 
+          key={userGroup.id} 
+          className={`chat-group-item ${selectedGroupId === userGroup.groupId ? 'active' : ''}`}
+          onClick={() => onGroupClick(userGroup)}
+        >
+          <div className="chat-group-avatar">
+            {userGroup.group.name.split(' ').map((word: string) => word[0]).join('').toUpperCase().slice(0, 2)}
+          </div>
+          <div className="chat-group-info">
+            <div className="chat-group-header">
+              <h3 className="chat-group-name">{userGroup.group.name}</h3>
+              <span className="chat-group-time">{new Date(userGroup.joinedAt).toLocaleDateString()}</span>
+            </div>
+            <div className="chat-group-footer">
+              <p className="chat-group-message">
+                {userGroup.group.description || 'No description'}
+              </p>
+              {userGroup.group._count && (
+                <span className="chat-member-count">{userGroup.group._count.members} members</span>
+              )}
+            </div>
+          </div>
+        </div>
+      ))
+    )}
+  </div>
+));
 
 export const ChatPage: React.FC = () => {
   const [showDropdown, setShowDropdown] = useState(false);
@@ -14,17 +57,13 @@ export const ChatPage: React.FC = () => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { groups, currentGroup, getMyGroups, getGroupDetails, loading } = useGroups();
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [loadingGroupDetails, setLoadingGroupDetails] = useState(false);
 
-  const handleGroupClick = async (userGroup: any) => {
+  const handleGroupClick = useCallback(async (userGroup: any) => {
+    if (selectedGroupId === userGroup.groupId) return;
+    
     setSelectedGroupId(userGroup.groupId);
-    setLoadingGroupDetails(true);
-    try {
-      await getGroupDetails(userGroup.groupId);
-    } finally {
-      setLoadingGroupDetails(false);
-    }
-  };
+    await getGroupDetails(userGroup.groupId);
+  }, [selectedGroupId, getGroupDetails]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -40,10 +79,6 @@ export const ChatPage: React.FC = () => {
   useEffect(() => {
     getMyGroups();
   }, [getMyGroups]);
-
-  const getGroupAvatar = (name: string) => {
-    return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
-  };
 
   return (
     <div className='chat-page-container'>
@@ -112,59 +147,18 @@ export const ChatPage: React.FC = () => {
           </div>
 
           {/* Groups List */}
-          <div className="chat-groups-list">
-            {loading ? (
-              <div className="inline-loader">
-                <div className="theme-loader small">
-                  <div className="theme-loader-spinner"></div>
-                </div>
-                <p className="theme-loader-text">Loading groups...</p>
-              </div>
-            ) : groups.length === 0 ? (
-              <div className="chat-empty">No groups found</div>
-            ) : (
-              groups.map(userGroup => (
-                <div 
-                  key={userGroup.id} 
-                  className={`chat-group-item ${selectedGroupId === userGroup.groupId ? 'active' : ''}`}
-                  onClick={() => handleGroupClick(userGroup)}
-                >
-                  <div className="chat-group-avatar">
-                    {getGroupAvatar(userGroup.group.name)}
-                  </div>
-                  <div className="chat-group-info">
-                    <div className="chat-group-header">
-                      <h3 className="chat-group-name">{userGroup.group.name}</h3>
-                      <span className="chat-group-time">{new Date(userGroup.joinedAt).toLocaleDateString()}</span>
-                    </div>
-                    <div className="chat-group-footer">
-                      <p className="chat-group-message">
-                        {userGroup.group.description || 'No description'}
-                      </p>
-                      {userGroup.group._count && (
-                        <span className="chat-member-count">{userGroup.group._count.members} members</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+          <MemoizedGroupsList 
+            groups={groups}
+            selectedGroupId={selectedGroupId}
+            onGroupClick={handleGroupClick}
+            loading={loading}
+          />
         </div>
 
         {/* Main Chat Area */}
         <div className="chat-main">
-          {loadingGroupDetails ? (
-            <div className="chat-welcome">
-              <div className="chat-welcome-content">
-                <div className="theme-loader medium">
-                  <div className="theme-loader-spinner"></div>
-                </div>
-                <p className="theme-loader-text">Loading group details...</p>
-              </div>
-            </div>
-          ) : currentGroup ? (
-            <GroupDetailView group={currentGroup} />
+          {currentGroup ? (
+            <MemoizedGroupDetailView group={currentGroup} />
           ) : (
             <div className="chat-welcome">
               <div className="chat-welcome-content">

@@ -470,11 +470,11 @@ const groupSlice = createSlice({
         state.error = null;
       })
       .addCase(getGroupDetails.fulfilled, (state, action) => {
-        state.loading = false;
+        // Don't modify global loading state to prevent page refresh effect
         state.currentGroup = action.payload;
       })
       .addCase(getGroupDetails.rejected, (state, action) => {
-        state.loading = false;
+        // Don't modify global loading state to prevent page refresh effect
         state.error = action.payload as string;
       })
       

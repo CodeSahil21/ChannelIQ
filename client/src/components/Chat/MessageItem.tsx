@@ -41,6 +41,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, showAvatar })
 
   const isOwnMessage = currentUserId === message.senderId;
   const isDeleted = message.isDeleted;
+  const messageAge = Date.now() - new Date(message.createdAt).getTime();
+  const canEdit = isOwnMessage && !isDeleted && messageAge < 10 * 60 * 1000; // 10 minutes in milliseconds
 
   const handleEdit = () => {
     if (editContent.trim() && editContent !== message.content) {
@@ -126,9 +128,11 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, showAvatar })
           
           {showActions && isOwnMessage && !isDeleted && (
             <div className="message-actions">
-              <button onClick={() => setIsEditing(true)} className="action-btn">
-                <HiPencil />
-              </button>
+              {canEdit && (
+                <button onClick={() => setIsEditing(true)} className="action-btn">
+                  <HiPencil />
+                </button>
+              )}
               <button onClick={handleDelete} className="action-btn">
                 <HiTrash />
               </button>
