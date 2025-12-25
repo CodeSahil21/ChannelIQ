@@ -1,15 +1,5 @@
 import prisma from '../db';
-import { MessageType, DeliveryStatus } from '@prisma/client';
-import { v4 as uuidv4 } from 'uuid';
-
-export interface CreateMessageInput {
-  content?: string;
-  type: MessageType;
-  fileUrl?: string;
-  replyToId?: string;
-  groupId: string;
-  senderId: number;
-}
+import { MessageType} from '@prisma/client';
 
 export interface MessageWithDetails {
   id: string;
@@ -35,74 +25,6 @@ export interface MessageWithDetails {
     };
   } | null;
 }
-
-export const createMessage = async (input: CreateMessageInput): Promise<MessageWithDetails> => {
-  return await prisma.$transaction(async (tx) => {
-    // Create the message
-    const message = await tx.message.create({
-      data: {
-        id: uuidv4(),
-        content: input.content || null,
-        type: input.type,
-        fileUrl: input.fileUrl || null,
-        replyToId: input.replyToId || null,
-        groupId: input.groupId,
-        senderId: input.senderId
-      },
-      include: {
-        sender: {
-          select: {
-            id: true,
-            fullName: true,
-            profileUrl: true
-          }
-        },
-        replyTo: {
-          select: {
-            id: true,
-            content: true,
-            type: true,
-            sender: {
-              select: {
-                fullName: true
-              }
-            }
-          }
-        }
-      }
-    });
-
-    // Create delivery status for all group members
-    const groupMembers = await tx.groupMember.findMany({
-      where: { groupId: input.groupId },
-      select: { userId: true }
-    });
-
-    await tx.messageStatus.createMany({
-      data: groupMembers.map(member => ({
-        id: uuidv4(),
-        messageId: message.id,
-        userId: member.userId,
-        status: member.userId === input.senderId ? DeliveryStatus.READ : DeliveryStatus.SENT
-      }))
-    });
-
-    return message;
-  });
-};
-
-export const markMessageAsRead = async (messageId: string, userId: number): Promise<void> => {
-  await prisma.messageStatus.updateMany({
-    where: {
-      messageId,
-      userId
-    },
-    data: {
-      status: DeliveryStatus.READ,
-      updatedAt: new Date()
-    }
-  });
-};
 
 export const getGroupMessages = async (
   groupId: string, 
