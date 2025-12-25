@@ -32,7 +32,6 @@ export const getGroupMessages = async (
   limit: number = 50, 
   cursor?: string
 ): Promise<MessageWithDetails[]> => {
-  // ✅ Single query for the common case: group has messages
   const messages = await prisma.message.findMany({
     where: {
       groupId,
@@ -40,7 +39,7 @@ export const getGroupMessages = async (
       ...(cursor && { id: { lt: cursor } }),
       group: {
         members: {
-          some: { userId }, // membership enforced in same query
+          some: { userId },
         },
       },
     },
@@ -68,8 +67,6 @@ export const getGroupMessages = async (
     orderBy: { createdAt: 'asc' },
     take: limit
   });
-
-  // Preserve previous behavior: if no messages, verify membership to decide between [] vs error
   if (messages.length === 0) {
     const membership = await prisma.groupMember.findUnique({
       where: { userId_groupId: { userId, groupId } },
