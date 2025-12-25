@@ -1328,10 +1328,6 @@ export const getPolls = async (
   groupId: string,
   userId: number
 ): Promise<Poll[]> => {
-  const cacheKey = CacheKeys.polls(groupId);
-  const cached = await getCache<Poll[]>(cacheKey);
-  if (cached) return cached;
-
   const polls = await prisma.message.findMany({
     where: {
       groupId,
@@ -1378,7 +1374,7 @@ export const getPolls = async (
     orderBy: { createdAt: 'desc' },
   });
 
-  const result = polls.map(message => ({
+  return polls.map(message => ({
     id: message.poll!.id,
     question: message.poll!.question,
     allowMultiple: message.poll!.allowMultiple,
@@ -1392,9 +1388,6 @@ export const getPolls = async (
       hasVoted: option.votes.length > 0
     }))
   }));
-
-  await setCache(cacheKey, result, CacheTTL.MEDIUM);
-  return result;
 };
 
 export const createPoll = async (
