@@ -262,6 +262,14 @@ export const deletePollSchema = z.object({
   }),
 });
 
+// 23. Vote Poll Schema
+export const votePollSchema = z.object({
+  params: z.object({
+    pollId: uuidSchema,
+    optionId: uuidSchema,
+  }),
+});
+
 // Export validation helper
 export const validateRequest = <T extends z.ZodType>(
   schema: T,

@@ -96,10 +96,12 @@ export const registerChatHandlers: SocketHandler = (io: TypedServer, socket: Typ
         return handleError(cb, "Missing required fields");
       }
       const sanitizedContent = sanitizeContent(content);
-      const message = await SocketMessageService.findMessageWithAuth(messageId, socket.user.id);
-      const updated = await SocketMessageService.updateMessage(messageId, sanitizedContent);
-      io.to(`group:${message.groupId}`).emit("message:updated", {
-        messageId, content: sanitizedContent, isDeleted: false, updatedAt: updated.updatedAt
+      
+      // Combined auth check and update in single operation
+      const result = await SocketMessageService.updateMessageWithAuth(messageId, socket.user.id, sanitizedContent);
+      
+      io.to(`group:${result.groupId}`).emit("message:updated", {
+        messageId, content: sanitizedContent, isDeleted: false, updatedAt: result.updatedAt
       });
       handleSuccess(cb);
     } catch (err: any) {
@@ -112,10 +114,12 @@ export const registerChatHandlers: SocketHandler = (io: TypedServer, socket: Typ
       if (!validateInput({ messageId }, ['messageId'])) {
         return handleError(cb, "Missing required fields");
       }
-      const message = await SocketMessageService.findMessageWithAuth(messageId, socket.user.id);
-      const updated = await SocketMessageService.deleteMessage(messageId);
-      io.to(`group:${message.groupId}`).emit("message:updated", {
-        messageId, isDeleted: true, updatedAt: updated.updatedAt
+      
+      // Combined auth check and delete in single operation
+      const result = await SocketMessageService.deleteMessageWithAuth(messageId, socket.user.id);
+      
+      io.to(`group:${result.groupId}`).emit("message:updated", {
+        messageId, isDeleted: true, updatedAt: result.updatedAt
       });
       handleSuccess(cb);
     } catch (err: any) {
@@ -174,27 +178,26 @@ export const registerChatHandlers: SocketHandler = (io: TypedServer, socket: Typ
     await handleReaction(messageId, emoji, "remove", cb);
   });
 
-  // Poll Voting
+  // Poll Voting - Optimized
   socket.on("poll:vote", async ({ pollId, optionId }, cb) => {
     try {
       if (!validateInput({ pollId, optionId }, ['pollId', 'optionId'])) {
         return handleError(cb, "Missing required fields");
       }
 
-      const poll = await SocketMessageService.findPoll(pollId);
-      if (!poll) return handleError(cb, "Poll not found");
+      // Combined poll verification, membership check, and vote handling
+      const result = await SocketMessageService.handlePollVoteOptimized(socket.user.id, pollId, optionId);
 
-      // Verify user is a group member
-      await SocketMessageService.verifyGroupMember(socket.user.id, poll.message.groupId);
-
-      // Create vote (Prisma will handle duplicate prevention)
-      await SocketMessageService.createPollVote(socket.user.id, optionId);
-
-      // Get updated vote count and emit to group
-      const voteCount = await SocketMessageService.countPollVotes(optionId);
-      io.to(`group:${poll.message.groupId}`).emit("poll:vote:update", {
-        pollId, optionId, userId: socket.user.id, voteCount
-      });
+      // Emit updates for all affected options
+      for (const option of result.updatedOptions) {
+        io.to(`group:${result.groupId}`).emit("poll:vote:update", {
+          pollId, 
+          optionId: option.optionId, 
+          userId: socket.user.id, 
+          voteCount: option.voteCount,
+          hasVoted: option.hasVoted
+        });
+      }
 
       handleSuccess(cb);
     } catch (err: any) {

@@ -431,6 +431,31 @@ export interface GetPollResponse {
 export interface DeletePollResponse {
   success: boolean;
   message: string;
+  poll?: {
+    message: {
+      groupId: string;
+    };
+  };
+}
+
+export interface Poll {
+  id: string;
+  question: string;
+  allowMultiple: boolean;
+  expiresAt: Date | null;
+  createdAt: Date;
+  createdBy: UserBasic;
+  options: {
+    id: string;
+    text: string;
+    votes: number;
+    hasVoted: boolean;
+  }[];
+}
+
+export interface VotePollResponse {
+  groupId: string;
+  voteCount: number;
 }
 
 export type GroupWithMembershipAndRequests = {

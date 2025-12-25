@@ -103,6 +103,26 @@ export const sendSystemMessage = (groupId: string, content: string): void => {
   emitNewMessage(groupId, systemMessage);
 };
 
+export const emitAnnouncementCreated = (groupId: string, messageId: string, content: string, createdBy: string): void => {
+  socketServer?.to(`group:${groupId}`).emit('announcement:created', { groupId, messageId, content, createdBy });
+};
+
+export const emitPollCreated = (groupId: string, messageId: string, question: string, createdBy: string): void => {
+  socketServer?.to(`group:${groupId}`).emit('poll:created', { groupId, messageId, question, createdBy });
+};
+
+export const emitPollDeleted = (groupId: string, messageId: string, deletedBy: string): void => {
+  socketServer?.to(`group:${groupId}`).emit('poll:deleted', { groupId, messageId, deletedBy });
+};
+
+export const emitMessagePinned = (groupId: string, messageId: string, pinnedBy: string): void => {
+  socketServer?.to(`group:${groupId}`).emit('message:pinned', { groupId, messageId, pinnedBy });
+};
+
+export const emitMessageUnpinned = (groupId: string, messageId: string, unpinnedBy: string): void => {
+  socketServer?.to(`group:${groupId}`).emit('message:unpinned', { groupId, messageId, unpinnedBy });
+};
+
 export const notifyMemberJoined = (groupId: string, memberName: string): void => {
   sendSystemMessage(groupId, `${memberName} joined the group`);
 };

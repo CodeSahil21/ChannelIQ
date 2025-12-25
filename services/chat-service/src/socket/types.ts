@@ -72,6 +72,11 @@ export interface ClientToServerEvents {
   "message:reaction:remove": (data: { messageId: string; emoji: string }, cb?: SocketCallback) => void;
   "user:typing": (data: { groupId: string; isTyping: boolean }) => void;
   "poll:vote": (data: { pollId: string; optionId: string }, cb?: SocketCallback) => void;
+  "poll:create": (data: { groupId: string; question: string; options: string[]; allowMultiple?: boolean; expiresAt?: string }, cb?: SocketCallback) => void;
+  "poll:delete": (data: { messageId: string }, cb?: SocketCallback) => void;
+  "announcement:create": (data: { groupId: string; title: string; content: string }, cb?: SocketCallback) => void;
+  "message:pin": (data: { groupId: string; messageId: string }, cb?: SocketCallback) => void;
+  "message:unpin": (data: { groupId: string; messageId: string }, cb?: SocketCallback) => void;
   "user:status": (data: { status: "online" | "offline" }) => void;
 }
 
@@ -82,12 +87,17 @@ export interface ServerToClientEvents {
   "message:updated": (data: { messageId: string; content?: string; isDeleted: boolean; updatedAt: Date }) => void;
   "reaction:updated": (data: { messageId: string; emoji: string; userId: number; action: "add" | "remove" }) => void;
   "typing:updated": (data: { groupId: string; userId: number; isTyping: boolean; fullName: string }) => void;
-  "poll:vote:update": (data: { pollId: string; optionId: string; userId: number; voteCount: number }) => void;
+  "poll:vote:update": (data: { pollId: string; optionId: string; userId: number; voteCount: number; hasVoted?: boolean }) => void;
   "user:status": (data: { userId: number; status: "online" | "offline"; lastSeen?: Date }) => void;
   "group:member:added": (data: { groupId: string; userId: number; fullName: string; role: GroupRole }) => void;
   "group:member:removed": (data: { groupId: string; userId: number; fullName: string }) => void;
   "group:member:role:updated": (data: { groupId: string; userId: number; fullName: string; newRole: GroupRole }) => void;
   "system:message": (data: { content: string; groupId: string; createdAt: Date }) => void;
+  "announcement:created": (data: { groupId: string; messageId: string; content: string; createdBy: string }) => void;
+  "poll:created": (data: { groupId: string; messageId: string; question: string; createdBy: string }) => void;
+  "poll:deleted": (data: { groupId: string; messageId: string; deletedBy: string }) => void;
+  "message:pinned": (data: { groupId: string; messageId: string; pinnedBy: string }) => void;
+  "message:unpinned": (data: { groupId: string; messageId: string; unpinnedBy: string }) => void;
 }
 
 /* -------------------- */
