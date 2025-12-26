@@ -10,3 +10,14 @@ export interface AuthenticatedRequest extends Request {
     user?: User;
     sessionJti?: string;
 }
+
+export type MessageType = 'IMAGE' | 'VIDEO' | 'FILE';
+
+export interface MessageFileUploadResponse {
+    fileName: string;
+    fileUrl: string;
+    fileSize: number;
+    mimeType: string;
+    groupId: string;
+    messageType: MessageType;
+}

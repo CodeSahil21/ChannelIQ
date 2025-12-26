@@ -7,3 +7,7 @@ export const deleteProfileImageSchema = z.object({
 export const deleteGroupProfileImageSchema = z.object({
   fileName: z.string().min(1, 'File name is required'),
 });
+
+export const deleteMessageFileSchema = z.object({
+  fileName: z.string().min(1, 'File name is required'),
+});
