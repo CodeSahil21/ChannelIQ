@@ -9,8 +9,8 @@ export interface CreateUser{
 }
 
 export interface MediaEvent {
-    eventType: 'PROFILE_IMAGE_UPLOADED' | 'PROFILE_IMAGE_DELETED' | 'GROUP_PROFILE_IMAGE_UPLOADED' | 'GROUP_PROFILE_IMAGE_DELETED';
-    userId: number;
+    eventType: 'PROFILE_IMAGE_UPLOADED' | 'PROFILE_IMAGE_DELETED' | 'GROUP_PROFILE_IMAGE_UPLOADED' | 'GROUP_PROFILE_IMAGE_DELETED' | 'MESSAGE_FILE_UPLOADED' | 'MESSAGE_FILE_DELETED';
+    userId: string;
     imageUrl?: string;
     timestamp: string;
     metadata?: {
@@ -19,6 +19,7 @@ export interface MediaEvent {
         mimeType?: string;
         originalName?: string;
         groupId?: string;
+        messageType?: 'IMAGE' | 'VIDEO' | 'FILE';
     };
 }
 

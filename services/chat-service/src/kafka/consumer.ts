@@ -1,6 +1,8 @@
 import { kafkaConsumer } from './kafkaManager';
 import { CreateUserService, updateUserFullName, updateUserProfileUrl, deleteUserById } from '../services/user.service';
 import { updateGroupProfileImage } from '../services/group.service';
+import { SocketMessageService } from '../services/socket.service';
+import { getSocketServer } from '../socket/socketService';
 import { MediaEvent } from '../utils/types';
 import { EachMessagePayload } from 'kafkajs';
 
@@ -229,6 +231,75 @@ const handleMediaEvent = async (event: MediaEvent): Promise<void> => {
           console.log(`🗑️ Group profile image deleted: ${groupId}`);
         } catch (serviceError) {
           console.error(`❌ Failed to delete group profile image:`, serviceError);
+          throw serviceError;
+        }
+        break;
+        
+      case 'MESSAGE_FILE_UPLOADED':
+        try {
+          const groupId = event.metadata?.groupId;
+          const messageType = event.metadata?.messageType || 'FILE';
+          const fileUrl = event.imageUrl;
+          
+          if (!groupId) {
+            console.warn('⚠️ MESSAGE_FILE_UPLOADED event missing groupId');
+            break;
+          }
+
+          if (!fileUrl) {
+            console.warn('⚠️ MESSAGE_FILE_UPLOADED event missing fileUrl');
+            break;
+          }
+
+          // Create message with file
+          const message = await SocketMessageService.createMessage({
+            content: event.metadata?.originalName || 'File',
+            type: messageType as any,
+            fileUrl,
+            groupId,
+            senderId: userId
+          });
+
+          // Emit to Socket.IO with standard message event
+          const io = getSocketServer();
+          if (io) {
+            io.to(`group:${groupId}`).emit('message:persisted', {
+              ...message,
+              reactions: [],
+              statuses: []
+            });
+          }
+
+          console.log(`📎 Message file uploaded: ${groupId} -> ${event.imageUrl}`);
+        } catch (serviceError) {
+          console.error(`❌ Failed to handle message file upload:`, serviceError);
+          throw serviceError;
+        }
+        break;
+        
+      case 'MESSAGE_FILE_DELETED':
+        try {
+          const groupId = event.metadata?.groupId;
+          const fileName = event.metadata?.fileName;
+          
+          if (!groupId || !fileName) {
+            console.warn('⚠️ MESSAGE_FILE_DELETED event missing groupId or fileName');
+            break;
+          }
+
+          // Emit file deletion to Socket.IO
+          const io = getSocketServer();
+          if (io) {
+            (io as any).to(`group:${groupId}`).emit('message:file:deleted', {
+              groupId,
+              fileName,
+              deletedBy: userId
+            });
+          }
+
+          console.log(`🗑️ Message file deleted: ${groupId} -> ${fileName}`);
+        } catch (serviceError) {
+          console.error(`❌ Failed to handle message file deletion:`, serviceError);
           throw serviceError;
         }
         break;

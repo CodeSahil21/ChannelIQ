@@ -363,3 +363,13 @@ export class SocketMessageService {
     return member;
   }
 }
+// Socket server management for Kafka consumer
+let socketServer: any = null;
+
+export const setSocketServer = (io: any) => {
+  socketServer = io;
+};
+
+export const getSocketServer = () => {
+  return socketServer;
+};

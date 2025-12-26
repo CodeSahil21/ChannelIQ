@@ -6,6 +6,7 @@ import { registerChatHandlers } from "./chatHandlers";
 import prisma from "../db/index";
 import { SessionManager } from "./sessionManager";
 import { getCachedGroupIds, setCachedGroupIds } from '../redis';
+import { setSocketServer } from '../services/socket.service';
 
 export const initSocket = (server: http.Server): TypedServer => {
   // Use same CORS configuration as REST API
@@ -28,6 +29,9 @@ export const initSocket = (server: http.Server): TypedServer => {
   });
 
   io.use(verifySocketAuth);
+
+  // Register socket server for Kafka consumer access
+  setSocketServer(io);
 
   io.on("connection", async (socket) => {
     try {
