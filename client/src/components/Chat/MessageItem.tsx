@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { HiDotsVertical, HiReply, HiPencil, HiTrash, HiBookmark } from 'react-icons/hi';
+import { HiDotsVertical, HiReply, HiPencil, HiTrash, HiBookmark, HiDownload } from 'react-icons/hi';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { pinMessage, unpinMessage } from '../../store/groupContentSlice';
 import { useChatContext } from './ChatProvider';
 import { useSelector } from 'react-redux';
+import { getFileIcon, formatFileSize } from './FileUpload';
 import toast from 'react-hot-toast';
 import type { RootState } from '../../store';
 
@@ -11,6 +12,7 @@ interface Message {
   id: string;
   content: string | null;
   type: string;
+  fileUrl?: string;
   senderId: number;
   groupId: string;
   createdAt: Date;
@@ -104,6 +106,159 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, showAvatar, u
     return acc;
   }, {} as Record<string, typeof message.reactions>);
 
+  const renderMessageContent = () => {
+    if (isDeleted) {
+      return <span className="deleted-message">This message was deleted</span>;
+    }
+
+    if (isEditing) {
+      return (
+        <div className="edit-message">
+          <input
+            type="text"
+            value={editContent}
+            onChange={(e) => setEditContent(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleEdit()}
+            onBlur={handleEdit}
+            autoFocus
+          />
+        </div>
+      );
+    }
+
+    // File message
+    if (message.type !== 'TEXT' && message.fileUrl) {
+      return (
+        <div className="file-message">
+          {message.type === 'IMAGE' ? (
+            <div className="image-message">
+              <img 
+                src={message.fileUrl} 
+                alt={message.content || 'Image'}
+                className="message-image"
+                loading="lazy"
+                onContextMenu={(e) => e.preventDefault()}
+              />
+              <div className="image-actions">
+                <button 
+                  onClick={async () => {
+                    const btn = event.currentTarget;
+                    btn.disabled = true;
+                    btn.innerHTML = '<div class="download-spinner"></div>';
+                    try {
+                      const response = await fetch(message.fileUrl!);
+                      const blob = await response.blob();
+                      const url = window.URL.createObjectURL(blob);
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = message.content || 'image';
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      window.URL.revokeObjectURL(url);
+                    } catch (error) {
+                      console.error('Download failed:', error);
+                    } finally {
+                      btn.disabled = false;
+                      btn.innerHTML = '<svg>...</svg>';
+                    }
+                  }}
+                  className="download-btn"
+                  title="Download image"
+                >
+                  <HiDownload />
+                </button>
+              </div>
+            </div>
+          ) : message.type === 'VIDEO' ? (
+            <div className="video-message">
+              <video 
+                src={message.fileUrl} 
+                controls
+                className="message-video"
+                preload="metadata"
+              />
+              <div className="video-actions">
+                <button 
+                  onClick={async (event) => {
+                    const btn = event.currentTarget;
+                    btn.disabled = true;
+                    const originalContent = btn.innerHTML;
+                    btn.innerHTML = '<div class="download-spinner"></div>';
+                    try {
+                      const response = await fetch(message.fileUrl!);
+                      const blob = await response.blob();
+                      const url = window.URL.createObjectURL(blob);
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = message.content || 'video';
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      window.URL.revokeObjectURL(url);
+                    } catch (error) {
+                      console.error('Download failed:', error);
+                    } finally {
+                      btn.disabled = false;
+                      btn.innerHTML = originalContent;
+                    }
+                  }}
+                  className="download-btn"
+                  title="Download video"
+                >
+                  <HiDownload />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="document-message">
+              <div className="file-info">
+                <div className="file-icon">
+                  {getFileIcon('application/octet-stream')}
+                </div>
+                <div className="file-details">
+                  <span className="file-name">{message.content || 'File'}</span>
+                </div>
+              </div>
+              <button 
+                onClick={async (event) => {
+                  const btn = event.currentTarget;
+                  btn.disabled = true;
+                  const originalContent = btn.innerHTML;
+                  btn.innerHTML = '<div class="download-spinner"></div>';
+                  try {
+                    const response = await fetch(message.fileUrl!);
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = message.content || 'file';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                  } catch (error) {
+                    console.error('Download failed:', error);
+                  } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = originalContent;
+                  }
+                }}
+                className="download-btn"
+                title="Download file"
+              >
+                <HiDownload />
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Text message
+    return <span className="message-text">{message.content}</span>;
+  };
+
   return (
     <div className={`message-item ${isOwnMessage ? 'own-message' : ''}`}>
       {showAvatar && (
@@ -131,22 +286,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, showAvatar, u
           onMouseEnter={() => setShowActions(true)}
           onMouseLeave={() => setShowActions(false)}
         >
-          {isDeleted ? (
-            <span className="deleted-message">This message was deleted</span>
-          ) : isEditing ? (
-            <div className="edit-message">
-              <input
-                type="text"
-                value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleEdit()}
-                onBlur={handleEdit}
-                autoFocus
-              />
-            </div>
-          ) : (
-            <span className="message-text">{message.content}</span>
-          )}
+          {renderMessageContent()}
           
           {showActions && !isDeleted && (
             <div className="message-actions">

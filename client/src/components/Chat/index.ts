@@ -11,3 +11,4 @@ export { GroupActions } from './GroupActions';
 export { PollsListModal } from './PollsListModal';
 export { AnnouncementsListModal } from './AnnouncementsListModal';
 export { PinnedMessagesModal } from './PinnedMessagesModal';
+export { FileUpload } from './FileUpload';

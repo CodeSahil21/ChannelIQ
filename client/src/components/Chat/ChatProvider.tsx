@@ -8,6 +8,7 @@ interface ChatContextType {
   socket: any;
   isConnected: boolean;
   messages: any[];
+  loading: boolean;
   typingUsers: Record<string, string>;
   currentGroupId: string | null;
   joinGroup: (groupId: string) => void;
@@ -39,6 +40,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const [currentGroupId, setCurrentGroupId] = useState<string | null>(null);
   const dispatch = useDispatch<AppDispatch>();
   const messages = useSelector((state: RootState) => state.messages.messages);
+  const loading = useSelector((state: RootState) => state.messages.loading);
   
   const {
     socket,
@@ -161,6 +163,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       socket,
       isConnected,
       messages,
+      loading,
       typingUsers,
       currentGroupId,
       joinGroup,

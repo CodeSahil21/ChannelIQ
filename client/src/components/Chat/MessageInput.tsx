@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { HiPaperAirplane, HiPaperClip, HiEmojiHappy, HiPlus, HiChartBar, HiSpeakerphone } from 'react-icons/hi';
+import { HiPaperAirplane, HiEmojiHappy, HiPlus, HiChartBar, HiSpeakerphone } from 'react-icons/hi';
 import { useChatContext } from './ChatProvider';
 import { useSelector } from 'react-redux';
 import { CreatePollModal, CreateAnnouncementModal } from './index';
+import { FileUpload } from './FileUpload';
+import { useFileUpload } from '../../hooks/useFileUpload';
 import type { RootState } from '../../store';
 import { useGroups } from '../../hooks/useGroups';
 
@@ -16,7 +18,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({ groupId }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showPollModal, setShowPollModal] = useState(false);
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const { sendMessage, startTyping, stopTyping, isConnected } = useChatContext();
+  const { uploadFile } = useFileUpload();
   const { currentGroup } = useGroups();
   const currentUser = useSelector((state: RootState) => state.user.user);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -101,6 +105,20 @@ export const MessageInput: React.FC<MessageInputProps> = ({ groupId }) => {
     }
   };
 
+  const handleFileSelect = async (file: File) => {
+    setIsUploading(true);
+    try {
+      const result = await uploadFile(groupId, file);
+      if (result) {
+        console.log('File uploaded:', result);
+      }
+    } catch (error) {
+      console.error('File upload failed:', error);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const adjustTextareaHeight = () => {
     if (inputRef.current) {
       inputRef.current.style.height = 'auto';
@@ -117,16 +135,19 @@ export const MessageInput: React.FC<MessageInputProps> = ({ groupId }) => {
       <div className="message-input-container">
       <div className="message-input-wrapper">
         <div className="input-actions-left">
-          <button className="attachment-btn" disabled={!isConnected}>
-            <HiPaperClip />
-          </button>
+          <FileUpload 
+            onFileSelect={handleFileSelect}
+            disabled={!isConnected}
+            className="attachment-btn"
+            isUploading={isUploading}
+          />
           
           {canCreatePollsAnnouncements && (
             <div className="dropdown-wrapper" ref={dropdownRef}>
               <button 
                 className="plus-btn" 
                 onClick={() => setShowDropdown(!showDropdown)}
-                disabled={!isConnected}
+                disabled={!isConnected || isUploading}
               >
                 <HiPlus />
               </button>
@@ -158,19 +179,19 @@ export const MessageInput: React.FC<MessageInputProps> = ({ groupId }) => {
           value={message}
           onChange={handleInputChange}
           onKeyPress={handleKeyPress}
-          placeholder={isConnected ? "Type a message..." : "Connecting..."}
+          placeholder={isUploading ? "Uploading file..." : isConnected ? "Type a message..." : "Connecting..."}
           className="message-textarea"
-          disabled={!isConnected}
+          disabled={!isConnected || isUploading}
           rows={1}
         />
         
-        <button className="emoji-btn" disabled={!isConnected}>
+        <button className="emoji-btn" disabled={!isConnected || isUploading}>
           <HiEmojiHappy />
         </button>
         
         <button 
           onClick={handleSend}
-          disabled={!message.trim() || !isConnected}
+          disabled={!message.trim() || !isConnected || isUploading}
           className="send-btn"
         >
           <HiPaperAirplane />
@@ -181,6 +202,13 @@ export const MessageInput: React.FC<MessageInputProps> = ({ groupId }) => {
         <div className="connection-status">
           <span className="status-indicator offline"></span>
           Connecting...
+        </div>
+      )}
+      
+      {isUploading && (
+        <div className="upload-status">
+          <div className="upload-spinner"></div>
+          Uploading file...
         </div>
       )}
     </div>

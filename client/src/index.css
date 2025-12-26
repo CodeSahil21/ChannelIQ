@@ -4568,7 +4568,7 @@ input:checked + .toggle-slider:before {
 }
 
 .message-content {
-  flex: 1;
+  width: fit-content;
   max-width: 70%;
 }
 
@@ -4596,6 +4596,8 @@ input:checked + .toggle-slider:before {
   padding: 12px 16px;
   border-radius: 16px;
   border: 1px solid var(--border-color);
+  width: fit-content;
+  max-width: 100%;
 }
 
 .own-message .message-bubble {
@@ -5713,4 +5715,340 @@ input:checked + .toggle-slider:before {
 .pinned-by {
   font-size: 11px;
   color: #9ca3af;
+}
+/* File Message Styles */
+.file-message {
+  max-width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.image-message {
+  position: relative;
+}
+
+.message-image {
+  max-width: 300px;
+  max-height: 400px;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.message-image:hover {
+  transform: scale(1.02);
+}
+
+.video-message {
+  position: relative;
+}
+
+.message-video {
+  max-width: 300px;
+  max-height: 400px;
+  width: 100%;
+  border-radius: 8px;
+}
+
+.document-message {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  min-width: 200px;
+  max-width: 300px;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.file-icon {
+  font-size: 24px;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+}
+
+.file-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.file-name {
+  display: block;
+  font-weight: 500;
+  color: #374151;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-caption {
+  margin: 8px 0 0 0;
+  font-size: 14px;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.download-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: #3b82f6;
+  color: white;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+  font-size: 16px;
+}
+
+.download-btn:hover {
+  background: #2563eb;
+}
+
+/* File Upload Button Styles */
+.file-upload-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 18px;
+}
+
+.file-upload-btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.05);
+  color: #374151;
+}
+
+.file-upload-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Dark mode support */
+[data-theme="dark"] .document-message {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .file-icon {
+  background: rgba(255, 255, 255, 0.1);
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .file-name {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .file-caption {
+  color: #9ca3af;
+}
+
+[data-theme="dark"] .file-upload-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  color: #f3f4f6;
+}
+/* Image and Video Actions */
+.image-actions, .video-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.image-message:hover .image-actions,
+.video-message:hover .video-actions {
+  opacity: 1;
+}
+
+.image-actions .download-btn,
+.video-actions .download-btn {
+  width: 32px;
+  height: 32px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border-radius: 50%;
+  font-size: 14px;
+  backdrop-filter: blur(4px);
+}
+
+.image-actions .download-btn:hover,
+.video-actions .download-btn:hover {
+  background: rgba(0, 0, 0, 0.9);
+  transform: scale(1.1);
+}
+/* Optimized File Message Styles */
+.file-message {
+  display: inline-block;
+  max-width: 100%;
+}
+
+.image-message {
+  position: relative;
+  display: inline-block;
+}
+
+.message-image {
+  display: block;
+}
+
+.video-message {
+  position: relative;
+  display: inline-block;
+}
+
+.message-video {
+  display: block;
+}
+
+.document-message {
+  gap: 12px;
+}
+
+.file-info {
+  min-width: 0;
+}
+
+.file-icon {
+  flex-shrink: 0;
+}
+
+.file-name {
+  margin: 0;
+}
+
+.download-btn {
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.download-btn:hover {
+  transform: scale(1.05);
+}
+/* Download Button as Button Element */
+.download-btn {
+  border: none;
+  cursor: pointer;
+}
+
+.image-actions .download-btn,
+.video-actions .download-btn {
+  border: none;
+  cursor: pointer;
+}
+/* Disable context menu and selection on images */
+.message-image {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+/* File Upload Loading States */
+.file-upload-btn.uploading {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Upload Spinner */
+.upload-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border-color);
+  border-top: 2px solid var(--accent-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Download Spinner */
+.download-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Upload Status */
+.upload-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--accent-color);
+}
+/* Message Loading Skeleton */
+.message-skeleton {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 8px 0;
+}
+
+.skeleton-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, var(--border-color) 25%, rgba(255,255,255,0.1) 50%, var(--border-color) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+}
+
+.skeleton-content {
+  flex: 1;
+  max-width: 70%;
+}
+
+.skeleton-header {
+  width: 120px;
+  height: 12px;
+  background: linear-gradient(90deg, var(--border-color) 25%, rgba(255,255,255,0.1) 50%, var(--border-color) 75%);
+  background-size: 200% 100%;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  animation: skeleton-loading 1.5s infinite;
+}
+
+.skeleton-bubble {
+  width: 200px;
+  height: 40px;
+  background: linear-gradient(90deg, var(--border-color) 25%, rgba(255,255,255,0.1) 50%, var(--border-color) 75%);
+  background-size: 200% 100%;
+  border-radius: 16px;
+  animation: skeleton-loading 1.5s infinite;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }

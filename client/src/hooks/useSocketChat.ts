@@ -54,7 +54,7 @@ export const useSocketChat = () => {
     }
 
     console.log('Connecting socket for user:', currentUser.id);
-    const newSocket = io('http://localhost:4000', {
+    const newSocket = io('http://localhost:3004', {
       withCredentials: true,
       transports: ['websocket', 'polling'],
       timeout: 10000,
