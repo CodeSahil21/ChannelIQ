@@ -64,9 +64,10 @@ export const getGroupMessages = async (
         }
       }
     },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { createdAt: 'desc' },
     take: limit
   });
+  
   if (messages.length === 0) {
     const membership = await prisma.groupMember.findUnique({
       where: { userId_groupId: { userId, groupId } },
@@ -75,5 +76,5 @@ export const getGroupMessages = async (
     if (!membership) throw new Error('Not authorized to view messages');
   }
 
-  return messages;
+  return messages.reverse();
 };

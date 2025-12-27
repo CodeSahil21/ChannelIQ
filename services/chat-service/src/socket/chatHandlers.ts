@@ -78,6 +78,14 @@ export const registerChatHandlers: SocketHandler = (io: TypedServer, socket: Typ
             ...(replyToId && { replyToId })
           };
           
+          console.log(`[BULK] Publishing message event to Kafka:`, {
+            messageId,
+            groupId,
+            senderId: socket.user.id,
+            type,
+            timestamp: new Date().toISOString()
+          });
+          
           await MessageProducer.publishMessageEvent(messageEventData);
 
           // Emit optimistic update immediately
@@ -96,7 +104,7 @@ export const registerChatHandlers: SocketHandler = (io: TypedServer, socket: Typ
               id: socket.user.id,
               email: socket.user.email,
               fullName: socket.user.fullName,
-              profileUrl: null,
+              profileUrl: socket.user.profileUrl,
               createdAt: new Date(),
               updatedAt: new Date()
             },
@@ -105,6 +113,7 @@ export const registerChatHandlers: SocketHandler = (io: TypedServer, socket: Typ
           };
 
           io.to(`group:${groupId}`).emit("message:optimistic", optimisticMessage);
+          console.log(`[BULK] Emitted optimistic message for messageId: ${messageId}`);
           handleSuccess(cb, { messageId });
         } catch (kafkaError) {
           console.warn('Kafka publish failed, falling back to direct insert:', kafkaError);

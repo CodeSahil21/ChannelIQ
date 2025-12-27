@@ -17,7 +17,6 @@ export class MessageBatchService {
     if (messages.length === 0) return;
 
     try {
-      // Bulk insert messages
       await prisma.message.createMany({
         data: messages.map(msg => ({
           id: msg.id,
@@ -32,10 +31,9 @@ export class MessageBatchService {
         skipDuplicates: true
       });
 
-      // Bulk create message statuses
       await this.bulkCreateMessageStatuses(messages);
     } catch (error) {
-      console.error('Bulk message creation failed:', error);
+      console.error('❌ Bulk message creation failed:', error);
       throw error;
     }
   }

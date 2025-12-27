@@ -4,17 +4,15 @@ import { MessageBatchService, BulkMessageData } from './messageBatch.service';
 export class MessageBufferService {
   private static messageBuffer: MessageEvent[] = [];
   private static batchTimeout: NodeJS.Timeout | null = null;
-  private static readonly BATCH_TIMEOUT_MS = parseInt(process.env.MESSAGE_BATCH_TIMEOUT || '5000'); // 5 seconds default
-  private static readonly MAX_BATCH_SIZE = parseInt(process.env.MESSAGE_MAX_BATCH_SIZE || '100'); // Safety limit
+  private static readonly BATCH_TIMEOUT_MS = parseInt(process.env.MESSAGE_BATCH_TIMEOUT || '5000');
+  private static readonly MAX_BATCH_SIZE = parseInt(process.env.MESSAGE_MAX_BATCH_SIZE || '100');
 
   static addMessage(messageEvent: MessageEvent): void {
     this.messageBuffer.push(messageEvent);
 
-    // Safety check: if buffer gets too large, process immediately
     if (this.messageBuffer.length >= this.MAX_BATCH_SIZE) {
       this.processBatch();
     } else if (!this.batchTimeout) {
-      // Start timer for batch processing
       this.batchTimeout = setTimeout(() => {
         this.processBatch();
       }, this.BATCH_TIMEOUT_MS);
@@ -45,7 +43,6 @@ export class MessageBufferService {
       }));
 
       await MessageBatchService.bulkCreateMessages(bulkData);
-      console.log(`✅ Processed batch of ${batch.length} messages`);
     } catch (error) {
       console.error('❌ Batch processing failed:', error);
     }

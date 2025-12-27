@@ -200,6 +200,18 @@ export class SocketMessageService {
     };
   }
 
+  static async getUserById(userId: number) {
+    return prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        profileUrl: true
+      }
+    });
+  }
+
   static async verifyGroupMember(userId: number, groupId: string) {
     const cacheKey = CacheKeys.membership(userId, groupId);
     

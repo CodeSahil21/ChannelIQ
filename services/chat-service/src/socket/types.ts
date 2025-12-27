@@ -8,6 +8,7 @@ export interface SocketUser {
   id: number;
   email: string;
   fullName: string;
+  profileUrl: string | null;
 }
 
 export interface MessageWithRelations {

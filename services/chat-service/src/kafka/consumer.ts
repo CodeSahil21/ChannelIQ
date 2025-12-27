@@ -5,7 +5,7 @@ import { SocketMessageService } from '../services/socket.service';
 import { getSocketServer } from '../socket/emitters';
 import { MediaEvent } from '../utils/types';
 import { EachMessagePayload } from 'kafkajs';
-import { MessageEvent, MessageProducer } from './messageProducer';
+import { MessageEvent } from './messageProducer';
 import { MessageBufferService } from '../services/messageBuffer.service';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -263,14 +263,17 @@ const handleMediaEvent = async (event: MediaEvent): Promise<void> => {
           const useBulkProcessing = process.env.ENABLE_BULK_MESSAGES === 'true';
           
           if (useBulkProcessing) {
-            // Use same bulk flow as regular messages
-            await MessageProducer.publishMessageEvent({
-              messageId: uuidv4(),
+            // Add to buffer for DB persistence only - no broadcasting
+            const messageId = uuidv4();
+            MessageBufferService.addMessage({
+              eventType: 'MESSAGE_CREATED',
+              messageId,
               content: event.metadata?.originalName || 'File',
               type: messageType as any,
               fileUrl,
               groupId,
-              senderId: userId
+              senderId: userId,
+              timestamp: new Date()
             });
           } else {
             // Direct processing for non-bulk mode
@@ -340,7 +343,6 @@ const handleMessageEvent = async (event: MessageEvent): Promise<void> => {
   try {
     if (event.eventType === 'MESSAGE_CREATED') {
       MessageBufferService.addMessage(event);
-      console.log(`📨 Message event buffered: ${event.messageId}`);
     }
   } catch (error) {
     console.error(`❌ Error handling message event:`, error);

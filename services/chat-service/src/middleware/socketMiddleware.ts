@@ -36,7 +36,7 @@ export const verifySocketAuth = async (
 
     const user = await prisma.user.findUnique({
       where: { id: payload.id },
-      select: { id: true, email: true, fullName: true },
+      select: { id: true, email: true, fullName: true, profileUrl: true },
     });
 
     if (!user) return next(new Error("User not found"));
