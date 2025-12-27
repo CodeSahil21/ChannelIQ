@@ -1,6 +1,5 @@
 import { MessageEvent } from '../kafka/messageProducer';
 import { MessageBatchService, BulkMessageData } from './messageBatch.service';
-import { getSocketServer } from '../socket/emitters';
 
 export class MessageBufferService {
   private static messageBuffer: MessageEvent[] = [];
@@ -46,22 +45,9 @@ export class MessageBufferService {
       }));
 
       await MessageBatchService.bulkCreateMessages(bulkData);
-
-      // Emit persisted events after successful DB insert
-      const io = getSocketServer();
-      if (io) {
-        for (const event of batch) {
-          io.to(`group:${event.groupId}`).emit('message:bulk_persisted', {
-            messageId: event.messageId,
-            groupId: event.groupId
-          });
-        }
-      }
-
       console.log(`✅ Processed batch of ${batch.length} messages`);
     } catch (error) {
       console.error('❌ Batch processing failed:', error);
-      // Could implement retry logic here
     }
   }
 
