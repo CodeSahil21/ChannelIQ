@@ -49,33 +49,30 @@ export const useSocketChat = () => {
 
   useEffect(() => {
     if (!currentUser?.id) {
-      console.log('No user found, skipping socket connection');
       return;
     }
 
-    console.log('Connecting socket for user:', currentUser.id);
     const newSocket = io('http://localhost:3004', {
       withCredentials: true,
       transports: ['websocket', 'polling'],
       timeout: 10000,
-      forceNew: true,
       path: '/socket.io/'
     });
 
     newSocket.on('connect', () => {
       setIsConnected(true);
-      console.log('✅ Socket connected:', newSocket.id);
     });
 
     newSocket.on('connect_error', (error) => {
-      console.error('❌ Socket connection error:', error.message);
-      console.error('Error details:', error);
       setIsConnected(false);
     });
 
     newSocket.on('disconnect', (reason) => {
       setIsConnected(false);
-      console.log('🔌 Socket disconnected:', reason);
+    });
+
+    newSocket.on('message:optimistic', (message: Message) => {
+      setMessages(prev => [...prev, message]);
     });
 
     newSocket.on('message:persisted', (message: Message) => {

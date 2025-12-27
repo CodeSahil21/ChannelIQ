@@ -73,11 +73,13 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       dispatch(updateReaction(data));
     };
 
+    socket.on('message:optimistic', handleNewMessage);
     socket.on('message:persisted', handleNewMessage);
     socket.on('message:updated', handleMessageUpdate);
     socket.on('reaction:updated', handleReactionUpdate);
 
     return () => {
+      socket.off('message:optimistic', handleNewMessage);
       socket.off('message:persisted', handleNewMessage);
       socket.off('message:updated', handleMessageUpdate);
       socket.off('reaction:updated', handleReactionUpdate);
