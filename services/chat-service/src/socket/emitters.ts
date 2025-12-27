@@ -14,15 +14,21 @@ export const getSocketServer = (): TypedServer | null => {
 
 export class SocketEmitter {
   static emitNewMessage(groupId: string, message: MessageWithRelations | SystemMessage): void {
-    socketServer?.to(`group:${groupId}`).emit('message:persisted', message);
+    const room = `group:${groupId}`;
+    // Socket.io Redis adapter automatically handles cross-instance communication
+    socketServer?.to(room).emit('message:persisted', message);
   }
 
   static emitMessageRead(groupId: string, messageId: string, userId: number): void {
-    socketServer?.to(`group:${groupId}`).emit('message:read', { messageId, userId });
+    const room = `group:${groupId}`;
+    const data = { messageId, userId };
+    socketServer?.to(room).emit('message:read', data);
   }
 
   static emitMessageDelivered(groupId: string, messageId: string, userId: number): void {
-    socketServer?.to(`group:${groupId}`).emit('message:delivered', { messageId, userId });
+    const room = `group:${groupId}`;
+    const data = { messageId, userId };
+    socketServer?.to(room).emit('message:delivered', data);
   }
 
   static emitMessageUpdated(groupId: string, messageId: string, content?: string, isDeleted: boolean = false): void {
@@ -36,19 +42,26 @@ export class SocketEmitter {
       payload.content = content;
     }
     
-    socketServer?.to(`group:${groupId}`).emit('message:updated', payload);
+    const room = `group:${groupId}`;
+    socketServer?.to(room).emit('message:updated', payload);
   }
 
   static emitReactionUpdate(groupId: string, messageId: string, emoji: string, userId: number, action: 'add' | 'remove'): void {
-    socketServer?.to(`group:${groupId}`).emit('reaction:updated', { messageId, emoji, userId, action });
+    const room = `group:${groupId}`;
+    const data = { messageId, emoji, userId, action };
+    socketServer?.to(room).emit('reaction:updated', data);
   }
 
   static emitTypingUpdate(groupId: string, userId: number, isTyping: boolean, fullName: string): void {
-    socketServer?.to(`group:${groupId}`).emit('typing:updated', { groupId, userId, isTyping, fullName });
+    const room = `group:${groupId}`;
+    const data = { groupId, userId, isTyping, fullName };
+    socketServer?.to(room).emit('typing:updated', data);
   }
 
   static emitPollVoteUpdate(groupId: string, pollId: string, optionId: string, userId: number, voteCount: number): void {
-    socketServer?.to(`group:${groupId}`).emit('poll:vote:update', { pollId, optionId, userId, voteCount });
+    const room = `group:${groupId}`;
+    const data = { pollId, optionId, userId, voteCount };
+    socketServer?.to(room).emit('poll:vote:update', data);
   }
 
   static emitUserStatusUpdate(userId: number, status: 'online' | 'offline', lastSeen?: Date): void {
@@ -58,43 +71,56 @@ export class SocketEmitter {
       payload.lastSeen = lastSeen;
     }
     
+    // Global broadcast - Redis adapter handles cross-instance
     socketServer?.emit('user:status', payload);
   }
 
   static emitGroupMemberAdded(groupId: string, userId: number, fullName: string, role: GroupRole): void {
-    socketServer?.to(`group:${groupId}`).emit('group:member:added', { groupId, userId, fullName, role });
+    const room = `group:${groupId}`;
+    const data = { groupId, userId, fullName, role };
+    socketServer?.to(room).emit('group:member:added', data);
   }
 
   static emitGroupMemberRemoved(groupId: string, userId: number, fullName: string): void {
-    socketServer?.to(`group:${groupId}`).emit('group:member:removed', { groupId, userId, fullName });
+    const room = `group:${groupId}`;
+    const data = { groupId, userId, fullName };
+    socketServer?.to(room).emit('group:member:removed', data);
   }
 
   static emitGroupMemberRoleUpdated(groupId: string, userId: number, fullName: string, newRole: GroupRole): void {
-    socketServer?.to(`group:${groupId}`).emit('group:member:role:updated', { groupId, userId, fullName, newRole });
+    const room = `group:${groupId}`;
+    const data = { groupId, userId, fullName, newRole };
+    socketServer?.to(room).emit('group:member:role:updated', data);
   }
 
   static emitSystemMessage(groupId: string, content: string): void {
-    socketServer?.to(`group:${groupId}`).emit('system:message', { content, groupId, createdAt: new Date() });
+    const data = { content, groupId, createdAt: new Date() };
+    socketServer?.to(`group:${groupId}`).emit('system:message', data);
   }
 
   static emitAnnouncementCreated(groupId: string, messageId: string, content: string, createdBy: string): void {
-    socketServer?.to(`group:${groupId}`).emit('announcement:created', { groupId, messageId, content, createdBy });
+    const data = { groupId, messageId, content, createdBy };
+    socketServer?.to(`group:${groupId}`).emit('announcement:created', data);
   }
 
   static emitPollCreated(groupId: string, messageId: string, question: string, createdBy: string): void {
-    socketServer?.to(`group:${groupId}`).emit('poll:created', { groupId, messageId, question, createdBy });
+    const data = { groupId, messageId, question, createdBy };
+    socketServer?.to(`group:${groupId}`).emit('poll:created', data);
   }
 
   static emitPollDeleted(groupId: string, messageId: string, deletedBy: string): void {
-    socketServer?.to(`group:${groupId}`).emit('poll:deleted', { groupId, messageId, deletedBy });
+    const data = { groupId, messageId, deletedBy };
+    socketServer?.to(`group:${groupId}`).emit('poll:deleted', data);
   }
 
   static emitMessagePinned(groupId: string, messageId: string, pinnedBy: string): void {
-    socketServer?.to(`group:${groupId}`).emit('message:pinned', { groupId, messageId, pinnedBy });
+    const data = { groupId, messageId, pinnedBy };
+    socketServer?.to(`group:${groupId}`).emit('message:pinned', data);
   }
 
   static emitMessageUnpinned(groupId: string, messageId: string, unpinnedBy: string): void {
-    socketServer?.to(`group:${groupId}`).emit('message:unpinned', { groupId, messageId, unpinnedBy });
+    const data = { groupId, messageId, unpinnedBy };
+    socketServer?.to(`group:${groupId}`).emit('message:unpinned', data);
   }
 
   static sendSystemMessage(groupId: string, content: string): void {

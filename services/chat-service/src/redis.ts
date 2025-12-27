@@ -18,11 +18,25 @@ export const redis = createClient({
 
 redis.on('error', (err: Error) => console.error('Redis Client Error', err));
 
+// Pub/Sub clients for cross-instance communication
+export const pubClient = redis.duplicate();
+export const subClient = redis.duplicate();
+
 let initialized = false;
+let pubSubInitialized = false;
+
 export const connectRedis = async (): Promise<void> => {
   if (!initialized) {
     await redis.connect();
     initialized = true;
+  }
+};
+
+export const connectPubSub = async (): Promise<void> => {
+  if (!pubSubInitialized) {
+    await pubClient.connect();
+    await subClient.connect();
+    pubSubInitialized = true;
   }
 };
 

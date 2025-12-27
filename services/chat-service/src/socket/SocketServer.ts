@@ -8,6 +8,8 @@ import { SessionManager } from "./sessionManager";
 import { CacheService, CacheKeys } from '../utils/cache';
 import { config } from '../utils/config';
 import { setSocketServer } from './emitters';
+import { createAdapter } from '@socket.io/redis-adapter';
+import { pubClient, subClient, connectPubSub } from '../redis';
 
 export const initSocket = (server: http.Server): TypedServer => {
   // Use same CORS configuration as REST API
@@ -28,6 +30,25 @@ export const initSocket = (server: http.Server): TypedServer => {
     allowEIO3: true,
     transports: ['websocket', 'polling']
   });
+
+  // Initialize Redis pub/sub connections and adapter
+  const initializeRedis = async () => {
+    try {
+      await connectPubSub();
+      
+      // Set up Socket.io Redis adapter for cross-instance room management
+      // This automatically handles cross-instance communication without duplicates
+      io.adapter(createAdapter(pubClient, subClient));
+      
+      console.log('Redis adapter initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize Redis for Socket.io:', error);
+      // Continue without Redis adapter - single instance mode
+    }
+  };
+
+  // Initialize Redis in background
+  initializeRedis();
 
   io.use(verifySocketAuth);
 
