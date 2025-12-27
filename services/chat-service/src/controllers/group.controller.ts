@@ -56,7 +56,7 @@ import {
   emitPollDeleted, 
   emitMessagePinned, 
   emitMessageUnpinned 
-} from '../socket/socketService';
+} from '../socket/emitters';
 
 // 1. Create Group Controller
 export const createGroupController = async (

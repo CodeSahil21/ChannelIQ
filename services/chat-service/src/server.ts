@@ -4,9 +4,11 @@ import { initializeKafka, disconnectKafka } from './kafka/kafkaManager';
 import { startConsumer } from './kafka/consumer';
 import { connectRedis, redis } from './redis';
 import { initSocket } from './socket/SocketServer';
-import { setSocketServer } from './socket/socketService';
+import { setSocketServer } from './socket/emitters';
+import { config } from './utils/config';
+import { setupGracefulShutdown } from './utils/gracefulShutdown';
 
-const PORT = process.env.PORT || 3004;
+const PORT = config.PORT;
 
 const server = http.createServer(app);
 const io = initSocket(server);
@@ -30,7 +32,11 @@ const startServer = async() => {
     server.listen(PORT, () => {
       console.log(`🚀 Chat Service with Socket.IO running on port ${PORT}`);
       console.log(`🔌 Socket server initialized: ${io.sockets.sockets.size} users connected`);
+      console.log(`📦 Bulk processing: ${process.env.ENABLE_BULK_MESSAGES === 'true' ? 'ENABLED' : 'DISABLED'}`);
     });
+
+    // Setup graceful shutdown for message buffer
+    setupGracefulShutdown();
 
   } catch(error) {
     console.error("❌ Failed to initialize services:", error);

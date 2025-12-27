@@ -2,7 +2,9 @@ import { Response, NextFunction } from 'express';
 import jwt,{JwtPayload} from 'jsonwebtoken';
 import prisma from '../db';
 import { AuthenticatedRequest } from '../utils/types';
-import { getAuthState, getCache, setCache } from '../redis';
+import { getAuthState } from '../redis';
+import { CacheService, CacheKeys } from '../utils/cache';
+import { config } from '../utils/config';
 
 // Combined middleware with SMART CACHING - eliminates most DB calls
 export const authenticateAndRequireChatUser = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
@@ -14,17 +16,17 @@ export const authenticateAndRequireChatUser = async (req: AuthenticatedRequest, 
             return;
         }
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload & { id?: number; jti?: string };
+        const decoded = jwt.verify(token, config.JWT_SECRET) as JwtPayload & { id?: number; jti?: string };
 
         if (!decoded || !decoded.id || !decoded.jti) {
             res.status(401).json({ success: false, message: "Unauthorized - Invalid token" });
             return;
         }
 
-        const userCacheKey = `chat_user:${decoded.id}`;
+        const userCacheKey = CacheKeys.chatUser(decoded.id);
         
         // Try to get user from cache first
-        const cachedUser = await getCache<{ id: number; email: string; fullName: string; profileUrl: string | null }>(userCacheKey);
+        const cachedUser = await CacheService.get<{ id: number; email: string; fullName: string; profileUrl: string | null }>(userCacheKey);
         
         if (cachedUser) {
             // ✅ Cached-user path: auth checks in 1 Redis RTT
@@ -71,7 +73,7 @@ export const authenticateAndRequireChatUser = async (req: AuthenticatedRequest, 
         }
 
         // Cache user for future requests
-        await setCache(userCacheKey, chatUser, 6000);
+        await CacheService.set(userCacheKey, chatUser, config.CACHE_TTL.LONG);
         
         req.user = chatUser;
         next();

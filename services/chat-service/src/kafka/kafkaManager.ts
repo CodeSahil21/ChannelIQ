@@ -1,17 +1,15 @@
 import { Kafka, Producer, Admin, Partitioners, Consumer} from "kafkajs";
+import { config } from '../utils/config';
 
-// Add this line to silence the partitioner warning
 process.env.KAFKAJS_NO_PARTITIONER_WARNING = '1';
 
-
-
 const kafka = new Kafka({
-  clientId: process.env.KAFKA_CLIENT_ID || "chat-service",
-  brokers: [process.env.KAFKA_BROKER || "localhost:9092"],
+  clientId: config.KAFKA_CLIENT_ID,
+  brokers: [config.KAFKA_BROKER],
   retry: {
-    initialRetryTime: parseInt(process.env.KAFKA_RETRY_INITIAL || "100"),
-    retries: parseInt(process.env.KAFKA_RETRY_COUNT || "3"),
-    maxRetryTime: parseInt(process.env.KAFKA_MAX_RETRY_TIME || "25000"), 
+    initialRetryTime: 100,
+    retries: 3,
+    maxRetryTime: 25000,
     factor: 2,
     multiplier: 1.5,
     restartOnFailure: async (error) => {
@@ -19,8 +17,8 @@ const kafka = new Kafka({
       return true;
     },
   },
-  requestTimeout: parseInt(process.env.KAFKA_REQUEST_TIMEOUT || "25000"), 
-  connectionTimeout: parseInt(process.env.KAFKA_CONNECTION_TIMEOUT || "8000"), 
+  requestTimeout: 25000,
+  connectionTimeout: 8000,
   enforceRequestTimeout: true,
 });
 
@@ -40,8 +38,8 @@ export const kafkaProducer: Producer = kafka.producer({
 });
 
 export const kafkaConsumer: Consumer = kafka.consumer({
-  groupId: process.env.KAFKA_CONSUMER_GROUP_ID || "chat-service-group",
-  sessionTimeout: 25000, 
+  groupId: config.KAFKA_CONSUMER_GROUP_ID,
+  sessionTimeout: 25000,
   rebalanceTimeout: 50000,
   heartbeatInterval: 3000,
   maxBytesPerPartition: 1024 * 1024,
@@ -50,7 +48,7 @@ export const kafkaConsumer: Consumer = kafka.consumer({
   maxWaitTimeInMs: 100,
   retry: {
     initialRetryTime: 100,
-    retries: 3, 
+    retries: 3,
     maxRetryTime: 25000,
     restartOnFailure: async (err) => {
       console.error('Consumer restart on failure:', err);
@@ -112,6 +110,16 @@ export const createKafkaTopics = async (): Promise<void> => {
           { name: 'retention.ms', value: '604800000' },
           { name: 'cleanup.policy', value: 'delete' },
           { name: 'compression.type', value: 'gzip' }, 
+        ]
+      },
+      {
+        topic: 'message-events',
+        numPartitions: parseInt(process.env.KAFKA_MESSAGE_EVENTS_PARTITIONS || "4"),
+        replicationFactor,
+        configEntries: [
+          { name: 'retention.ms', value: '86400000' },
+          { name: 'cleanup.policy', value: 'delete' },
+          { name: 'compression.type', value: 'gzip' }
         ]
       }
     ];

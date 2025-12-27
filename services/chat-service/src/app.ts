@@ -1,5 +1,3 @@
-import dotenv from 'dotenv';
-dotenv.config();
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -11,14 +9,15 @@ import prisma from './db';
 import { connectRedis, redis } from './redis';
 import groupRouter from './routes/group.route';
 import messageRouter from './routes/message.route';
+import { config } from './utils/config';
 
 const app = express();
 
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
-    ? process.env.FRONTEND_URLS?.split(',') || ['http://localhost:3000']
-    : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:4000'], // React/Vite + API Gateway
-  credentials: true, // Allow cookies
+  origin: config.NODE_ENV === 'production' 
+    ? config.FRONTEND_URLS || ['http://localhost:3000']
+    : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:4000'],
+  credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
@@ -28,7 +27,7 @@ app.use(helmet());
 app.use(compression());
 app.disable('x-powered-by');
 
-if (process.env.NODE_ENV !== 'production') {
+if (config.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
 }
 app.use(cors(corsOptions));

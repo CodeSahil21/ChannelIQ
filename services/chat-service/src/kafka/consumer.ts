@@ -2,18 +2,20 @@ import { kafkaConsumer } from './kafkaManager';
 import { CreateUserService, updateUserFullName, updateUserProfileUrl, deleteUserById } from '../services/user.service';
 import { updateGroupProfileImage } from '../services/group.service';
 import { SocketMessageService } from '../services/socket.service';
-import { getSocketServer } from '../socket/socketService';
+import { getSocketServer } from '../socket/emitters';
 import { MediaEvent } from '../utils/types';
 import { EachMessagePayload } from 'kafkajs';
+import { MessageEvent } from './messageProducer';
+import { MessageBufferService } from '../services/messageBuffer.service';
 
-const KAFKA_DEBUG = process.env.KAFKA_DEBUG === 'true';
+import { config } from '../utils/config';
 
 export const startConsumer = async (): Promise<void> => {
   try {
     console.log('🔄 Starting Kafka consumer...');
 
     await kafkaConsumer.subscribe({
-      topics: ['user-management-events', 'chat-events', 'media-events'],
+      topics: ['user-management-events', 'chat-events', 'media-events', 'message-events'],
       fromBeginning: false
     });
 
@@ -30,7 +32,7 @@ export const startConsumer = async (): Promise<void> => {
 
           const parsedMessage = JSON.parse(value);
 
-          if (KAFKA_DEBUG) {
+          if (config.KAFKA_DEBUG) {
             console.log(`📨 Received message from ${topic}:${partition}`, {
               key: message.key?.toString(),
               eventType: parsedMessage.eventType,
@@ -54,6 +56,12 @@ export const startConsumer = async (): Promise<void> => {
             case 'media-events':
               await heartbeat();
               await handleMediaEvent(parsedMessage);
+              await heartbeat();
+              break;
+              
+            case 'message-events':
+              await heartbeat();
+              await handleMessageEvent(parsedMessage);
               await heartbeat();
               break;
               
@@ -310,6 +318,18 @@ const handleMediaEvent = async (event: MediaEvent): Promise<void> => {
     }
   } catch (error) {
     console.error(`❌ Error handling media event:`, error);
+    throw error;
+  }
+};
+
+const handleMessageEvent = async (event: MessageEvent): Promise<void> => {
+  try {
+    if (event.eventType === 'MESSAGE_CREATED') {
+      MessageBufferService.addMessage(event);
+      console.log(`📨 Message event buffered: ${event.messageId}`);
+    }
+  } catch (error) {
+    console.error(`❌ Error handling message event:`, error);
     throw error;
   }
 };

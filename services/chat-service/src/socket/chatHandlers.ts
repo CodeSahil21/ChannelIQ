@@ -1,6 +1,8 @@
 import { TypedServer, TypedSocket, SocketHandler, MessageData, SocketCallback } from "./types";
 import { SocketMessageService } from "../services/socket.service";
 import { SessionManager } from "./sessionManager";
+import { MessageProducer } from "../kafka/messageProducer";
+import { v4 as uuidv4 } from 'uuid';
 
 // Helper functions
 const handleError = (cb: SocketCallback | undefined, error: string) => cb?.({ success: false, error });
@@ -60,31 +62,96 @@ export const registerChatHandlers: SocketHandler = (io: TypedServer, socket: Typ
         return handleError(cb, "Must join group first");
       }
 
-      const messageData: MessageData = { 
-        groupId, 
-        type, 
-        senderId: socket.user.id
-      };
-      if (content) messageData.content = content;
-      if (fileUrl !== undefined) messageData.fileUrl = fileUrl;
-      if (replyToId !== undefined) messageData.replyToId = replyToId;
+      const messageId = uuidv4();
+      const useBulkProcessing = process.env.ENABLE_BULK_MESSAGES === 'true';
 
-      // Parallel operations: create message and emit immediately
-      const [message] = await Promise.all([
-        SocketMessageService.createMessage(messageData),
-        // Could add other parallel operations here
-      ]);
-      
-      // Add missing properties for type compatibility
-      const messageWithRelations = {
-        ...message,
-        reactions: [],
-        statuses: []
-      };
-      
-      // Emit immediately after message creation
-      io.to(`group:${groupId}`).emit("message:persisted", messageWithRelations);
-      handleSuccess(cb, { messageId: message.id });
+      if (useBulkProcessing) {
+        // Bulk processing: Publish to Kafka and emit immediately
+        try {
+          const messageEventData = {
+            messageId,
+            groupId,
+            senderId: socket.user.id,
+            type,
+            ...(content && { content }),
+            ...(fileUrl && { fileUrl }),
+            ...(replyToId && { replyToId })
+          };
+          
+          await MessageProducer.publishMessageEvent(messageEventData);
+
+          // Emit optimistic update immediately
+          const optimisticMessage = {
+            id: messageId,
+            content: content || null,
+            type,
+            fileUrl: fileUrl || null,
+            groupId,
+            senderId: socket.user.id,
+            replyToId: replyToId || null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            isDeleted: false,
+            sender: {
+              id: socket.user.id,
+              email: socket.user.email,
+              fullName: socket.user.fullName,
+              profileUrl: null,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            },
+            reactions: [],
+            statuses: []
+          };
+
+          io.to(`group:${groupId}`).emit("message:optimistic", optimisticMessage);
+          handleSuccess(cb, { messageId });
+        } catch (kafkaError) {
+          console.warn('Kafka publish failed, falling back to direct insert:', kafkaError);
+          // Fallback to original method
+          const messageData: MessageData = { 
+            groupId, 
+            type, 
+            senderId: socket.user.id
+          };
+          if (content) messageData.content = content;
+          if (fileUrl !== undefined) messageData.fileUrl = fileUrl;
+          if (replyToId !== undefined) messageData.replyToId = replyToId;
+
+          const message = await SocketMessageService.createMessage(messageData);
+          const messageWithRelations = {
+            ...message,
+            reactions: [],
+            statuses: []
+          };
+          
+          io.to(`group:${groupId}`).emit("message:persisted", messageWithRelations);
+          handleSuccess(cb, { messageId: message.id });
+        }
+      } else {
+        // Original direct processing
+        const messageData: MessageData = { 
+          groupId, 
+          type, 
+          senderId: socket.user.id
+        };
+        if (content) messageData.content = content;
+        if (fileUrl !== undefined) messageData.fileUrl = fileUrl;
+        if (replyToId !== undefined) messageData.replyToId = replyToId;
+
+        const [message] = await Promise.all([
+          SocketMessageService.createMessage(messageData),
+        ]);
+        
+        const messageWithRelations = {
+          ...message,
+          reactions: [],
+          statuses: []
+        };
+        
+        io.to(`group:${groupId}`).emit("message:persisted", messageWithRelations);
+        handleSuccess(cb, { messageId: message.id });
+      }
     } catch (err: any) {
       handleError(cb, err.message);
     }

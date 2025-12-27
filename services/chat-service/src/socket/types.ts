@@ -82,6 +82,8 @@ export interface ClientToServerEvents {
 
 export interface ServerToClientEvents {
   "message:persisted": (message: MessageWithRelations | SystemMessage) => void;
+  "message:optimistic": (message: MessageWithRelations | SystemMessage) => void;
+  "message:bulk_persisted": (data: { messageId: string; groupId: string }) => void;
   "message:read": (data: { messageId: string; userId: number }) => void;
   "message:delivered": (data: { messageId: string; userId: number }) => void;
   "message:updated": (data: { messageId: string; content?: string; isDeleted: boolean; updatedAt: Date }) => void;

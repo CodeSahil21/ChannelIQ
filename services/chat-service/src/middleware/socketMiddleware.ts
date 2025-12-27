@@ -2,7 +2,8 @@ import { Socket } from "socket.io";
 import jwt from "jsonwebtoken";
 import cookie from "cookie";
 import prisma from "../db/index";
-import { connectRedis, redis } from "../redis";
+import { CacheService, CacheKeys } from '../utils/cache';
+import { config } from '../utils/config';
 import { SocketUser } from "../socket/types";
 
 declare module "socket.io" {
@@ -25,12 +26,11 @@ export const verifySocketAuth = async (
 
     const payload = jwt.verify(token, process.env.JWT_SECRET!) as { id: number };
 
-    await connectRedis();
-    const cacheKey = `chat_user:${payload.id}`;
+    const cacheKey = CacheKeys.chatUser(payload.id);
 
-    const cached = await redis.get(cacheKey);
+    const cached = await CacheService.get(cacheKey);
     if (cached) {
-      socket.user = JSON.parse(cached);
+      socket.user = cached;
       return next();
     }
 
@@ -42,7 +42,7 @@ export const verifySocketAuth = async (
     if (!user) return next(new Error("User not found"));
 
     socket.user = user;
-    await redis.setEx(cacheKey, 300, JSON.stringify(user));
+    await CacheService.set(cacheKey, user, config.CACHE_TTL.SHORT);
 
     next();
   } catch {

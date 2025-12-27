@@ -5,8 +5,9 @@ import { verifySocketAuth } from "../middleware/socketMiddleware";
 import { registerChatHandlers } from "./chatHandlers";
 import prisma from "../db/index";
 import { SessionManager } from "./sessionManager";
-import { getCachedGroupIds, setCachedGroupIds } from '../redis';
-import { setSocketServer } from '../services/socket.service';
+import { CacheService, CacheKeys } from '../utils/cache';
+import { config } from '../utils/config';
+import { setSocketServer } from './emitters';
 
 export const initSocket = (server: http.Server): TypedServer => {
   // Use same CORS configuration as REST API
@@ -50,7 +51,7 @@ export const initSocket = (server: http.Server): TypedServer => {
       let groupIds: string[] | null = null;
 
       try {
-        groupIds = await getCachedGroupIds(socket.user.id);
+        groupIds = await CacheService.get<string[]>(CacheKeys.socketUserGroups(socket.user.id));
       } catch {
         // ignore redis issues; fallback to DB
       }
@@ -63,7 +64,7 @@ export const initSocket = (server: http.Server): TypedServer => {
         groupIds = memberships.map(m => m.groupId);
 
         try {
-          await setCachedGroupIds(socket.user.id, groupIds);
+          await CacheService.set(CacheKeys.socketUserGroups(socket.user.id), groupIds, config.CACHE_TTL.SOCKET_GROUPS);
         } catch {
           // ignore
         }

@@ -474,6 +474,7 @@ export type GroupWithMembershipAndRequests = {
   };
   members: {
     userId: number;
+    role: GroupRole;
   }[];
   requests: {
     id: string;
