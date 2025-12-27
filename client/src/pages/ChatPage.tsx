@@ -89,6 +89,13 @@ export const ChatPage: React.FC = () => {
     getMyGroups();
   }, [getMyGroups]);
 
+  useEffect(() => {
+    document.body.classList.add('chat-page');
+    return () => {
+      document.body.classList.remove('chat-page');
+    };
+  }, []);
+
   return (
     <div className='chat-page-container'>
       <div className="chat-container">

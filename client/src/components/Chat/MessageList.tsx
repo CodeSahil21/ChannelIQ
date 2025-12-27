@@ -11,40 +11,54 @@ interface MessageListProps {
   userRole?: string;
 }
 
+const MessageSkeleton = React.memo(() => (
+  <div className="message-skeleton">
+    <div className="skeleton-avatar"></div>
+    <div className="skeleton-content">
+      <div className="skeleton-header"></div>
+      <div className="skeleton-bubble"></div>
+    </div>
+  </div>
+));
+
 export const MessageList: React.FC<MessageListProps> = ({ groupId, userRole }) => {
   const { messages, loading, typingUsers } = useChatContext();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
   };
 
+  // Auto-scroll when messages change or typing indicator appears/disappears
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    const timer = setTimeout(scrollToBottom, 100);
+    return () => clearTimeout(timer);
+  }, [messages, Object.keys(typingUsers).length]);
 
-  const groupMessages = messages.filter(msg => msg.groupId === groupId);
-
-  const MessageSkeleton = () => (
-    <div className="message-skeleton">
-      <div className="skeleton-avatar"></div>
-      <div className="skeleton-content">
-        <div className="skeleton-header"></div>
-        <div className="skeleton-bubble"></div>
-      </div>
-    </div>
+  const groupMessages = React.useMemo(() => 
+    messages.filter(msg => msg.groupId === groupId), 
+    [messages, groupId]
   );
 
+  if (loading && groupMessages.length === 0) {
+    return (
+      <div className="message-list">
+        <div className="messages-container">
+          <MessageSkeleton />
+          <MessageSkeleton />
+          <MessageSkeleton />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="message-list">
+    <div className="message-list" ref={messagesContainerRef}>
       <div className="messages-container">
-        {loading ? (
-          <>
-            <MessageSkeleton />
-            <MessageSkeleton />
-            <MessageSkeleton />
-          </>
-        ) : groupMessages.length === 0 ? (
+        {groupMessages.length === 0 ? (
           <div className="no-messages">
             <p>No messages yet. Start the conversation!</p>
           </div>
@@ -64,7 +78,7 @@ export const MessageList: React.FC<MessageListProps> = ({ groupId, userRole }) =
           })
         )}
         <TypingIndicator typingUsers={typingUsers} />
-        <div ref={messagesEndRef} />
+        <div ref={messagesEndRef} style={{ height: '1px', width: '100%' }} />
       </div>
     </div>
   );
