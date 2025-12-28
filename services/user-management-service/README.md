@@ -1,1022 +1,546 @@
-# User Management Service - Frontend Integration Guide
+# User Management Service
 
-A comprehensive microservice for user profile management, connections, and preferences with complete user lifecycle management. This service handles user profiles, connection requests, blocking/unblocking, and user preferences with **optimized Redis caching** and **bug-free connection logic**.
+## Service Overview
 
-**Service Port:** 3002  
-**API Gateway Endpoint:** `http://localhost:4000/api/users` & `http://localhost:4000/api/connections`
+The User Management Service is a core microservice in the CorporateChat platform responsible for user profiles, social connections, preferences, and user lifecycle management. It provides comprehensive user data management including profile creation, connection requests, friend networks, and user preferences with real-time synchronization across the platform.
 
-## 🚀 Recent Updates & Optimizations
+This service solves critical user experience challenges:
+- Centralized user profile and preference management
+- Social networking features with connection requests and friend systems
+- Image upload and management for user avatars and group images
+- Cross-service user data synchronization via event-driven architecture
+- Advanced caching strategies for high-performance user data access
 
-### ✅ **Performance Enhancements**
-- **Redis Caching Layer**: 60-80% reduction in database queries
-- **Smart Cache Invalidation**: Automatic cache clearing on data changes
-- **Bulk User Lookup**: Optimized multi-user fetching with cache-first strategy
-- **Online Status Caching**: Real-time status updates with 5-minute cache TTL
+**Service Port:** 3003  
+**API Gateway Endpoint:** `http://localhost:4000/api/user`
 
-### ✅ **Bug Fixes & Security**
-- **Connection Logic Fixes**: Resolved declined request handling and role swapping issues
-- **Unblock Direction Fix**: Works regardless of who originally blocked whom
-- **Cache Consistency**: All operations properly invalidate related caches
-- **Role Preservation**: Maintains original sender/receiver relationships
+## Tech Stack
 
-### ✅ **Code Quality**
-- **Removed Unused Code**: ~30% codebase cleanup while preserving functionality
-- **Parameter Optimization**: Cleaned up unused function parameters
-- **TypeScript Compliance**: Fixed all type mismatches and warnings
-- **Kafka Events Maintained**: Essential inter-service communication preserved
+### Core Technologies
 
----
+- **Node.js**: Runtime environment optimized for I/O-intensive operations and real-time features
+- **TypeScript (Strict Mode)**: Compile-time type safety with strict configuration for enterprise-grade reliability
+- **Express**: Lightweight web framework with comprehensive middleware ecosystem
+- **Prisma**: Type-safe ORM with PostgreSQL integration, advanced indexing, and migration management
+- **PostgreSQL**: Primary database with optimized indexes for user queries and connection lookups
+- **Redis**: Multi-layer caching (user profiles, connections, preferences) with sub-millisecond access
+- **Kafka**: Event streaming for cross-service user synchronization and real-time updates
+- **Multer**: File upload handling for profile images with validation and processing
 
-## Section 1: UI/UX & Frontend Workflow
+### Performance & Caching
 
-### Page Mapping & Required Components
+- **Redis Caching**: Multi-tier caching strategy for user profiles, connections, and search results
+- **Database Indexing**: Optimized indexes on email, username, and connection queries
+- **Event-Driven Updates**: Real-time cache invalidation via Kafka events
+- **Connection Pooling**: Prisma connection pooling for database efficiency
 
-#### Profile Management Pages
-- **User Profile Page** (`/profile`) - Display current user's complete profile
-- **Edit Profile Form** (`/profile/edit`) - Modal/page for profile editing with all fields
-- **Public User Profile View** (`/users/:userId`) - View other users' profiles
-- **Profile Creation Wizard** (`/onboarding/profile`) - Multi-step profile creation for new users
-- **User Search Page** (`/search`) - Search and discover users
-- **User Preferences Page** (`/preferences`) - Privacy, notification, and display settings
+## High-Level Architecture
 
-#### Connection Management Pages
-- **Connections Dashboard** (`/connections`) - Overview of all connections
-- **Connection Requests** (`/connections/requests`) - Pending incoming requests
-- **Sent Requests** (`/connections/sent`) - Outgoing pending requests
-- **Blocked Users** (`/connections/blocked`) - Manage blocked users
-- **Connection Stats Widget** - Display connection statistics
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   API Gateway   │────│ User Management │────│   PostgreSQL    │
+│   (Port 4000)   │    │   (Port 3003)   │    │   (Database)    │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+                                │
+                                │
+                       ┌─────────────────┐    ┌─────────────────┐
+                       │      Redis      │    │      Kafka      │
+                       │    (Cache)      │    │    (Events)     │
+                       └─────────────────┘    └─────────────────┘
+                                │
+                                │
+                       ┌─────────────────┐
+                       │  File Storage   │
+                       │   (Uploads)     │
+                       └─────────────────┘
+```
 
-#### Required UI Components
-- **Avatar Upload Modal** - Handle profile image upload with drag-and-drop
-- **Skills/Languages Multi-Select** - Tag-based input for arrays
-- **Connection Request Card** - Display request with accept/decline actions
-- **User Card Component** - Reusable user display with connection status
-- **Profile Completion Progress** - Visual indicator of profile completeness
-- **Social Links Input** - URL validation for LinkedIn, GitHub, etc.
+### Request Flow
 
-### User Journey Workflows
+1. **Client** → API Gateway (with JWT authentication)
+2. **API Gateway** → User Management Service
+3. **Service** → Redis (cache lookup for user data)
+4. **Service** → PostgreSQL (database operations if cache miss)
+5. **Service** → Kafka (publish user events for cross-service sync)
+6. **Service** → File System (image upload/retrieval)
 
-#### Profile Creation Flow
-1. **New User Onboarding**
-   - User completes registration → Redirect to profile creation
-   - Form pre-fills with email from auth service
-   - Required fields: `fullName`, optional: all others
-   - **Optimistic UI**: Show profile creation success immediately
-   - **State Update**: Set `profileCreated: true` in global user context
+## Data Models
 
-#### Profile Update Flow
-1. **Edit Profile Journey**
-   - User clicks "Edit Profile" → Form pre-fills with current data
-   - User modifies fields (bio, skills, avatar) → Real-time validation
-   - **Avatar Upload**: Handle `multipart/form-data` via Media Service
-   - **Save Action**: PATCH request with only changed fields
-   - **Optimistic UI**: Update profile display immediately
-   - **Cache Strategy**: Invalidate 'user-profile' cache, update global state
-
-#### Connection Management Flow
-1. **Send Connection Request**
-   - User searches → Finds user → Clicks "Connect"
-   - Optional message input → Send request
-   - **UI Update**: Button changes to "Request Sent" (disabled)
-   - **State Update**: Add to sent requests list
-
-2. **Handle Incoming Requests**
-   - Notification badge shows pending count
-   - User views requests → Accept/Decline actions
-   - **Optimistic UI**: Remove from pending list immediately
-   - **State Update**: Add to connections list if accepted
-
-3. **Block/Unblock Users**
-   - User profile → "Block User" action → Confirmation modal
-   - **UI Update**: Hide user from search results
-   - **State Update**: Add to blocked users list
-
-### State Management Strategy
-
-#### Global User Context
+### User Profile Model
 ```typescript
-interface UserContext {
-  profile: UserProfileResponse | null;
-  connections: ConnectedUser[];
-  pendingRequests: ConnectionResponse[];
-  sentRequests: ConnectionResponse[];
-  blockedUsers: ConnectionUser[];
-  connectionStats: ConnectionStats;
-  preferences: UserPreference | null;
+interface UserProfile {
+  id: number;              // Auto-incrementing primary key
+  userId: number;          // Foreign key to auth service user
+  username: string;        // Unique username, indexed
+  firstName: string;       // User's first name
+  lastName: string;        // User's last name
+  bio?: string;           // Optional user biography
+  profileImage?: string;   // Profile image filename
+  isProfileComplete: boolean; // Profile completion status
+  createdAt: Date;        // Profile creation timestamp
+  updatedAt: Date;        // Last modification timestamp
 }
 ```
 
-#### Cache Invalidation Rules
-- **Profile Updates**: Invalidate `user-profile-${userId}` cache
-- **Connection Changes**: Invalidate `user-connections-${userId}` cache
-- **Search Results**: Invalidate `user-search-${query}` cache after connections change
-- **Preferences**: Invalidate `user-preferences-${userId}` cache
-
-#### Optimistic Updates
-- **Profile Changes**: Update UI immediately, rollback on error
-- **Connection Requests**: Update button states before API response
-- **Avatar Upload**: Show preview immediately, replace with final URL
-
-### Privacy & Visibility Rules
-
-#### Profile Visibility Levels
-- **PUBLIC**: Full profile visible to all users
-- **CONNECTIONS_ONLY**: Limited profile for non-connections
-- **PRIVATE**: Only basic info (name, job title) visible
-
-#### UI Behavior by Visibility
+### Connection Model
 ```typescript
-// Hide sensitive fields based on privacy settings
-const shouldShowField = (field: string, viewerIsConnection: boolean, privacy: string) => {
-  if (privacy === 'PRIVATE' && !viewerIsConnection) {
-    return ['fullName', 'jobTitle'].includes(field);
-  }
-  if (privacy === 'CONNECTIONS_ONLY' && !viewerIsConnection) {
-    return !['phoneNumber', 'workEmail', 'bio', 'socialLinks'].includes(field);
-  }
-  return true; // PUBLIC or viewer is connection
-};
+interface Connection {
+  id: number;              // Auto-incrementing primary key
+  senderId: number;        // User who sent the request
+  receiverId: number;      // User who received the request
+  status: ConnectionStatus; // PENDING, ACCEPTED, BLOCKED
+  createdAt: Date;        // Connection request timestamp
+  updatedAt: Date;        // Status change timestamp
+}
+
+enum ConnectionStatus {
+  PENDING = 'PENDING',
+  ACCEPTED = 'ACCEPTED', 
+  BLOCKED = 'BLOCKED'
+}
 ```
 
-#### Connection Status Display
-- **NONE**: Show "Connect" button
-- **PENDING_SENT**: Show "Request Sent" (disabled)
-- **PENDING_RECEIVED**: Show "Accept/Decline" buttons
-- **CONNECTED**: Show "Connected" with remove option
-- **BLOCKED**: Hide user from search results
+### User Preferences Model
+```typescript
+interface UserPreferences {
+  id: number;              // Auto-incrementing primary key
+  userId: number;          // Foreign key to user profile
+  theme: string;           // UI theme preference
+  language: string;        // Language preference
+  notifications: boolean;  // Notification settings
+  privacy: string;         // Privacy level settings
+  createdAt: Date;        // Preferences creation timestamp
+  updatedAt: Date;        // Last modification timestamp
+}
+```
 
----
+**Design Decision**: Numeric IDs provide optimal database performance for joins and foreign key relationships, while maintaining referential integrity across microservices.
 
-## Section 2: API Reference & Zod Schemas
+## REST API Documentation
 
 ### Profile Management Endpoints
 
-#### POST /api/users/create-profile
-**Description:** Create initial user profile (one-time only)
+#### POST /api/v1/profile/create
+**Purpose**: Create user profile after registration  
+**Authentication**: Required (JWT cookie)
 
-**Content-Type:** `application/json`
-
-**Zod Validation Rules:**
 ```typescript
-{
-  fullName: string (min 1 char, required)
-  profilePic?: string (optional)
-  jobTitle?: string (optional)
-  department?: string (optional)
-  phoneNumber?: string (optional)
-  workEmail?: string (valid email or empty string)
-  bio?: string (optional)
-  location?: string (optional)
-  timezone?: string (default: "UTC")
-  skills?: string[] (array of strings)
-  languages?: string[] (array of strings)
-  managerId?: number (optional)
-  managerName?: string (optional)
-  linkedinUrl?: string (valid URL or empty string)
-  githubUrl?: string (valid URL or empty string)
-  portfolioUrl?: string (valid URL or empty string)
-  twitterUrl?: string (valid URL or empty string)
+interface CreateProfileRequest {
+  username: string;        // 3-30 characters, alphanumeric + underscore
+  firstName: string;       // 1-50 characters
+  lastName: string;        // 1-50 characters
+  bio?: string;           // Optional, max 500 characters
 }
-```
 
-**TypeScript Interface:**
-```typescript
-interface CreateUserProfileRequest {
-  fullName: string;
-  profilePic?: string;
-  jobTitle?: string;
-  department?: string;
-  phoneNumber?: string;
-  workEmail?: string;
-  bio?: string;
-  location?: string;
-  timezone?: string;
-  skills?: string[];
-  languages?: string[];
-  managerId?: number;
-  managerName?: string;
-  linkedinUrl?: string;
-  githubUrl?: string;
-  portfolioUrl?: string;
-  twitterUrl?: string;
-}
-```
-
-**Success Response (201):**
-```json
-{
-  "success": true,
-  "message": "Profile created successfully",
-  "data": {
-    "id": 1,
-    "fullName": "John Doe",
-    "email": "john@company.com",
-    "profileCreated": true,
-    "profilePic": null,
-    "jobTitle": "Software Engineer",
-    "department": "Engineering",
-    "skills": ["JavaScript", "React"],
-    "languages": ["English", "Spanish"],
-    "timezone": "UTC",
-    "status": "ACTIVE",
-    "isOnline": false,
-    "createdAt": "2024-01-01T00:00:00Z",
-    "updatedAt": "2024-01-01T00:00:00Z"
+interface CreateProfileResponse {
+  success: boolean;
+  message: string;
+  data: {
+    profile: UserProfile;
   }
 }
 ```
 
----
+**Error Cases**: 400 (validation), 409 (username taken), 500 (server error)
 
-#### PUT /api/users/update-profile
-**Description:** Update existing user profile (partial updates)
+#### GET /api/v1/profile/get-profile
+**Purpose**: Retrieve authenticated user's profile  
+**Authentication**: Required (JWT cookie)
 
-**Content-Type:** `application/json`
-
-**Zod Validation Rules:** Same as create but all fields optional
-
-**TypeScript Interface:**
 ```typescript
-interface UpdateUserProfileRequest {
-  fullName?: string;
-  profilePic?: string;
-  jobTitle?: string;
-  department?: string;
-  phoneNumber?: string;
-  workEmail?: string;
-  bio?: string;
-  location?: string;
-  timezone?: string;
-  skills?: string[];
-  languages?: string[];
-  managerId?: number;
-  managerName?: string;
-  linkedinUrl?: string;
-  githubUrl?: string;
-  portfolioUrl?: string;
-  twitterUrl?: string;
-}
-```
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "message": "Profile updated successfully",
-  "data": {
-    // Updated UserProfileResponse object
+interface GetProfileResponse {
+  success: boolean;
+  message: string;
+  data: {
+    profile: UserProfile;
+    preferences: UserPreferences;
   }
 }
 ```
 
----
+#### PUT /api/v1/profile/update
+**Purpose**: Update user profile information  
+**Authentication**: Required (JWT cookie)
 
-#### GET /api/users/get-profile
-**Description:** Get current authenticated user's profile
+```typescript
+interface UpdateProfileRequest {
+  username?: string;       // Optional username change
+  firstName?: string;      // Optional first name update
+  lastName?: string;       // Optional last name update
+  bio?: string;           // Optional bio update
+}
 
-**Authentication:** Required (JWT cookie)
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "fullName": "John Doe",
-    "email": "john@company.com",
-    "profilePic": "http://localhost:9000/profile-images/user-1-avatar.jpg",
-    "jobTitle": "Software Engineer",
-    "department": "Engineering",
-    "phoneNumber": "+1234567890",
-    "workEmail": "john.doe@company.com",
-    "profileCreated": true,
-    "bio": "Passionate software engineer with 5 years experience",
-    "location": "San Francisco, CA",
-    "timezone": "America/Los_Angeles",
-    "skills": ["JavaScript", "React", "Node.js"],
-    "languages": ["English", "Spanish"],
-    "managerId": 5,
-    "managerName": "Jane Smith",
-    "linkedinUrl": "https://linkedin.com/in/johndoe",
-    "githubUrl": "https://github.com/johndoe",
-    "portfolioUrl": "https://johndoe.dev",
-    "twitterUrl": "https://twitter.com/johndoe",
-    "status": "ACTIVE",
-    "isOnline": true,
-    "lastSeen": "2024-01-01T12:00:00Z",
-    "createdAt": "2024-01-01T00:00:00Z",
-    "updatedAt": "2024-01-01T12:00:00Z"
+interface UpdateProfileResponse {
+  success: boolean;
+  message: string;
+  data: {
+    profile: UserProfile;
   }
 }
 ```
 
----
+#### POST /api/v1/profile/upload-image
+**Purpose**: Upload profile image  
+**Authentication**: Required (JWT cookie)  
+**Content-Type**: multipart/form-data
 
-#### GET /api/users/fetch-profile/:userId
-**Description:** Get another user's profile (respects privacy settings)
-
-**Parameters:**
-- `userId`: number (positive integer)
-
-**Success Response (200):** Same as get-profile but filtered by privacy settings
-
----
-
-#### GET /api/users/search
-**Description:** Search users by name, email, job title, or department
-
-**Query Parameters:**
 ```typescript
-{
-  query: string (min 1 char, max 100 chars, required)
-  limit?: number (default: 10, max: 50)
+interface UploadImageRequest {
+  image: File;             // Image file (JPEG, PNG, WebP)
+}
+
+interface UploadImageResponse {
+  success: boolean;
+  message: string;
+  data: {
+    imageUrl: string;      // Uploaded image URL
+  }
 }
 ```
 
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": 2,
-      "fullName": "Jane Smith",
-      "email": "jane@company.com",
-      "profilePic": "http://localhost:9000/profile-images/user-2-avatar.jpg",
-      "jobTitle": "Product Manager",
-      "department": "Product"
-    }
-  ]
+**File Validation**: Max 5MB, supported formats: JPEG, PNG, WebP
+
+#### DELETE /api/v1/profile/delete
+**Purpose**: Delete user profile and all associated data  
+**Authentication**: Required (JWT cookie)
+
+```typescript
+interface DeleteProfileResponse {
+  success: boolean;
+  message: string;
 }
 ```
 
----
-
-#### DELETE /api/users/delete-profile
-**Description:** Soft delete user profile (sets status to DELETED)
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "message": "Profile deleted successfully"
-}
-```
-
----
+**Cascade Operations**: Removes all connections, preferences, and uploaded files
 
 ### Connection Management Endpoints
 
-#### POST /api/connections/request
-**Description:** Send connection request to another user
-
-**Content-Type:** `application/json`
-
-**Zod Validation Rules:**
-```typescript
-{
-  receiverId: number (positive integer, required)
-  message?: string (optional connection message)
-}
-```
-
-**Success Response (201):**
-```json
-{
-  "success": true,
-  "message": "Connection request sent successfully",
-  "data": {
-    "id": 1,
-    "senderId": 1,
-    "receiverId": 2,
-    "status": "PENDING",
-    "message": "I'd like to connect with you",
-    "createdAt": "2024-01-01T12:00:00Z",
-    "updatedAt": "2024-01-01T12:00:00Z"
-  }
-}
-```
-
----
-
-#### PUT /api/connections/request/:connectionId/accept
-**Description:** Accept incoming connection request
-
-**Parameters:**
-- `connectionId`: number (connection request ID)
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "message": "Connection request accepted successfully",
-  "data": {
-    "id": 1,
-    "senderId": 2,
-    "receiverId": 1,
-    "status": "ACCEPTED",
-    "message": "I'd like to connect with you",
-    "sender": {
-      "id": 2,
-      "fullName": "Jane Smith",
-      "profilePic": "http://localhost:9000/profile-images/user-2-avatar.jpg",
-      "jobTitle": "Product Manager",
-      "department": "Product"
-    },
-    "createdAt": "2024-01-01T12:00:00Z",
-    "updatedAt": "2024-01-01T12:30:00Z"
-  }
-}
-```
-
----
-
-#### PUT /api/connections/request/:connectionId/decline
-**Description:** Decline incoming connection request
-
-**Parameters:**
-- `connectionId`: number (connection request ID)
-
-**Success Response (200):** Same structure as accept with `status: "DECLINED"`
-
----
-
-#### GET /api/connections/pending
-**Description:** Get all pending connection requests received by user
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "message": "Pending requests retrieved successfully",
-  "data": [
-    {
-      "id": 1,
-      "senderId": 2,
-      "receiverId": 1,
-      "status": "PENDING",
-      "message": "I'd like to connect with you",
-      "sender": {
-        "id": 2,
-        "fullName": "Jane Smith",
-        "profilePic": "http://localhost:9000/profile-images/user-2-avatar.jpg",
-        "jobTitle": "Product Manager",
-        "department": "Product"
-      },
-      "createdAt": "2024-01-01T12:00:00Z"
-    }
-  ]
-}
-```
-
----
-
-#### GET /api/connections/sent
-**Description:** Get all connection requests sent by user
-
-**Success Response (200):** Same structure as pending but with `receiver` object
-
----
-
-#### GET /api/connections/list
-**Description:** Get all accepted connections
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "message": "Connections retrieved successfully",
-  "data": [
-    {
-      "id": 1,
-      "senderId": 1,
-      "receiverId": 2,
-      "status": "ACCEPTED",
-      "sender": { /* user object */ },
-      "receiver": { /* user object */ },
-      "createdAt": "2024-01-01T12:00:00Z",
-      "updatedAt": "2024-01-01T12:30:00Z"
-    }
-  ]
-}
-```
-
----
-
-#### GET /api/connections/users
-**Description:** Get simplified list of connected users
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "message": "Connected users retrieved successfully",
-  "data": [
-    {
-      "id": 2,
-      "fullName": "Jane Smith",
-      "profilePic": "http://localhost:9000/profile-images/user-2-avatar.jpg",
-      "jobTitle": "Product Manager",
-      "department": "Product",
-      "isOnline": true,
-      "lastSeen": "2024-01-01T12:00:00Z",
-      "connectionId": 1,
-      "connectedAt": "2024-01-01T12:30:00Z"
-    }
-  ]
-}
-```
-
----
-
-#### GET /api/connections/status/:userId
-**Description:** Get connection status with specific user
-
-**Parameters:**
-- `userId`: number (target user ID)
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "message": "Connection status retrieved successfully",
-  "data": {
-    "status": "CONNECTED" // NONE, PENDING_SENT, PENDING_RECEIVED, CONNECTED, BLOCKED
-  }
-}
-```
-
----
-
-#### GET /api/connections/stats
-**Description:** Get user's connection statistics
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "message": "Connection statistics retrieved successfully",
-  "data": {
-    "totalAcceptedConnections": 25,
-    "totalPendingConnections": 3
-  }
-}
-```
-
----
-
-#### POST /api/connections/block/:userId
-**Description:** Block a user
-
-**Parameters:**
-- `userId`: number (user to block)
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "message": "User blocked successfully"
-}
-```
-
----
-
-#### DELETE /api/connections/block/:userId
-**Description:** Unblock a user
-
-**Parameters:**
-- `userId`: number (user to unblock)
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "message": "User unblocked successfully"
-}
-```
-
----
-
-#### DELETE /api/connections/remove/:userId
-**Description:** Remove connection with user
-
-**Parameters:**
-- `userId`: number (user to disconnect from)
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "message": "Connection removed successfully"
-}
-```
-
----
-
-#### GET /api/connections/blocked
-**Description:** Get list of blocked users
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "message": "Blocked users retrieved successfully",
-  "data": [
-    {
-      "id": 3,
-      "fullName": "Blocked User",
-      "profilePic": null,
-      "jobTitle": "Developer",
-      "department": "Engineering",
-      "isOnline": false,
-      "lastSeen": "2024-01-01T10:00:00Z"
-    }
-  ]
-}
-```
-
----
-
-### User Preferences Endpoints
-
-#### GET /api/users/preferences
-**Description:** Get user's privacy and notification preferences
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "id": 1,
-    "userId": 1,
-    "emailNotifications": true,
-    "pushNotifications": true,
-    "connectionRequests": true,
-    "profileViews": true,
-    "profileVisibility": "PUBLIC",
-    "showOnlineStatus": true,
-    "showLastSeen": true,
-    "theme": "LIGHT",
-    "language": "en",
-    "timezone": "UTC",
-    "appearInSearch": true,
-    "showSuggestions": true,
-    "createdAt": "2024-01-01T00:00:00Z",
-    "updatedAt": "2024-01-01T12:00:00Z"
-  }
-}
-```
-
----
-
-#### PUT /api/users/preferences
-**Description:** Update user preferences (partial updates)
-
-**Content-Type:** `application/json`
-
-**Request Body:** Any subset of preference fields
-
-**Success Response (200):**
-```json
-{
-  "success": true,
-  "message": "Preferences updated successfully",
-  "data": {
-    // Updated preferences object
-  }
-}
-```
-
----
-
-## Section 3: Error Handling & Edge Cases
-
-### Master Error Table
-
-| HTTP Status | Backend Error Message | User-Facing Message | UI Action |
-|-------------|----------------------|-------------------|-----------|
-| **400** | "Validation failed" | "Please check the highlighted fields" | Show field-specific validation errors |
-| **400** | "Invalid user ID" | "User not found" | Redirect to search or home |
-| **400** | "Profile already completed" | "Profile has already been created" | Redirect to profile page |
-| **400** | "Profile not created yet" | "Please complete your profile first" | Redirect to profile creation |
-| **400** | "No valid fields provided for update" | "No changes detected" | Keep form open, show info message |
-| **400** | "Cannot send connection request to yourself" | "You cannot connect with yourself" | Disable connect button |
-| **400** | "Cannot block yourself" | "You cannot block yourself" | Hide block option |
-| **400** | "Cannot remove connection with yourself" | "Invalid action" | Hide remove option |
-| **401** | "Unauthorized" | "Please log in to continue" | Redirect to login page |
-| **403** | "not authorized" | "You don't have permission for this action" | Show error toast, disable action |
-| **404** | "User not found" | "This user doesn't exist" | Show 404 page or redirect to search |
-| **404** | "Connection request not found" | "This request no longer exists" | Remove from UI, refresh list |
-| **404** | "User preferences not found" | "Preferences not found" | Create default preferences |
-| **404** | "No blocked connection found" | "User is not blocked" | Update UI state |
-| **409** | "Email already registered" | "This email is already in use" | Show error on email field |
-| **409** | "already pending" | "Connection request already sent" | Update button to "Request Sent" |
-| **409** | "already connected" | "You're already connected with this user" | Update button to "Connected" |
-| **409** | "Connection request was declined" | "This request was previously declined" | Show retry option for original sender only |
-| **409** | "Invalid connection reactivation" | "Cannot reactivate this connection" | Hide connect button, show error |
-| **500** | "Internal server error" | "Something went wrong. Please try again." | Show retry button, log error |
-| **503** | "Database service temporarily unavailable" | "Service temporarily unavailable" | Show maintenance message |
-
-### Validation Error Response Format
-```json
-{
-  "success": false,
-  "message": "Validation failed",
-  "errors": [
-    {
-      "field": "fullName",
-      "message": "Full name is required"
-    },
-    {
-      "field": "workEmail",
-      "message": "Invalid work email format"
-    },
-    {
-      "field": "linkedinUrl",
-      "message": "Invalid LinkedIn URL"
-    }
-  ]
-}
-```
-
-### Frontend Error Handling Strategy
-
-#### Form Validation
-```typescript
-// Handle validation errors
-const handleValidationErrors = (errors: FieldError[]) => {
-  const fieldErrors: Record<string, string> = {};
-  errors.forEach(error => {
-    fieldErrors[error.field] = error.message;
-  });
-  setFormErrors(fieldErrors);
-};
-
-// Show user-friendly messages
-const getErrorMessage = (backendMessage: string): string => {
-  const errorMap = {
-    "Invalid LinkedIn URL": "Please enter a valid LinkedIn profile URL",
-    "Invalid GitHub URL": "Please enter a valid GitHub profile URL",
-    "Full name is required": "Please enter your full name",
-    "Invalid work email format": "Please enter a valid email address"
-  };
-  return errorMap[backendMessage] || backendMessage;
-};
-```
-
-#### Connection Status Handling
-```typescript
-// Handle connection request errors with proper state management
-const handleConnectionError = (error: ApiError) => {
-  if (error.message.includes('already pending')) {
-    setButtonState('pending');
-    showToast('Connection request already sent', 'info');
-  } else if (error.message.includes('already connected')) {
-    setButtonState('connected');
-    showToast('You are already connected', 'info');
-  } else if (error.message.includes('blocked user')) {
-    setButtonState('blocked');
-    showToast('Cannot send request to this user', 'error');
-  } else if (error.message.includes('Connection request was declined')) {
-    // Only original sender can retry declined requests
-    setButtonState('declined');
-    showToast('This request was previously declined', 'warning');
-  }
-};
-
-// Connection status with proper validation
-type ConnectionStatus = 'NONE' | 'PENDING_SENT' | 'PENDING_RECEIVED' | 'CONNECTED' | 'BLOCKED' | 'DECLINED';
-
-// Button state management
-const getConnectionButtonState = (status: ConnectionStatus, isOriginalSender: boolean) => {
-  switch (status) {
-    case 'NONE': return { text: 'Connect', disabled: false, action: 'send' };
-    case 'PENDING_SENT': return { text: 'Request Sent', disabled: true, action: null };
-    case 'PENDING_RECEIVED': return { text: 'Accept/Decline', disabled: false, action: 'respond' };
-    case 'CONNECTED': return { text: 'Connected', disabled: false, action: 'remove' };
-    case 'BLOCKED': return { text: 'Blocked', disabled: true, action: null };
-    case 'DECLINED': return { 
-      text: isOriginalSender ? 'Retry Request' : 'Send Request', 
-      disabled: false, 
-      action: 'send' 
-    };
-  }
-};
-```
-
-#### Optimistic Update Rollback
-```typescript
-// Rollback optimistic updates on error
-const updateProfileOptimistic = async (updates: Partial<UserProfile>) => {
-  const previousProfile = { ...currentProfile };
-  
-  // Optimistic update
-  setProfile({ ...currentProfile, ...updates });
-  
-  try {
-    const response = await updateProfile(updates);
-    setProfile(response.data);
-  } catch (error) {
-    // Rollback on error
-    setProfile(previousProfile);
-    showErrorToast('Failed to update profile');
-  }
-};
-```
-
-### Rate Limiting & Performance
-
-#### Debounced Search
-```typescript
-// Debounce search requests
-const debouncedSearch = useMemo(
-  () => debounce(async (query: string) => {
-    if (query.length >= 1) {
-      const results = await searchUsers(query);
-      setSearchResults(results);
-    }
-  }, 300),
-  []
-);
-```
-
-#### Cache Management
-```typescript
-// Optimized cache management with proper TTL
-const cacheProfile = (userId: number, profile: UserProfile) => {
-  const cacheKey = `user:profile:${userId}`;
-  cache.set(cacheKey, profile, { ttl: 3600000 }); // 1 hour
-};
-
-// Cache user online status
-const cacheOnlineStatus = (userId: number, status: { isOnline: boolean; lastSeen: Date }) => {
-  const cacheKey = `user:online-status:${userId}`;
-  cache.set(cacheKey, status, { ttl: 300000 }); // 5 minutes
-};
-
-// Bulk user profile caching
-const cacheBulkProfiles = (profiles: UserProfile[]) => {
-  profiles.forEach(profile => {
-    const cacheKey = `user:profile:${profile.id}`;
-    cache.set(cacheKey, profile, { ttl: 3600000 });
-  });
-};
-
-// Smart cache invalidation with related data
-const invalidateUserCaches = (userId: number) => {
-  // Profile caches
-  cache.delete(`user:profile:${userId}`);
-  cache.delete(`user:profile:completion:${userId}`);
-  cache.delete(`user:online-status:${userId}`);
-  
-  // Connection caches
-  cache.delete(`user:connections:${userId}`);
-  cache.delete(`user:pending-requests:${userId}`);
-  cache.delete(`user:sent-requests:${userId}`);
-  cache.delete(`user:blocked:${userId}`);
-  cache.delete(`user:connection-stats:${userId}`);
-  
-  // Search caches (wildcard invalidation)
-  cache.deletePattern('search:users:*');
-  
-  // Preferences cache
-  cache.delete(`user:preferences:${userId}`);
-};
-
-// Connection status caching
-const cacheConnectionStatus = (userId1: number, userId2: number, status: string) => {
-  cache.set(`connection:status:${userId1}:${userId2}`, status, { ttl: 300000 });
-  cache.set(`connection:status:${userId2}:${userId1}`, status, { ttl: 300000 });
-};
-```
-
----
-
-## Shared TypeScript Interfaces
+#### GET /api/v1/connections/get-connections
+**Purpose**: Retrieve user's accepted connections  
+**Authentication**: Required (JWT cookie)
 
 ```typescript
-// Complete user profile response
-interface UserProfileResponse {
-  id: number;
-  fullName: string | null;
-  email: string;
-  profilePic: string | null;
-  jobTitle: string | null;
-  department: string | null;
-  phoneNumber: string | null;
-  workEmail: string | null;
-  profileCreated: boolean;
-  bio: string | null;
-  location: string | null;
-  timezone: string | null;
-  skills: string[];
-  languages: string[];
-  managerId: number | null;
-  managerName: string | null;
-  linkedinUrl: string | null;
-  githubUrl: string | null;
-  portfolioUrl: string | null;
-  twitterUrl: string | null;
-  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'DELETED';
-  isOnline: boolean;
-  lastSeen: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// Connection response with user details
-interface ConnectionResponse {
-  id: number;
-  senderId: number;
-  receiverId: number;
-  status: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'BLOCKED';
-  message?: string;
-  sender?: {
-    id: number;
-    fullName: string;
-    profilePic?: string;
-    jobTitle?: string;
-    department?: string;
-  };
-  receiver?: {
-    id: number;
-    fullName: string;
-    profilePic?: string;
-    jobTitle?: string;
-    department?: string;
-  };
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// Simplified connected user
-interface ConnectedUser {
-  id: number;
-  fullName: string;
-  profilePic?: string;
-  jobTitle?: string;
-  department?: string;
-  isOnline: boolean;
-  lastSeen?: Date;
-  connectionId: number;
-  connectedAt: Date;
-}
-
-// Connection statistics
-interface ConnectionStats {
-  totalAcceptedConnections: number;
-  totalPendingConnections: number;
-}
-
-// User preferences
-interface UserPreference {
-  id: number;
-  userId: number;
-  emailNotifications: boolean;
-  pushNotifications: boolean;
-  connectionRequests: boolean;
-  profileViews: boolean;
-  profileVisibility: 'PUBLIC' | 'CONNECTIONS_ONLY' | 'PRIVATE';
-  showOnlineStatus: boolean;
-  showLastSeen: boolean;
-  theme: 'LIGHT' | 'DARK' | 'AUTO';
-  language: string;
-  timezone: string;
-  appearInSearch: boolean;
-  showSuggestions: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// API response wrapper
-interface ApiResponse<T = any> {
+interface GetConnectionsResponse {
   success: boolean;
   message: string;
-  data?: T;
-  errors?: FieldError[];
+  data: {
+    connections: Array<{
+      id: number;
+      user: UserProfile;
+      connectedAt: Date;
+    }>;
+    totalCount: number;
+  }
 }
-
-// Validation error
-interface FieldError {
-  field: string;
-  message: string;
-}
-
-// Connection status enum
-type ConnectionStatus = 'NONE' | 'PENDING_SENT' | 'PENDING_RECEIVED' | 'CONNECTED' | 'BLOCKED';
 ```
 
----
+#### GET /api/v1/connections/pending-requests
+**Purpose**: Retrieve pending connection requests  
+**Authentication**: Required (JWT cookie)
 
-## Environment Configuration
+```typescript
+interface PendingRequestsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    sent: Array<{
+      id: number;
+      receiver: UserProfile;
+      sentAt: Date;
+    }>;
+    received: Array<{
+      id: number;
+      sender: UserProfile;
+      sentAt: Date;
+    }>;
+  }
+}
+```
+
+#### POST /api/v1/connections/send-request
+**Purpose**: Send connection request to another user  
+**Authentication**: Required (JWT cookie)
+
+```typescript
+interface SendRequestRequest {
+  receiverId: number;      // Target user ID
+}
+
+interface SendRequestResponse {
+  success: boolean;
+  message: string;
+  data: {
+    connection: Connection;
+  }
+}
+```
+
+**Validation**: Prevents duplicate requests, self-requests, and requests to blocked users
+
+#### PUT /api/v1/connections/respond-request
+**Purpose**: Accept or reject connection request  
+**Authentication**: Required (JWT cookie)
+
+```typescript
+interface RespondRequestRequest {
+  connectionId: number;    // Connection request ID
+  action: 'accept' | 'reject';
+}
+
+interface RespondRequestResponse {
+  success: boolean;
+  message: string;
+  data: {
+    connection?: Connection; // Present if accepted
+  }
+}
+```
+
+#### DELETE /api/v1/connections/remove-connection
+**Purpose**: Remove existing connection  
+**Authentication**: Required (JWT cookie)
+
+```typescript
+interface RemoveConnectionRequest {
+  connectionId: number;    // Connection ID to remove
+}
+
+interface RemoveConnectionResponse {
+  success: boolean;
+  message: string;
+}
+```
+
+#### POST /api/v1/connections/block-user
+**Purpose**: Block another user  
+**Authentication**: Required (JWT cookie)
+
+```typescript
+interface BlockUserRequest {
+  userId: number;          // User ID to block
+}
+
+interface BlockUserResponse {
+  success: boolean;
+  message: string;
+}
+```
+
+#### GET /api/v1/connections/search-users
+**Purpose**: Search for users to connect with  
+**Authentication**: Required (JWT cookie)
+
+```typescript
+interface SearchUsersQuery {
+  query: string;           // Search term (username, name)
+  limit?: number;          // Results limit (default: 20)
+  offset?: number;         // Pagination offset
+}
+
+interface SearchUsersResponse {
+  success: boolean;
+  message: string;
+  data: {
+    users: Array<{
+      id: number;
+      username: string;
+      firstName: string;
+      lastName: string;
+      profileImage?: string;
+      connectionStatus?: ConnectionStatus;
+    }>;
+    totalCount: number;
+  }
+}
+```
+
+### Preferences Management Endpoints
+
+#### GET /api/v1/preferences/get-preferences
+**Purpose**: Retrieve user preferences  
+**Authentication**: Required (JWT cookie)
+
+```typescript
+interface GetPreferencesResponse {
+  success: boolean;
+  message: string;
+  data: {
+    preferences: UserPreferences;
+  }
+}
+```
+
+#### PUT /api/v1/preferences/update-preferences
+**Purpose**: Update user preferences  
+**Authentication**: Required (JWT cookie)
+
+```typescript
+interface UpdatePreferencesRequest {
+  theme?: 'light' | 'dark' | 'system';
+  language?: string;       // ISO language code
+  notifications?: boolean;
+  privacy?: 'public' | 'friends' | 'private';
+}
+
+interface UpdatePreferencesResponse {
+  success: boolean;
+  message: string;
+  data: {
+    preferences: UserPreferences;
+  }
+}
+```
+
+## Caching Architecture
+
+### Redis Caching Strategy
+
+#### Cache Keys Structure
+- User profiles: `user:profile:{userId}`
+- User connections: `user:connections:{userId}`
+- User preferences: `user:preferences:{userId}`
+- Search results: `search:users:{query}:{offset}`
+- Connection counts: `user:stats:{userId}`
+
+#### Cache TTL Configuration
+- **User Profiles**: 1 hour (frequently accessed, moderate update frequency)
+- **Connections**: 30 minutes (social data, moderate volatility)
+- **Preferences**: 2 hours (rarely changed, high read frequency)
+- **Search Results**: 15 minutes (dynamic content, acceptable staleness)
+
+#### Cache Invalidation Strategy
+- **Profile Updates**: Immediate invalidation on profile changes
+- **Connection Changes**: Invalidate both users' connection caches
+- **Cross-Service Events**: Kafka-driven cache invalidation
+- **Batch Operations**: Bulk cache invalidation for efficiency
+
+### Performance Optimization
+- **Cache Warming**: Pre-populate frequently accessed user data
+- **Cache Aside Pattern**: Application manages cache population and invalidation
+- **Compression**: JSON compression for large cached objects
+- **Pipeline Operations**: Batch Redis operations for efficiency
+
+## Event-Driven Architecture
+
+### Kafka Integration
+
+#### Published Events
+```typescript
+interface UserProfileCreatedEvent {
+  eventType: 'USER_PROFILE_CREATED';
+  userId: number;
+  profileId: number;
+  username: string;
+  timestamp: Date;
+}
+
+interface UserProfileUpdatedEvent {
+  eventType: 'USER_PROFILE_UPDATED';
+  userId: number;
+  profileId: number;
+  changes: Partial<UserProfile>;
+  timestamp: Date;
+}
+
+interface ConnectionEstablishedEvent {
+  eventType: 'CONNECTION_ESTABLISHED';
+  connectionId: number;
+  userId1: number;
+  userId2: number;
+  timestamp: Date;
+}
+
+interface UserPreferencesUpdatedEvent {
+  eventType: 'USER_PREFERENCES_UPDATED';
+  userId: number;
+  preferences: UserPreferences;
+  timestamp: Date;
+}
+```
+
+#### Consumed Events
+```typescript
+interface UserRegisteredEvent {
+  eventType: 'USER_REGISTERED';
+  userId: number;
+  email: string;
+  timestamp: Date;
+}
+
+interface UserDeletedEvent {
+  eventType: 'USER_DELETED';
+  userId: number;
+  timestamp: Date;
+}
+```
+
+### Event Processing
+- **Profile Creation**: Triggered by USER_REGISTERED events from auth-service
+- **Cross-Service Sync**: Real-time user data synchronization
+- **Cache Invalidation**: Event-driven cache management
+- **Analytics**: User behavior tracking for insights
+
+### Topic Configuration
+- **user-management-events**: User profile and connection events (8 partitions)
+- **user-events**: Cross-service user lifecycle events (6 partitions)
+
+## Security Model
+
+### Authentication & Authorization
+- **JWT Validation**: Middleware validates JWT tokens from HTTP-only cookies
+- **User Context**: Extracted user ID from JWT for all operations
+- **Resource Ownership**: Users can only access/modify their own data
+- **Connection Privacy**: Users can only view connections of connected users
+
+### File Upload Security
+- **File Type Validation**: Whitelist of allowed image formats
+- **File Size Limits**: Maximum 5MB per upload
+- **Path Sanitization**: Prevents directory traversal attacks
+- **Virus Scanning**: Consider integration for production environments
+
+### Data Privacy
+- **Profile Visibility**: Configurable privacy settings
+- **Connection Hiding**: Option to hide connection lists
+- **Data Anonymization**: Soft delete with data anonymization
+- **GDPR Compliance**: Complete data deletion capabilities
+
+## Error Handling Strategy
+
+### HTTP Status Codes
+- **400**: Validation errors with detailed field messages
+- **401**: Authentication failures
+- **403**: Authorization failures (accessing other users' data)
+- **404**: Resource not found (user, connection, etc.)
+- **409**: Conflict errors (username taken, duplicate requests)
+- **413**: File too large
+- **415**: Unsupported media type
+- **429**: Rate limiting (if implemented)
+- **500**: Internal server errors
+
+### Error Response Format
+```typescript
+interface ErrorResponse {
+  success: false;
+  message: string;
+  errors?: Array<{
+    field: string;
+    message: string;
+  }>;
+}
+```
+
+### Failure Recovery
+- **Database Failures**: Graceful degradation with cached data
+- **Redis Failures**: Continue operation without caching
+- **Kafka Failures**: Queue events for retry
+- **File System Failures**: Fallback to default images
+
+## Environment Variables
 
 ```env
 # Server Configuration
-PORT=3002
+PORT=3003
 NODE_ENV=development
-
-# JWT Configuration
-JWT_SECRET=your-super-secret-jwt-key
 
 # Database Configuration
 DATABASE_URL=postgresql://username:password@localhost:5432/corporatechat
@@ -1025,47 +549,167 @@ DATABASE_URL=postgresql://username:password@localhost:5432/corporatechat
 REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_PASSWORD=your-redis-password
+REDIS_USE_TLS=false
 
 # Kafka Configuration
 KAFKA_BROKER=localhost:9092
+KAFKA_CLIENT_ID=user-management-service
+KAFKA_CONSUMER_GROUP_ID=user-management-group
 
-# Media Service Integration
-MEDIA_SERVICE_URL=http://localhost:3003
+# File Upload Configuration
+UPLOAD_DIR=./uploads
+MAX_FILE_SIZE=5242880
+ALLOWED_FILE_TYPES=image/jpeg,image/png,image/webp
+
+# Cache Configuration
+CACHE_TTL_PROFILE=3600
+CACHE_TTL_CONNECTIONS=1800
+CACHE_TTL_PREFERENCES=7200
+CACHE_TTL_SEARCH=900
+
+# CORS Configuration
+FRONTEND_URLS=http://localhost:3000,http://localhost:5173
 ```
 
----
+## Local Development Setup
 
-## Development Notes
+### Prerequisites
+- Node.js 20+
+- PostgreSQL 14+
+- Redis 6+
+- Kafka 2.8+
 
-### Database Relationships
-- Users have one-to-many connections (as sender and receiver)
-- Users have one-to-one preferences
-- All models support soft deletion
-- Full-text search enabled on user profiles
-- Comprehensive indexing for performance
+### Setup Steps
 
-### Event Publishing
-The service publishes Kafka events for:
-- User profile creation/updates
-- Connection status changes
-- User blocking/unblocking
-- Profile deletion/restoration
+1. **Install Dependencies**
+```bash
+cd services/user-management-service
+npm install
+```
 
-### Security Features
-- JWT-based authentication
-- Input validation with Zod schemas
-- SQL injection prevention with Prisma
-- Rate limiting on search endpoints
-- Audit trail for all user activities
+2. **Database Setup**
+```bash
+# Set DATABASE_URL in .env
+echo "DATABASE_URL=postgresql://username:password@localhost:5432/corporatechat" >> .env
 
-### Performance Optimizations
-- **Multi-layer Redis caching** for frequently accessed data (profiles, connections, status)
-- **Smart cache invalidation** with automatic cleanup on data changes
-- **Bulk operations** for fetching multiple user profiles efficiently
-- **Database indexes** on common query patterns (user search, connections)
-- **Optimized queries** with Prisma select for minimal data transfer
-- **Connection status caching** with bidirectional cache keys
-- **Online status optimization** with duplicate update prevention
-- **Search result caching** with 5-minute TTL for better UX
-- **Pagination support** for large datasets
-- **Full-text search** with PostgreSQL for fast user discovery
+# Run migrations
+npx prisma migrate dev
+npx prisma generate
+```
+
+3. **Redis Setup**
+```bash
+# Start Redis server
+redis-server
+
+# Verify connection
+redis-cli ping
+```
+
+4. **File Storage Setup**
+```bash
+# Create uploads directory
+mkdir -p uploads/profiles
+mkdir -p uploads/groups
+```
+
+5. **Kafka Setup**
+```bash
+# Start Kafka
+bin/kafka-server-start.sh config/server.properties
+
+# Create topics (auto-created on startup)
+```
+
+6. **Environment Configuration**
+```bash
+cp .env.example .env
+# Edit .env with your configuration
+```
+
+7. **Start Service**
+```bash
+# Development mode
+npm run dev
+
+# Production build
+npm run build
+npm start
+```
+
+8. **Health Check**
+```bash
+curl http://localhost:3003/health
+```
+
+## Production Considerations
+
+### Horizontal Scaling
+- **Stateless Design**: All user state in database/cache enables scaling
+- **Load Balancing**: Round-robin or least-connections algorithms
+- **Database Sharding**: User-based sharding for massive scale
+- **Cache Clustering**: Redis Cluster for high availability
+
+### File Storage Strategy
+- **Production**: Migrate to AWS S3 or similar cloud storage
+- **CDN Integration**: CloudFront for global image delivery
+- **Image Processing**: Resize and optimize images on upload
+- **Backup Strategy**: Regular backup of user-uploaded content
+
+### Performance Optimization
+- **Database Indexing**: Optimized indexes on frequently queried fields
+- **Connection Pooling**: Prisma connection pooling configuration
+- **Query Optimization**: Efficient queries with proper joins
+- **Caching Strategy**: Multi-layer caching with intelligent invalidation
+
+### Monitoring & Observability
+- **Health Checks**: Database, Redis, and Kafka connectivity
+- **Metrics**: User registration rates, connection activity, cache hit rates
+- **Logging**: Structured logging with correlation IDs
+- **Alerting**: Critical error and performance threshold alerts
+
+## Common Pitfalls & Design Decisions
+
+### Why Separate User Management from Auth?
+- **Separation of Concerns**: Authentication vs user data management
+- **Scalability**: Independent scaling based on different usage patterns
+- **Security**: Isolate sensitive auth operations from user data
+- **Flexibility**: Different caching and optimization strategies
+
+### Why Redis for Caching vs Database?
+- **Performance**: Sub-millisecond access vs database query latency
+- **Scalability**: Reduces database load for frequently accessed data
+- **Flexibility**: TTL-based expiration and complex data structures
+- **Cost**: Reduces expensive database operations
+
+### Why File System vs Cloud Storage?
+- **Development**: Simplified local development setup
+- **Cost**: No cloud storage costs during development
+- **Migration Path**: Easy migration to cloud storage in production
+- **Control**: Full control over file handling and processing
+
+### Connection Model Design
+- **Bidirectional**: Single record represents mutual connection
+- **Status Tracking**: Clear state machine for connection lifecycle
+- **Scalability**: Efficient queries for connection lists and counts
+- **Privacy**: Granular control over connection visibility
+
+## Future Improvements
+
+### Short-term Enhancements
+- **Advanced Search**: Full-text search with Elasticsearch integration
+- **User Verification**: Verified user badges and verification process
+- **Activity Feed**: User activity tracking and timeline
+- **Recommendation Engine**: Friend suggestions based on mutual connections
+
+### Long-term Considerations
+- **Microservice Split**: Separate connection service for social features
+- **Real-time Features**: WebSocket integration for live user status
+- **Analytics Service**: User behavior analytics and insights
+- **Machine Learning**: Intelligent friend recommendations and content personalization
+
+### Scalability Improvements
+- **Database Sharding**: Horizontal database scaling by user ID
+- **Event Sourcing**: Complete audit trail of user actions
+- **CQRS Pattern**: Separate read/write models for optimization
+- **GraphQL API**: Flexible data fetching for mobile applications
