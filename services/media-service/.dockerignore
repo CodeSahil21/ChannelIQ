@@ -1,0 +1,11 @@
+node_modules
+dist
+.env
+.git
+.gitignore
+README.md
+Dockerfile
+.dockerignore
+*.log
+.vscode
+tsconfig.tsbuildinfo
