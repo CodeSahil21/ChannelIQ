@@ -21,6 +21,7 @@ interface Message {
   id: string;
   content: string | null;
   type: string;
+  fileUrl?: string | null;
   senderId: number;
   groupId: string;
   createdAt: Date;

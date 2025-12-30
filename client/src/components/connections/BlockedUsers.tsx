@@ -72,7 +72,13 @@ export const BlockedUsers = () => {
               <div className="blocked-user-content">
                 <div className="blocked-user-avatar">
                   {user.profilePic ? (
-                    <img src={user.profilePic} alt={user.fullName || 'Profile'} />
+                    <img 
+                      src={user.profilePic.startsWith('http') ? user.profilePic : `http://localhost:9000/profile-images/${user.profilePic}`} 
+                      alt={user.fullName || 'Profile'}
+                      onError={(e) => {
+                        e.currentTarget.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.fullName || user.email || 'User')}&backgroundColor=6b7280`;
+                      }}
+                    />
                   ) : (
                     <img 
                       src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.fullName || user.email || 'User')}&backgroundColor=6b7280`}

@@ -96,7 +96,7 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
   };
 
   const currentUser = useSelector((state: RootState) => state.user.user);
-  const currentUserId = currentUser ? parseInt(currentUser.id) : null;
+  const currentUserId = currentUser ? parseInt(String(currentUser.id)) : null;
   const currentUserMembership = currentUserId ? fullGroup.members?.find(m => m.userId === currentUserId) : null;
   const isCreator = currentUserId !== null && fullGroup.creatorId === currentUserId;
   const isMember = currentUserMembership !== null;

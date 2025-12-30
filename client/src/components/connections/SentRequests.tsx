@@ -70,7 +70,13 @@ export const SentRequests = () => {
             <div className="sent-request-content">
               <div className="sent-user-avatar">
                 {request.receiver?.profilePic ? (
-                  <img src={request.receiver.profilePic} alt={request.receiver.fullName || 'Profile'} />
+                  <img 
+                    src={request.receiver.profilePic.startsWith('http') ? request.receiver.profilePic : `http://localhost:9000/profile-images/${request.receiver.profilePic}`} 
+                    alt={request.receiver.fullName || 'Profile'}
+                    onError={(e) => {
+                      e.currentTarget.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(request.receiver?.fullName || request.receiver?.email || 'User')}&backgroundColor=2a5298`;
+                    }}
+                  />
                 ) : (
                   <img 
                     src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(request.receiver?.fullName || request.receiver?.email || 'User')}&backgroundColor=2a5298`}

@@ -27,7 +27,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({ groupId }) => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<number | null>(null);
 
-  const currentUserId = currentUser ? parseInt(currentUser.id) : null;
+  const currentUserId = currentUser ? parseInt(String(currentUser.id)) : null;
   const userMembership = currentGroup?.members?.find(m => m.userId === currentUserId);
   const canCreatePollsAnnouncements = userMembership?.role === 'ADMIN' || userMembership?.role === 'CO_ADMIN';
 
@@ -110,7 +110,13 @@ export const MessageInput: React.FC<MessageInputProps> = ({ groupId }) => {
     try {
       const result = await uploadFile(groupId, file);
       if (result) {
-        console.log('File uploaded:', result);
+        // Send file message through socket after successful upload
+        sendMessage({
+          type: result.messageType,
+          fileUrl: result.fileUrl,
+          content: file.name // Use filename as content
+        });
+        console.log('File uploaded and message sent:', result);
       }
     } catch (error) {
       console.error('File upload failed:', error);

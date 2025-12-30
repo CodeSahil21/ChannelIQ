@@ -80,7 +80,13 @@ const ConnectionsListComponent = () => {
             <div className="connection-card-content">
               <div className="connection-user-avatar">
                 {user.profilePic ? (
-                  <img src={user.profilePic} alt={user.fullName} />
+                  <img 
+                    src={user.profilePic.startsWith('http') ? user.profilePic : `http://localhost:9000/profile-images/${user.profilePic}`} 
+                    alt={user.fullName}
+                    onError={(e) => {
+                      e.currentTarget.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.fullName)}&backgroundColor=2a5298`;
+                    }}
+                  />
                 ) : (
                   <img 
                     src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.fullName)}&backgroundColor=2a5298`}

@@ -71,7 +71,13 @@ export const PendingRequests = () => {
             <div className="request-card-content">
               <div className="request-user-avatar">
                 {request.sender?.profilePic ? (
-                  <img src={request.sender.profilePic} alt={request.sender.fullName || 'Profile'} />
+                  <img 
+                    src={request.sender.profilePic.startsWith('http') ? request.sender.profilePic : `http://localhost:9000/profile-images/${request.sender.profilePic}`} 
+                    alt={request.sender.fullName || 'Profile'}
+                    onError={(e) => {
+                      e.currentTarget.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(request.sender?.fullName || request.sender?.email || 'User')}&backgroundColor=2a5298`;
+                    }}
+                  />
                 ) : (
                   <img 
                     src={`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(request.sender?.fullName || request.sender?.email || 'User')}&backgroundColor=2a5298`}

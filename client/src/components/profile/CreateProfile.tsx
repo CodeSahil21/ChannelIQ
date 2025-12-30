@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { HiUser, HiBriefcase, HiGlobe } from 'react-icons/hi';
 import { Input } from '../ui/Input';
-import { TextArea } from '../ui/TextArea';
-import { TagInput } from '../ui/TagInput';
+
 import { Button } from '../ui/Button';
 import type { CreateProfileFormData } from '../../types';
 import axios from 'axios';
@@ -185,13 +184,16 @@ export const CreateProfile: React.FC<CreateProfileProps> = ({ onProfileCreated }
                 placeholder="Manager's name"
               />
               
-              <TextArea
-                label="Bio"
-                value={formData.bio || ''}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFormData({...formData, bio: e.target.value})}
-                placeholder="Tell us about yourself..."
-                rows={3}
-              />
+              <div className="form-group">
+                <label className="form-label">Bio</label>
+                <textarea
+                  className="form-textarea"
+                  value={formData.bio || ''}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFormData({...formData, bio: e.target.value})}
+                  placeholder="Tell us about yourself..."
+                  rows={3}
+                />
+              </div>
             </div>
           </motion.div>
         );
@@ -210,19 +212,25 @@ export const CreateProfile: React.FC<CreateProfileProps> = ({ onProfileCreated }
             </div>
             
             <div className="form-grid">
-              <TagInput
-                label="Skills"
-                value={formData.skills || []}
-                onChange={(skills) => setFormData({...formData, skills})}
-                placeholder="Add a skill and press Enter"
-              />
+              <div className="form-group">
+                <label className="form-label">Skills</label>
+                <input
+                  className="form-input"
+                  value={(formData.skills || []).join(', ')}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, skills: e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean)})}
+                  placeholder="JavaScript, React, Node.js (comma separated)"
+                />
+              </div>
               
-              <TagInput
-                label="Languages"
-                value={formData.languages || []}
-                onChange={(languages) => setFormData({...formData, languages})}
-                placeholder="Add a language and press Enter"
-              />
+              <div className="form-group">
+                <label className="form-label">Languages</label>
+                <input
+                  className="form-input"
+                  value={(formData.languages || []).join(', ')}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, languages: e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean)})}
+                  placeholder="English, Spanish, French (comma separated)"
+                />
+              </div>
               
               <Input
                 label="LinkedIn URL"

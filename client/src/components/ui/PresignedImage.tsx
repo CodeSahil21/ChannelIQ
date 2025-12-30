@@ -15,29 +15,33 @@ export const DirectImage: React.FC<DirectImageProps> = ({
 }) => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!fileName) {
       setImageUrl(null);
+      setLoading(false);
       return;
     }
 
     // If fileName is already a full URL, use it directly
     if (fileName.startsWith('http')) {
       setImageUrl(fileName);
+      setLoading(false);
       return;
     }
 
     // For MinIO public access, construct direct URL
     const publicUrl = `http://localhost:9000/profile-images/${fileName}`;
     setImageUrl(publicUrl);
+    setLoading(false);
   }, [fileName]);
 
-  if (!fileName || error) {
+  if (!fileName || error || !imageUrl) {
     return <>{fallback}</>;
   }
 
-  if (!imageUrl) {
+  if (loading) {
     return <>{fallback}</>;
   }
 
@@ -46,7 +50,11 @@ export const DirectImage: React.FC<DirectImageProps> = ({
       src={imageUrl} 
       alt={alt} 
       className={className}
-      onError={() => setError(true)}
+      onError={() => {
+        setError(true);
+        console.warn(`Failed to load image: ${imageUrl}`);
+      }}
+      onLoad={() => setError(false)}
     />
   );
 };

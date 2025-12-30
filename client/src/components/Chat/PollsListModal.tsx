@@ -24,15 +24,17 @@ const PollsListModal: React.FC<PollsListModalProps> = ({ isOpen, onClose, groupI
   useEffect(() => {
     if (isOpen && groupId) {
       dispatch(fetchPolls(groupId));
-      // Join group for real-time updates
-      if (socket) {
-        joinGroup(groupId);
-      }
     }
-  }, [isOpen, groupId, dispatch, socket, joinGroup]);
+  }, [isOpen, groupId, dispatch]);
 
   useEffect(() => {
-    if (!socket) return;
+    if (isOpen && groupId && socket) {
+      joinGroup(groupId);
+    }
+  }, [isOpen, groupId, socket]); // Removed joinGroup from deps to fix TS issue
+
+  useEffect(() => {
+    if (!socket) return undefined;
 
     const handlePollVoteUpdate = (data: { pollId: string; optionId: string; userId: number; voteCount: number; hasVoted?: boolean }) => {
       console.log('Poll vote update received:', data);
@@ -57,7 +59,9 @@ const PollsListModal: React.FC<PollsListModalProps> = ({ isOpen, onClose, groupI
     };
 
     socket.on('poll:vote:update', handlePollVoteUpdate);
-    return () => socket.off('poll:vote:update', handlePollVoteUpdate);
+    return () => {
+      socket.off('poll:vote:update', handlePollVoteUpdate);
+    };
   }, [socket]);
 
   const handleVote = (pollId: string, optionId: string) => {

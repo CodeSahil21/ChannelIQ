@@ -141,8 +141,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, showAvatar, u
               />
               <div className="image-actions">
                 <button 
-                  onClick={async () => {
-                    const btn = event.currentTarget;
+                  onClick={async (event: React.MouseEvent<HTMLButtonElement>) => {
+                    const btn = event.currentTarget as HTMLButtonElement;
                     btn.disabled = true;
                     btn.innerHTML = '<div class="download-spinner"></div>';
                     try {
@@ -180,8 +180,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, showAvatar, u
               />
               <div className="video-actions">
                 <button 
-                  onClick={async (event) => {
-                    const btn = event.currentTarget;
+                  onClick={async (event: React.MouseEvent<HTMLButtonElement>) => {
+                    const btn = event.currentTarget as HTMLButtonElement;
                     btn.disabled = true;
                     const originalContent = btn.innerHTML;
                     btn.innerHTML = '<div class="download-spinner"></div>';
@@ -221,8 +221,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, showAvatar, u
                 </div>
               </div>
               <button 
-                onClick={async (event) => {
-                  const btn = event.currentTarget;
+                onClick={async (event: React.MouseEvent<HTMLButtonElement>) => {
+                  const btn = event.currentTarget as HTMLButtonElement;
                   btn.disabled = true;
                   const originalContent = btn.innerHTML;
                   btn.innerHTML = '<div class="download-spinner"></div>';
