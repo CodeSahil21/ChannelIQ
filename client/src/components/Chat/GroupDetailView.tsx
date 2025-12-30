@@ -100,15 +100,6 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
   const currentUserMembership = currentUserId ? fullGroup.members?.find(m => m.userId === currentUserId) : null;
   const isCreator = currentUserId !== null && fullGroup.creatorId === currentUserId;
   const isMember = currentUserMembership !== null;
-  
-  console.log('Debug GroupDetailView:', {
-    currentUserId,
-    groupCreatorId: fullGroup.creatorId,
-    isCreator,
-    isMember,
-    currentUserMembership,
-    canShowLeaveButton: !isCreator && isMember
-  });
 
   return (
     <ChatProvider>
@@ -154,7 +145,6 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
             isCreator={isCreator}
             onImageUpdate={(imageUrl) => {
               handleImageUpdate(fullGroup.id, imageUrl);
-              console.log('Group image updated:', imageUrl);
             }}
           />
           
@@ -278,12 +268,31 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
                 );
               })}
             </div>
-            {!isCreator && (
-              <div className="leave-group-section">
+            {!isCreator && isMember && (
+              <div className="leave-group-section" style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid #e5e7eb', textAlign: 'center' }}>
                 <button 
                   className="btn leave-group-btn"
-                  onClick={() => setShowLeaveGroupModal(true)}
+                  onClick={handleLeaveGroupClick}
+                  style={{
+                    padding: '12px 24px',
+                    background: '#fee2e2',
+                    color: '#dc2626',
+                    border: '1px solid #fecaca',
+                    borderRadius: '12px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#fecaca';
+                    e.currentTarget.style.color = '#b91c1c';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#fee2e2';
+                    e.currentTarget.style.color = '#dc2626';
+                  }}
                 >
+                  <HiLogout style={{ marginRight: '8px' }} />
                   Leave Group
                 </button>
               </div>

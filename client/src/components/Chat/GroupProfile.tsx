@@ -24,15 +24,15 @@ const GroupProfile: React.FC<GroupProfileProps> = ({
 }) => {
   const [showImageModal, setShowImageModal] = useState(false);
   
-  // Debug log
-  console.log('GroupProfile Debug:', { 
-    isCreator, 
-    canManage, 
-    groupId: group.id, 
-    creatorId: group.creatorId,
-    showEditButton: isCreator 
-  });
+  const handleOpenModal = () => {
+    console.log('Opening image modal');
+    setShowImageModal(true);
+  };
   
+  const handleCloseModal = () => {
+    console.log('Closing image modal');
+    setShowImageModal(false);
+  };
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -47,12 +47,17 @@ const GroupProfile: React.FC<GroupProfileProps> = ({
   return (
     <div className="group-profile-card">
       <div className="group-profile-header">
-        <div className="group-profile-avatar">
+        <div className="group-profile-avatar" onClick={isCreator ? handleOpenModal : undefined} style={isCreator ? { cursor: 'pointer' } : {}}>
           {group.imageUrl ? (
             <img src={group.imageUrl} alt={group.name} />
           ) : (
             <div className="group-profile-avatar-initials">
               {getInitials(group.name)}
+            </div>
+          )}
+          {isCreator && (
+            <div className="avatar-edit-btn" onClick={(e) => { e.stopPropagation(); handleOpenModal(); }}>
+              <HiCamera />
             </div>
           )}
         </div>
@@ -96,10 +101,7 @@ const GroupProfile: React.FC<GroupProfileProps> = ({
           {isCreator && (
             <button 
               className="btn btn-primary" 
-              onClick={() => {
-                console.log('Edit image button clicked!');
-                setShowImageModal(true);
-              }}
+              onClick={handleOpenModal}
             >
               <HiCamera />
               Edit Image
@@ -122,7 +124,7 @@ const GroupProfile: React.FC<GroupProfileProps> = ({
       
       <GroupImageModal
         isOpen={showImageModal}
-        onClose={() => setShowImageModal(false)}
+        onClose={handleCloseModal}
         groupId={group.id}
         currentImageUrl={group.imageUrl}
         onImageUpdate={(imageUrl) => {

@@ -1,7 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { HiX, HiUpload, HiTrash, HiCamera } from 'react-icons/hi';
-import { Button } from '../ui/Button';
+import { HiX, HiUpload, HiTrash, HiCamera, HiUser } from 'react-icons/hi';
 import { PresignedImage } from '../ui/PresignedImage';
 import { mediaApi } from '../../api/media.api';
 import toast from 'react-hot-toast';
@@ -23,6 +22,7 @@ export const ProfileImageModal: React.FC<ProfileImageModalProps> = ({
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = () => {
@@ -33,18 +33,23 @@ export const ProfileImageModal: React.FC<ProfileImageModalProps> = ({
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
       toast.error('Please select a JPEG, PNG, or WebP image');
       return;
     }
 
-    // Validate file size (5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast.error('File size must be less than 5MB');
       return;
     }
+
+    // Show preview immediately
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setPreviewUrl(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
 
     setIsUploading(true);
     try {
@@ -52,12 +57,15 @@ export const ProfileImageModal: React.FC<ProfileImageModalProps> = ({
       
       if (response.data.success && response.data.data) {
         onImageUpdate(response.data.data.fileName);
+        setPreviewUrl(null);
         toast.success('Profile image updated successfully');
         onClose();
       } else {
+        setPreviewUrl(null);
         toast.error(response.data.msg || 'Upload failed');
       }
     } catch (error: any) {
+      setPreviewUrl(null);
       const errorMsg = error.response?.data?.msg || 'Failed to upload image';
       toast.error(errorMsg);
     } finally {
@@ -87,70 +95,220 @@ export const ProfileImageModal: React.FC<ProfileImageModalProps> = ({
     }
   };
 
+  const displayImageUrl = previewUrl || currentImageUrl;
+
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="modal-overlay">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="profile-image-modal-overlay"
+          onClick={onClose}
+        >
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="modal-content profile-image-modal"
+            initial={{ opacity: 0, scale: 0.9, y: 30 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 30 }}
+            transition={{ 
+              type: "spring", 
+              damping: 20, 
+              stiffness: 300,
+              duration: 0.4
+            }}
+            className="profile-image-modal"
+            onClick={(e) => e.stopPropagation()}
           >
-            <div className="modal-header">
-              <h3>Profile Image</h3>
-              <button onClick={onClose} className="modal-close-btn">
+            <motion.div 
+              className="profile-image-modal-header"
+              initial={{ y: -20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.1 }}
+            >
+              <div className="modal-title-section">
+                <motion.div
+                  animate={{ rotate: [0, 10, -10, 0] }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                >
+                  <HiUser className="modal-title-icon" />
+                </motion.div>
+                <h2 className="modal-title">Profile Image</h2>
+              </div>
+              <motion.button 
+                className="modal-close-button" 
+                onClick={onClose}
+                whileHover={{ scale: 1.1, rotate: 90 }}
+                whileTap={{ scale: 0.9 }}
+              >
                 <HiX />
-              </button>
-            </div>
+              </motion.button>
+            </motion.div>
 
-            <div className="modal-body">
-              <div className="current-image-preview">
-                {currentFileName ? (
-                  <PresignedImage
-                    fileName={currentFileName}
-                    alt="Current profile"
-                    className="current-profile-image"
-                    fallback={<div>Loading image...</div>}
-                  />
-                ) : (
-                  <img 
-                    src={`https://api.dicebear.com/7.x/initials/svg?seed=default&backgroundColor=2a5298`}
-                    alt="Default avatar"
-                    className="current-profile-image"
-                  />
-                )}
+            <motion.div 
+              className="profile-image-modal-content"
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              <div className="image-preview-section">
+                <motion.div 
+                  className="image-preview-container"
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ type: "spring", stiffness: 300 }}
+                >
+                  {displayImageUrl ? (
+                    <motion.img 
+                      key={displayImageUrl}
+                      src={displayImageUrl} 
+                      alt="Profile" 
+                      className="preview-image"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.3 }}
+                    />
+                  ) : currentFileName ? (
+                    <PresignedImage
+                      fileName={currentFileName}
+                      alt="Current profile"
+                      className="preview-image"
+                      fallback={
+                        <motion.div 
+                          className="preview-placeholder"
+                          initial={{ scale: 0.8 }}
+                          animate={{ scale: 1 }}
+                          transition={{ type: "spring", stiffness: 200 }}
+                        >
+                          <div className="placeholder-initials">U</div>
+                        </motion.div>
+                      }
+                    />
+                  ) : (
+                    <motion.div 
+                      className="preview-placeholder"
+                      initial={{ scale: 0.8 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring", stiffness: 200 }}
+                    >
+                      <div className="placeholder-initials">U</div>
+                    </motion.div>
+                  )}
+                  <motion.div 
+                    className="image-overlay"
+                    initial={{ opacity: 0 }}
+                    whileHover={{ opacity: 1 }}
+                  >
+                    <motion.div
+                      animate={{ scale: [1, 1.2, 1] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                    >
+                      <HiCamera className="overlay-icon" />
+                    </motion.div>
+                  </motion.div>
+                  {isUploading && (
+                    <motion.div 
+                      className="upload-progress-overlay"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                    >
+                      <div className="upload-progress-spinner" />
+                    </motion.div>
+                  )}
+                </motion.div>
               </div>
 
-              <div className="image-actions">
-                <Button
+              <motion.div 
+                className="action-buttons-section"
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.3 }}
+              >
+                <motion.button
                   onClick={handleFileSelect}
                   disabled={isUploading || isDeleting}
-                  className="upload-btn"
+                  className="action-button primary"
+                  whileHover={{ scale: 1.02, y: -2 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 400 }}
                 >
-                  <HiCamera />
-                  {isUploading ? 'Uploading...' : currentFileName ? 'Change Image' : 'Upload Image'}
-                </Button>
+                  {isUploading ? (
+                    <>
+                      <div className="loading-spinner" />
+                      <span>Uploading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <motion.div
+                        animate={{ y: [0, -2, 0] }}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                      >
+                        <HiUpload />
+                      </motion.div>
+                      <span>{currentFileName ? 'Change Image' : 'Upload Image'}</span>
+                    </>
+                  )}
+                </motion.button>
 
                 {currentFileName && (
-                  <Button
+                  <motion.button
                     onClick={handleDeleteImage}
                     disabled={isUploading || isDeleting}
-                    variant="secondary"
-                    className="delete-btn"
+                    className="action-button danger"
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    whileTap={{ scale: 0.98 }}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ type: "spring", stiffness: 400 }}
                   >
-                    <HiTrash />
-                    {isDeleting ? 'Deleting...' : 'Remove Image'}
-                  </Button>
+                    {isDeleting ? (
+                      <>
+                        <div className="loading-spinner" />
+                        <span>Deleting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <motion.div
+                          whileHover={{ rotate: [0, -10, 10, 0] }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <HiTrash />
+                        </motion.div>
+                        <span>Remove Image</span>
+                      </>
+                    )}
+                  </motion.button>
                 )}
-              </div>
+              </motion.div>
 
-              <div className="upload-info">
-                <p>• Max size: 5MB</p>
-                <p>• Formats: JPEG, PNG, WebP</p>
-                <p>• Rate limit: 10 uploads per 15 minutes</p>
-              </div>
-            </div>
+              <motion.div 
+                className="upload-guidelines"
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.4 }}
+              >
+                {[
+                  { label: 'Max size:', value: '5MB' },
+                  { label: 'Formats:', value: 'JPEG, PNG, WebP' },
+                  { label: 'Rate limit:', value: '10 per 15 min' }
+                ].map((item, index) => (
+                  <motion.div 
+                    key={item.label}
+                    className="guideline-item"
+                    initial={{ x: -20, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{ delay: 0.5 + index * 0.1 }}
+                  >
+                    <span className="guideline-label">{item.label}</span>
+                    <motion.span 
+                      className="guideline-value"
+                      whileHover={{ scale: 1.05 }}
+                    >
+                      {item.value}
+                    </motion.span>
+                  </motion.div>
+                ))}
+              </motion.div>
+            </motion.div>
 
             <input
               ref={fileInputRef}
@@ -160,7 +318,7 @@ export const ProfileImageModal: React.FC<ProfileImageModalProps> = ({
               style={{ display: 'none' }}
             />
           </motion.div>
-        </div>
+        </motion.div>
       )}
     </AnimatePresence>
   );
