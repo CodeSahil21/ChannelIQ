@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  LIVE
+  ENDED
+  CANCELLED
+}
+
+enum ParticipantRole {
+  HOST
+  CO_HOST
+  PARTICIPANT
+}
+
+model Meeting {
+  id                String            @id @default(uuid())
+  title             String
+  description       String?
+  hostId            Int
+  status            MeetingStatus     @default(SCHEDULED)
+  inviteToken       String            @unique
+  inviteExpiresAt   DateTime?
+  passwordHash      String?
+  passwordEnabled   Boolean           @default(false)
+  scheduledAt       DateTime
+  createdAt         DateTime          @default(now())
+  endedAt           DateTime?
+  cancelledAt       DateTime?
+  
+  participants      MeetingParticipant[]
+  
+  @@index([hostId])
+  @@index([status])
+  @@index([inviteToken])
+  @@map("meetings")
+}
+
+model MeetingParticipant {
+  id        Int             @id @default(autoincrement())
+  meetingId String
+  userId    Int
+  role      ParticipantRole @default(PARTICIPANT)
+  joinedAt  DateTime        @default(now())
+  leftAt    DateTime?
+  
+  meeting   Meeting         @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  
+  @@unique([meetingId, userId])
+  @@index([meetingId])
+  @@index([userId])
+  @@map("meeting_participants")
+}
