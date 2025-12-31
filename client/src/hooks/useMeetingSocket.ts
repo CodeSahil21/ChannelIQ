@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useSelector } from 'react-redux';
 import { useAppDispatch } from './useAppDispatch';
-import { updateParticipant, removeParticipant, updateMeetingStatus, socketParticipantJoined, socketParticipantLeft, socketParticipantRoleChanged, socketMeetingStatusChanged } from '../store/meetingSlice';
+import { updateParticipant, removeParticipant, updateMeetingStatus, socketParticipantJoined, socketParticipantLeft, socketParticipantRoleChanged, socketMeetingStatusChanged, participantMuted, participantUnmuted, addUnmuteRequest } from '../store/meetingSlice';
 import type { ParticipantRole } from '../types/meeting.types';
 import type { RootState } from '../store';
 
@@ -78,6 +78,25 @@ export const useMeetingSocket = (meetingId: string | null) => {
       dispatch(socketMeetingStatusChanged('ENDED'));
     });
 
+    newSocket.on('participantMuted', (data) => {
+      console.log('🔇 Participant muted:', data);
+      dispatch(participantMuted(data.targetUserId));
+    });
+
+    newSocket.on('participantUnmuted', (data) => {
+      console.log('🔊 Participant unmuted:', data);
+      dispatch(participantUnmuted(data.targetUserId));
+    });
+
+    newSocket.on('unmuteRequested', (data) => {
+      console.log('✋ Unmute requested:', data);
+      dispatch(addUnmuteRequest({
+        userId: data.userId,
+        userName: data.userName || `User ${data.userId}`,
+        timestamp: data.timestamp
+      }));
+    });
+
     setSocket(newSocket);
 
     return () => {
@@ -97,10 +116,31 @@ export const useMeetingSocket = (meetingId: string | null) => {
     }
   }, [socket, meetingId]);
 
+  const muteParticipant = useCallback((targetUserId: number) => {
+    if (meetingId) {
+      socket?.emit('muteParticipant', { meetingId, targetUserId });
+    }
+  }, [socket, meetingId]);
+
+  const unmuteParticipant = useCallback((targetUserId: number) => {
+    if (meetingId) {
+      socket?.emit('unmuteParticipant', { meetingId, targetUserId });
+    }
+  }, [socket, meetingId]);
+
+  const requestUnmute = useCallback(() => {
+    if (meetingId) {
+      socket?.emit('requestUnmute', { meetingId });
+    }
+  }, [socket, meetingId]);
+
   return {
     socket,
     isConnected,
     joinMeetingRoom,
-    leaveMeetingRoom
+    leaveMeetingRoom,
+    muteParticipant,
+    unmuteParticipant,
+    requestUnmute
   };
 };

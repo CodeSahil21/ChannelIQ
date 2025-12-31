@@ -23,11 +23,13 @@ const MeetingParticipants: React.FC<MeetingParticipantsProps> = ({
 }) => {
   const dispatch = useAppDispatch();
   const participants = useAppSelector(state => state.meeting.participants);
+  const mutedParticipants = useAppSelector(state => state.meeting.mutedParticipants);
   const currentUser = useAppSelector(state => state.user.user);
   const canManageRoles = userRole === 'HOST';
+  const canMuteParticipants = userRole === 'HOST' || userRole === 'CO_HOST';
 
   // Initialize meeting socket for real-time updates
-  const { isConnected, joinMeetingRoom } = useMeetingSocket(meetingId);
+  const { isConnected, joinMeetingRoom, muteParticipant, unmuteParticipant } = useMeetingSocket(meetingId);
 
   useEffect(() => {
     if (meetingId) {
@@ -53,6 +55,16 @@ const MeetingParticipants: React.FC<MeetingParticipantsProps> = ({
       meetingId,
       data: { userId }
     }));
+  };
+
+  const handleMute = (userId: number) => {
+    if (!canMuteParticipants) return;
+    muteParticipant(userId);
+  };
+
+  const handleUnmute = (userId: number) => {
+    if (!canMuteParticipants) return;
+    unmuteParticipant(userId);
   };
 
   const getRoleBadge = (role: ParticipantRole) => {
@@ -131,6 +143,28 @@ const MeetingParticipants: React.FC<MeetingParticipantsProps> = ({
 
               <div className="participant-item__role-section">
                 {getRoleBadge(participant.role)}
+                
+                {canMuteParticipants && participant.userId !== currentUser?.id && (
+                  <div className="participant-item__mute-controls">
+                    {mutedParticipants.includes(participant.userId) ? (
+                      <button
+                        onClick={() => handleUnmute(participant.userId)}
+                        className="participant-action participant-action--unmute"
+                        title="Unmute Participant"
+                      >
+                        🔊
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleMute(participant.userId)}
+                        className="participant-action participant-action--mute"
+                        title="Mute Participant"
+                      >
+                        🔇
+                      </button>
+                    )}
+                  </div>
+                )}
                 
                 {canManageRoles && participant.role !== 'HOST' && (
                   <div className="participant-item__actions">

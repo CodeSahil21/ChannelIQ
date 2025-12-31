@@ -1,5 +1,6 @@
 import React, { useEffect, Suspense } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import { HiArrowLeft } from 'react-icons/hi';
 import { useAppDispatch, useAppSelector } from '../hooks/useAppDispatch';
 import { searchMeeting, clearError, resetMeetingState } from '../store/meetingSlice';
 import MeetingHero from '../components/meetings/MeetingHero';
@@ -14,6 +15,7 @@ const Meeting: React.FC = () => {
   const { meetingId } = useParams<{ meetingId: string }>();
   const [searchParams] = useSearchParams();
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   
   const {
     currentMeeting,
@@ -61,6 +63,17 @@ const Meeting: React.FC = () => {
   return (
     <div className="meeting-page">
       <div className="meeting-page__container">
+        {/* Back Button */}
+        <div className="meeting-page__header">
+          <button 
+            onClick={() => navigate('/meetings')}
+            className="meeting-back-btn"
+            title="Back to Meetings"
+          >
+            Back
+          </button>
+        </div>
+
         {/* Meeting Hero Section */}
         <section className="meeting-section meeting-section--hero">
           <MeetingHero meeting={currentMeeting} loading={loading} />

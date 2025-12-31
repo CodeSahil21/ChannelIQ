@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LiveKitRoom as LiveKitRoomComponent, VideoConference, ControlBar, Chat } from '@livekit/components-react';
+import { LiveKitRoom as LiveKitRoomComponent, VideoConference, useLocalParticipant } from '@livekit/components-react';
 import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
-import { getLiveKitToken, setLiveKitReady, leaveMeeting } from '../../store/meetingSlice';
+import { getLiveKitToken, setLiveKitReady, leaveMeeting, participantMuted, participantUnmuted } from '../../store/meetingSlice';
+import { useMeetingSocket } from '../../hooks/useMeetingSocket';
 import type { Meeting, ParticipantRole } from '../../types/meeting.types';
 
 interface LiveKitRoomProps {
@@ -13,7 +14,9 @@ interface LiveKitRoomProps {
 const LiveKitRoom: React.FC<LiveKitRoomProps> = ({ meeting, userRole }) => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { tokenLoading, liveKitReady } = useAppSelector(state => state.meeting);
+  const { tokenLoading, liveKitReady, mutedParticipants } = useAppSelector(state => state.meeting);
+  const currentUser = useAppSelector(state => state.user.user);
+  const { requestUnmute } = useMeetingSocket(meeting?.id || null);
   
   const [token, setToken] = useState<string>('');
   const [wsUrl, setWsUrl] = useState<string>('');
@@ -132,12 +135,44 @@ const LiveKitRoom: React.FC<LiveKitRoomProps> = ({ meeting, userRole }) => {
         onConnected={handleConnected}
         onDisconnected={handleDisconnected}
       >
+        <MuteHandler 
+          currentUserId={currentUser?.id || 0}
+          mutedParticipants={mutedParticipants}
+          requestUnmute={requestUnmute}
+        />
         <VideoConference 
           chatMessageFormatter={undefined}
         />
       </LiveKitRoomComponent>
     </div>
   );
+};
+
+// Component to handle mute/unmute based on socket events
+const MuteHandler: React.FC<{
+  currentUserId: number;
+  mutedParticipants: number[];
+  requestUnmute: () => void;
+}> = ({ currentUserId, mutedParticipants, requestUnmute }) => {
+  const { localParticipant } = useLocalParticipant();
+  const [isLocallyMuted, setIsLocallyMuted] = useState(false);
+
+  // Handle mute/unmute based on socket events
+  useEffect(() => {
+    const shouldBeMuted = mutedParticipants.includes(currentUserId);
+    
+    if (shouldBeMuted && !isLocallyMuted) {
+      // Mute the participant
+      localParticipant.setMicrophoneEnabled(false);
+      setIsLocallyMuted(true);
+    } else if (!shouldBeMuted && isLocallyMuted) {
+      // Unmute the participant
+      localParticipant.setMicrophoneEnabled(true);
+      setIsLocallyMuted(false);
+    }
+  }, [mutedParticipants, currentUserId, localParticipant, isLocallyMuted]);
+
+  return null; // This component doesn't render anything
 };
 
 export default LiveKitRoom;

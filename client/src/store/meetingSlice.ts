@@ -19,7 +19,9 @@ const initialState: MeetingState = {
   error: null,
   joinLoading: false,
   tokenLoading: false,
-  liveKitReady: false
+  liveKitReady: false,
+  mutedParticipants: [],
+  unmuteRequests: []
 };
 
 export const createMeeting = createAsyncThunk(
@@ -224,6 +226,24 @@ const meetingSlice = createSlice({
         console.log(`📊 Meeting status changed via socket: ${action.payload}`);
       }
     },
+    // Mute control actions
+    participantMuted: (state, action: PayloadAction<number>) => {
+      if (!state.mutedParticipants.includes(action.payload)) {
+        state.mutedParticipants.push(action.payload);
+      }
+    },
+    participantUnmuted: (state, action: PayloadAction<number>) => {
+      state.mutedParticipants = state.mutedParticipants.filter(id => id !== action.payload);
+    },
+    addUnmuteRequest: (state, action: PayloadAction<{ userId: number; userName: string; timestamp: string }>) => {
+      const exists = state.unmuteRequests.find(req => req.userId === action.payload.userId);
+      if (!exists) {
+        state.unmuteRequests.push(action.payload);
+      }
+    },
+    removeUnmuteRequest: (state, action: PayloadAction<number>) => {
+      state.unmuteRequests = state.unmuteRequests.filter(req => req.userId !== action.payload);
+    },
     resetMeetingState: () => initialState
   },
   extraReducers: (builder) => {
@@ -365,6 +385,10 @@ export const {
   socketParticipantLeft,
   socketParticipantRoleChanged,
   socketMeetingStatusChanged,
+  participantMuted,
+  participantUnmuted,
+  addUnmuteRequest,
+  removeUnmuteRequest,
   resetMeetingState
 } = meetingSlice.actions;
 

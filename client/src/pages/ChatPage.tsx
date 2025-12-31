@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
-import { HiSearch, HiPlus, HiDotsVertical } from 'react-icons/hi';
+import { HiSearch, HiPlus, HiDotsVertical, HiHome } from 'react-icons/hi';
+import { useNavigate } from 'react-router-dom';
 import { CreateGroupModal } from '../components/Chat/CreateGroupModal';
 import { SearchGroupModal } from '../components/Chat/SearchGroupModal';
 import { PendingRequestModal } from '../components/Chat/PendingRequestModal';
@@ -53,6 +54,7 @@ const MemoizedGroupsList = memo(({ groups, selectedGroupId, onGroupClick, loadin
 ));
 
 export const ChatPage: React.FC = () => {
+  const navigate = useNavigate();
   const [showDropdown, setShowDropdown] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
@@ -106,6 +108,13 @@ export const ChatPage: React.FC = () => {
             <div className="chat-header-top">
               <h1 className="chat-sidebar-title">Corporate Chat</h1>
               <div className="chat-header-actions">
+                <button 
+                  className="chat-action-btn"
+                  onClick={() => navigate('/dashboard')}
+                  title="Go to Home"
+                >
+                  <HiHome />
+                </button>
                 <button 
                   className="chat-action-btn"
                   onClick={() => setShowCreateModal(true)}
