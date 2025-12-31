@@ -187,7 +187,7 @@ export const endMeeting = async (id: string, hostId: number): Promise<void> => {
   await CacheService.delete(CacheKeys.meeting(id));
 };
 
-export const joinMeeting = async (id: string, userId: number, data: JoinMeetingRequest): Promise<ParticipantRole> => {
+export const joinMeeting = async (id: string, userId: number, data: JoinMeetingRequest): Promise<{role: ParticipantRole, userName?: string, userEmail?: string}> => {
   const meeting = await prisma.meeting.findUnique({
     where: { id },
     include: { participants: true },
@@ -200,7 +200,13 @@ export const joinMeeting = async (id: string, userId: number, data: JoinMeetingR
   // Check if already a participant
   const existingParticipant = meeting.participants.find(p => p.userId === userId);
   if (existingParticipant) {
-    return existingParticipant.role;
+    // Get user details for existing participant
+    const userDetails = await getUserDetails(userId);
+    return { 
+      role: existingParticipant.role,
+      userName: userDetails?.name,
+      userEmail: userDetails?.email
+    };
   }
 
   // Validate access
@@ -218,11 +224,18 @@ export const joinMeeting = async (id: string, userId: number, data: JoinMeetingR
     },
   });
 
+  // Get user details
+  const userDetails = await getUserDetails(userId);
+
   // Invalidate cache
   await CacheService.delete(CacheKeys.meeting(id));
   await CacheService.delete(CacheKeys.meetingParticipants(id));
 
-  return participant.role;
+  return { 
+    role: participant.role,
+    userName: userDetails?.name,
+    userEmail: userDetails?.email
+  };
 };
 
 export const setPassword = async (id: string, hostId: number, password: string): Promise<void> => {
@@ -257,7 +270,7 @@ export const removePassword = async (id: string, hostId: number): Promise<void> 
   await CacheService.delete(CacheKeys.meeting(id));
 };
 
-export const promoteToCoHost = async (id: string, hostId: number, targetUserId: number): Promise<void> => {
+export const promoteToCoHost = async (id: string, hostId: number, targetUserId: number): Promise<{userName?: string}> => {
   await prisma.$transaction(async (tx) => {
     const meeting = await tx.meeting.findUnique({
       where: { id },
@@ -288,12 +301,17 @@ export const promoteToCoHost = async (id: string, hostId: number, targetUserId: 
     });
   });
 
+  // Get user details
+  const userDetails = await getUserDetails(targetUserId);
+
   // Invalidate cache
   await CacheService.delete(CacheKeys.meeting(id));
   await CacheService.delete(CacheKeys.meetingParticipants(id));
+
+  return { userName: userDetails?.name };
 };
 
-export const leaveMeeting = async (id: string, userId: number): Promise<void> => {
+export const leaveMeeting = async (id: string, userId: number): Promise<{role: ParticipantRole, userName?: string, userEmail?: string}> => {
   const meeting = await prisma.meeting.findUnique({
     where: { id },
     include: { participants: true },
@@ -307,6 +325,10 @@ export const leaveMeeting = async (id: string, userId: number): Promise<void> =>
   if (!participant) {
     throw new Error('Not a participant');
   }
+
+  // Get user details before leaving
+  const userDetails = await getUserDetails(userId);
+  const participantRole = participant.role;
 
   // If host is leaving, handle succession
   if (participant.role === 'HOST') {
@@ -353,9 +375,15 @@ export const leaveMeeting = async (id: string, userId: number): Promise<void> =>
   // Invalidate cache
   await CacheService.delete(CacheKeys.meeting(id));
   await CacheService.delete(CacheKeys.meetingParticipants(id));
+
+  return {
+    role: participantRole,
+    userName: userDetails?.name,
+    userEmail: userDetails?.email
+  };
 };
 
-export const demoteCoHost = async (id: string, hostId: number, targetUserId: number): Promise<void> => {
+export const demoteCoHost = async (id: string, hostId: number, targetUserId: number): Promise<{userName?: string}> => {
   await validateMeetingAccess(id, hostId, 'HOST');
   
   await prisma.meetingParticipant.updateMany({
@@ -367,9 +395,28 @@ export const demoteCoHost = async (id: string, hostId: number, targetUserId: num
     data: { role: 'PARTICIPANT' },
   });
 
+  // Get user details
+  const userDetails = await getUserDetails(targetUserId);
+
   // Invalidate cache
   await CacheService.delete(CacheKeys.meeting(id));
   await CacheService.delete(CacheKeys.meetingParticipants(id));
+
+  return { userName: userDetails?.name };
+};
+
+const getUserDetails = async (userId: number): Promise<{name?: string, email?: string} | null> => {
+  try {
+    // This would typically call user-management-service
+    // For now, return basic structure
+    return {
+      name: `User ${userId}`,
+      email: `user${userId}@example.com`
+    };
+  } catch (error) {
+    console.error('Error fetching user details:', error);
+    return null;
+  }
 };
 
 const validateMeetingAccess = async (
@@ -400,24 +447,36 @@ const validateMeetingAccess = async (
 };
 
 const validateJoinAccess = async (meeting: any, data: JoinMeetingRequest): Promise<boolean> => {
+  console.log('Validating join access:', { meetingId: meeting.id, data });
+  console.log('Meeting invite token:', meeting.inviteToken);
+  console.log('Meeting password enabled:', meeting.passwordEnabled);
+  
   // Check invite token
   if (data.inviteToken) {
+    console.log('Checking invite token:', data.inviteToken);
     if (meeting.inviteToken !== data.inviteToken) {
+      console.log('Invite token mismatch');
       return false;
     }
     
     if (meeting.inviteExpiresAt && new Date() > meeting.inviteExpiresAt) {
+      console.log('Invite token expired');
       return false;
     }
     
+    console.log('Invite token valid');
     return true;
   }
 
   // Check password
   if (data.password && meeting.passwordEnabled && meeting.passwordHash) {
-    return await bcrypt.compare(data.password, meeting.passwordHash);
+    console.log('Checking password');
+    const isValid = await bcrypt.compare(data.password, meeting.passwordHash);
+    console.log('Password valid:', isValid);
+    return isValid;
   }
 
+  console.log('No valid credentials provided');
   return false;
 };
 

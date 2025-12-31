@@ -187,13 +187,77 @@ const socketProxy = createProxyMiddleware({
 
 app.use('/socket.io/', socketProxy);
 
+// Meeting Socket.IO Proxy for WebSocket connections
+const meetingSocketProxy = createProxyMiddleware({
+    target: 'http://localhost:3005',
+    changeOrigin: true,
+    ws: true, // Enable WebSocket proxying
+    logLevel: 'debug',
+    headers: {
+        'Connection': 'upgrade',
+        'Upgrade': 'websocket'
+    },
+    onProxyReq: (proxyReq, req) => {
+        console.log(`→ Meeting Socket.IO: ${req.method} ${req.path}`);
+        // Forward cookies for authentication
+        if (req.headers.cookie) {
+            proxyReq.setHeader('cookie', req.headers.cookie);
+        }
+    },
+    onProxyReqWs: (proxyReq, req, socket) => {
+        console.log(`→ Meeting Socket.IO WS: ${req.url}`);
+        // Forward cookies for WebSocket authentication
+        if (req.headers.cookie) {
+            proxyReq.setHeader('cookie', req.headers.cookie);
+        }
+    },
+    onError: (err, req, res) => {
+        console.error(`❌ Meeting Socket.IO proxy error:`, err.message);
+    }
+});
+
+app.use('/meeting-socket/', meetingSocketProxy);
+
 // Handle WebSocket upgrade
 server.on('upgrade', (request, socket, head) => {
     if (request.url?.startsWith('/socket.io/')) {
         console.log('🔌 WebSocket upgrade for Socket.IO');
         socketProxy.upgrade?.(request as any, socket as any, head);
+    } else if (request.url?.startsWith('/meeting-socket/')) {
+        console.log('🔌 WebSocket upgrade for Meeting Socket.IO');
+        meetingSocketProxy.upgrade?.(request as any, socket as any, head);
     }
 });
+
+// Meeting Service Proxy
+app.use('/api/meetings', createProxyMiddleware({
+    target: 'http://localhost:3005',
+    changeOrigin: true,
+    pathRewrite: {
+        '^/api/meetings': '/api/meetings'
+    },
+    onProxyReq: (proxyReq, req) => {
+        try {
+            proxyReq.removeHeader?.('if-none-match');
+            proxyReq.removeHeader?.('if-modified-since');
+        } catch (e) {}
+        console.log(`→ Meetings: ${req.method} ${req.path} → /api/meetings${req.path.replace('/api/meetings', '')}`);
+    },
+    onProxyRes: (proxyRes, req) => {
+        delete proxyRes.headers['etag'];
+        proxyRes.headers['cache-control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate';
+        console.log(`← Meetings: ${proxyRes.statusCode}`);
+    },
+    onError: (err, req, res) => {
+        console.error(`❌ Meetings proxy error:`, err.message);
+        if (!res.headersSent) {
+            res.status(502).json({ 
+                success: false, 
+                message: 'Meeting service unavailable' 
+            });
+        }
+    }
+}));
 
 // Groups/Chat Service Proxy
 app.use('/api/groups', createProxyMiddleware({
@@ -242,8 +306,10 @@ server.listen(PORT, () => {
     console.log(`   /api/users/* → http://localhost:3002/api/v1/user-management/*`);
     console.log(`   /api/connections/* → http://localhost:3002/api/v1/connections/*`);
     console.log(`   /api/media/* → http://localhost:3003/api/v1/media/*`);
+    console.log(`   /api/meetings/* → http://localhost:3005/api/meetings/*`);
     console.log(`   /api/groups/* → http://localhost:3004/groups/*`);
     console.log(`   /socket.io/* → http://localhost:3004/socket.io/* (WebSocket)`);
+    console.log(`   /meeting-socket/* → http://localhost:3005/meeting-socket/* (WebSocket)`);
 });
 
 export default app;

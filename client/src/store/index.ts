@@ -7,6 +7,7 @@ import mediaReducer from "./mediaSlice";
 import profileReducer from "./profileSlice";
 import messagesReducer from "./messagesSlice";
 import groupContentReducer from "./groupContentSlice";
+import meetingReducer from "./meetingSlice";
 
 export const store = configureStore({
   reducer: {
@@ -18,6 +19,7 @@ export const store = configureStore({
     profile: profileReducer,
     messages: messagesReducer,
     groupContent: groupContentReducer,
+    meeting: meetingReducer,
   },
 });
 

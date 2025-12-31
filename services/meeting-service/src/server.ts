@@ -1,8 +1,11 @@
 import app from './app';
 import { connectDb, disconnectDb } from './config/db';
-import { connectRedis } from './redis';
+import { connectRedis, redis, pubClient, subClient } from './redis';
 import { initializeKafka, disconnectKafka } from './kafka/kafkaManager';
 import { env } from './config/env';
+import { createServer } from 'http';
+import { initMeetingSocket } from './sockets';
+import { setMeetingSocketServer } from './services/meetingSocket.service';
 
 const PORT = env.PORT;
 
@@ -23,9 +26,14 @@ const startServer = async () => {
     await initializeKafka();
     console.log('✅ Kafka initialized successfully');
 
-    // Start HTTP server
-    const server = app.listen(PORT, () => {
+    // Create HTTP server and initialize Socket.IO
+    const server = createServer(app);
+    const io = initMeetingSocket(server);
+    setMeetingSocketServer(io);
+    
+    server.listen(PORT, () => {
       console.log(`🚀 Meeting service running on port ${PORT}`);
+      console.log(`📡 Meeting Socket.IO server initialized`);
     });
 
     // Graceful shutdown
@@ -38,6 +46,12 @@ const startServer = async () => {
         try {
           await disconnectKafka();
           await disconnectDb();
+          
+          // Close Redis connections
+          if (redis.isOpen) await redis.quit();
+          if (pubClient.isOpen) await pubClient.quit();
+          if (subClient.isOpen) await subClient.quit();
+          
           console.log('All connections closed');
           process.exit(0);
         } catch (error) {

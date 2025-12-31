@@ -20,6 +20,8 @@ const Profile = lazy(() => import('./pages/Profile'));
 const Preferences = lazy(() => import('./pages/Preferences'));
 const ConnectionsWithContext = lazy(() => import('./pages/Connections'));
 const ChatPage = lazy(() => import('./pages/ChatPage'));
+const Meeting = lazy(() => import('./pages/Meeting'));
+const MeetingDemo = lazy(() => import('./pages/MeetingDemo'));
 function AnimatedRoutes() {
   const location = useLocation();
   
@@ -73,6 +75,20 @@ function AnimatedRoutes() {
               <ChatPage />
             </Suspense>
            </UserProtectWrapper>
+        } />
+        <Route path="/meeting/:meetingId" element={
+          <UserProtectWrapper>
+            <Suspense fallback={<Loader text="Loading Meeting..." />}>
+              <Meeting />
+            </Suspense>
+          </UserProtectWrapper>
+        } />
+        <Route path="/meetings" element={
+          <UserProtectWrapper>
+            <Suspense fallback={<Loader text="Loading Meetings..." />}>
+              <MeetingDemo />
+            </Suspense>
+          </UserProtectWrapper>
         } />
       </Routes>
     </AnimatePresence>

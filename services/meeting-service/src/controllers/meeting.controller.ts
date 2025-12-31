@@ -26,6 +26,13 @@ import {
   paginationSchema,
 } from '../utils/validation';
 import { publishMeetingEvent } from '../kafka/publisher';
+import {
+  emitParticipantJoined,
+  emitParticipantLeft,
+  emitParticipantRoleChanged,
+  emitMeetingStarted,
+  emitMeetingEnded
+} from '../services/meetingSocket.service';
 
 const liveKitService = new LiveKitService();
 
@@ -236,6 +243,13 @@ export const startMeetingController = async (
       timestamp: new Date().toISOString(),
     });
 
+    // Emit real-time event
+    await emitMeetingStarted({
+      meetingId: id,
+      hostId: req.user!.id,
+      timestamp: new Date().toISOString()
+    });
+
     res.json({
       success: true,
       message: 'Meeting started successfully',
@@ -262,6 +276,13 @@ export const endMeetingController = async (
       meetingId: id,
       userId: req.user!.id,
       timestamp: new Date().toISOString(),
+    });
+
+    // Emit real-time event
+    await emitMeetingEnded({
+      meetingId: id,
+      hostId: req.user!.id,
+      timestamp: new Date().toISOString()
     });
 
     res.json({
@@ -299,20 +320,30 @@ export const joinMeetingController = async (
     }
 
     const { id } = req.params;
-    const role = await joinMeeting(id, req.user!.id, validationResult.data);
+    const result = await joinMeeting(id, req.user!.id, validationResult.data);
     
     await publishMeetingEvent({
       type: 'PARTICIPANT_JOINED',
       meetingId: id,
       userId: req.user!.id,
-      data: { role },
+      data: { role: result.role },
       timestamp: new Date().toISOString(),
+    });
+
+    // Emit real-time event
+    await emitParticipantJoined({
+      meetingId: id,
+      userId: req.user!.id,
+      userName: result.userName,
+      userEmail: result.userEmail,
+      role: result.role,
+      timestamp: new Date().toISOString()
     });
 
     res.json({
       success: true,
       message: 'Joined meeting successfully',
-      data: { role },
+      data: { role: result.role },
     });
   } catch (error: any) {
     console.error('Error joining meeting:', error);
@@ -348,12 +379,18 @@ export const getLiveKitTokenController = async (
       return;
     }
 
-    const token = liveKitService.generateToken(id, req.user!.id, participant.role);
+    const token = await liveKitService.generateToken(id, req.user!.id, participant.role);
     const wsUrl = liveKitService.getWsUrl();
+    
+    console.log('Generated token type:', typeof token);
+    console.log('Generated token value:', token);
     
     res.json({
       success: true,
-      data: { token, wsUrl },
+      data: { 
+        token: String(token), 
+        wsUrl: String(wsUrl) 
+      },
     });
   } catch (error: any) {
     console.error('Error generating LiveKit token:', error);
@@ -475,7 +512,18 @@ export const promoteToCoHostController = async (
 
     const { id } = req.params;
     const { userId } = validationResult.data;
-    await promoteToCoHost(id, req.user!.id, userId);
+    const result = await promoteToCoHost(id, req.user!.id, userId);
+    
+    // Emit real-time event
+    await emitParticipantRoleChanged({
+      meetingId: id,
+      userId,
+      userName: result.userName,
+      oldRole: 'PARTICIPANT',
+      newRole: 'CO_HOST',
+      changedBy: req.user!.id,
+      timestamp: new Date().toISOString()
+    });
     
     res.json({
       success: true,
@@ -496,7 +544,17 @@ export const leaveMeetingController = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    await leaveMeeting(id, req.user!.id);
+    const result = await leaveMeeting(id, req.user!.id);
+    
+    // Emit real-time event
+    await emitParticipantLeft({
+      meetingId: id,
+      userId: req.user!.id,
+      userName: result.userName,
+      userEmail: result.userEmail,
+      role: result.role,
+      timestamp: new Date().toISOString()
+    });
     
     res.json({
       success: true,
@@ -534,7 +592,18 @@ export const demoteCoHostController = async (
 
     const { id } = req.params;
     const { userId } = validationResult.data;
-    await demoteCoHost(id, req.user!.id, userId);
+    const result = await demoteCoHost(id, req.user!.id, userId);
+    
+    // Emit real-time event
+    await emitParticipantRoleChanged({
+      meetingId: id,
+      userId,
+      userName: result.userName,
+      oldRole: 'CO_HOST',
+      newRole: 'PARTICIPANT',
+      changedBy: req.user!.id,
+      timestamp: new Date().toISOString()
+    });
     
     res.json({
       success: true,

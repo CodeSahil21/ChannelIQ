@@ -1,5 +1,5 @@
 import React from 'react';
-import { HiHome, HiUser, HiCog, HiX, HiUserGroup, HiChat } from 'react-icons/hi';
+import { HiHome, HiUser, HiCog, HiX, HiUserGroup, HiChat, HiVideoCamera } from 'react-icons/hi';
 import { useNavigate } from 'react-router-dom';
 
 interface SidebarProps {
@@ -62,6 +62,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             >
               <HiChat className="sidebar-icon" />
               <span>Chat</span>
+            </button>
+            
+            <button 
+              className="sidebar-item"
+              onClick={() => handleNavigation('/meetings')}
+            >
+              <HiVideoCamera className="sidebar-icon" />
+              <span>Meetings</span>
             </button>
           </div>
           
