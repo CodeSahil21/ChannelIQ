@@ -2909,7 +2909,7 @@ input:checked + .toggle-slider:before {
   text-align: center;
 }
 
-/* Groups List */
+/* Chat Groups List - Updated for GroupCard */
 .chat-groups-list {
   flex: 1;
   overflow-y: auto;
@@ -2917,127 +2917,14 @@ input:checked + .toggle-slider:before {
   scrollbar-width: none;
   -ms-overflow-style: none;
   overscroll-behavior: contain;
+  padding: 8px;
 }
 
 .chat-groups-list::-webkit-scrollbar {
   display: none;
 }
 
-.chat-group-item {
-  display: flex;
-  align-items: center;
-  padding: 16px 20px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border-bottom: 1px solid var(--border-color);
-  position: relative;
-}
-
-.chat-group-item::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  height: 100%;
-  width: 3px;
-  background: var(--accent-gradient);
-  transform: scaleY(0);
-  transition: transform 0.3s ease;
-}
-
-.chat-group-item:hover {
-  background: var(--bg-secondary);
-  transform: translateX(4px);
-}
-
-.chat-group-item:hover::before {
-  transform: scaleY(1);
-}
-
-.chat-group-item.active {
-  background: var(--bg-secondary);
-  transform: translateX(4px);
-}
-
-.chat-group-item.active::before {
-  transform: scaleY(1);
-}
-
-.chat-group-item:last-child {
-  border-bottom: none;
-}
-
-.chat-group-avatar {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background: var(--accent-gradient);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: 700;
-  font-size: 16px;
-  margin-right: 16px;
-  flex-shrink: 0;
-}
-
-.chat-group-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.chat-group-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-}
-
-.chat-group-name {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.chat-group-time {
-  font-size: 12px;
-  color: var(--text-muted);
-  flex-shrink: 0;
-}
-
-.chat-group-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.chat-group-message {
-  font-size: 14px;
-  color: var(--text-secondary);
-  margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  margin-right: 8px;
-}
-
-.chat-unread-badge {
-  background: var(--accent-color);
-  color: white;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 12px;
-  min-width: 20px;
-  text-align: center;
-  flex-shrink: 0;
-}
+/* Remove old chat-group-item styles since we're using GroupCard now */
 
 /* Chat Main Area */
 .chat-main {
@@ -4437,6 +4324,7 @@ input:checked + .toggle-slider:before {
 .group-details {
   display: flex;
   align-items: center;
+  gap: 12px;
   font-size: 14px;
   color: var(--text-secondary);
 }
@@ -4446,6 +4334,17 @@ input:checked + .toggle-slider:before {
   align-items: center;
   gap: 6px;
   font-weight: 500;
+}
+
+.group-role {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: var(--bg-secondary);
+  color: var(--accent-color);
+  border: 1px solid var(--border-color);
 }
 
 .privacy-icon {
@@ -6580,6 +6479,21 @@ input:checked + .toggle-slider:before {
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
+  pointer-events: none;
+}
+
+/* Disable image interactions globally */
+img {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  pointer-events: none;
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
 }
 /* File Upload Loading States */
 .file-upload-btn.uploading {

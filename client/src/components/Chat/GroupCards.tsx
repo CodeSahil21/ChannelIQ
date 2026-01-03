@@ -44,6 +44,9 @@ const GroupCard: React.FC<GroupCardProps> = ({ membership, onClick }) => {
               'Public'
             )}
           </span>
+          <span className="group-role">
+            {membership.role}
+          </span>
         </div>
       </div>
     </div>

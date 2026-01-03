@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { CreateGroupModal } from '../components/Chat/CreateGroupModal';
 import { SearchGroupModal } from '../components/Chat/SearchGroupModal';
 import { PendingRequestModal } from '../components/Chat/PendingRequestModal';
+import GroupCard from '../components/Chat/GroupCards';
 import { useGroups } from '../hooks/useGroups';
 import { GroupDetailView } from '../components/Chat/GroupDetailView';
 
@@ -25,29 +26,11 @@ const MemoizedGroupsList = memo(({ groups, selectedGroupId, onGroupClick, loadin
       <div className="chat-empty">No groups found</div>
     ) : (
       groups.map((userGroup: any) => (
-        <div 
-          key={userGroup.id} 
-          className={`chat-group-item ${selectedGroupId === userGroup.groupId ? 'active' : ''}`}
+        <GroupCard
+          key={userGroup.id}
+          membership={userGroup}
           onClick={() => onGroupClick(userGroup)}
-        >
-          <div className="chat-group-avatar">
-            {userGroup.group.name.split(' ').map((word: string) => word[0]).join('').toUpperCase().slice(0, 2)}
-          </div>
-          <div className="chat-group-info">
-            <div className="chat-group-header">
-              <h3 className="chat-group-name">{userGroup.group.name}</h3>
-              <span className="chat-group-time">{new Date(userGroup.joinedAt).toLocaleDateString()}</span>
-            </div>
-            <div className="chat-group-footer">
-              <p className="chat-group-message">
-                {userGroup.group.description || 'No description'}
-              </p>
-              {userGroup.group._count && (
-                <span className="chat-member-count">{userGroup.group._count.members} members</span>
-              )}
-            </div>
-          </div>
-        </div>
+        />
       ))
     )}
   </div>
@@ -59,10 +42,19 @@ export const ChatPage: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showPendingModal, setShowPendingModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { groups, currentGroup, getMyGroups, getGroupDetails, loading } = useGroups();
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [localCurrentGroup, setLocalCurrentGroup] = useState<any>(null);
+
+  // Filter groups based on search query
+  const filteredGroups = React.useMemo(() => {
+    if (!searchQuery.trim()) return groups;
+    return groups.filter((userGroup: any) => 
+      userGroup.group.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [groups, searchQuery]);
 
   // Use full group details when available, fallback to local
   const displayGroup = currentGroup && currentGroup.id === selectedGroupId ? currentGroup : localCurrentGroup;
@@ -161,6 +153,8 @@ export const ChatPage: React.FC = () => {
                 type="text" 
                 placeholder="Search conversations..." 
                 className="chat-search-input"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
           </div>
@@ -173,7 +167,7 @@ export const ChatPage: React.FC = () => {
 
           {/* Groups List */}
           <MemoizedGroupsList 
-            groups={groups}
+            groups={filteredGroups}
             selectedGroupId={selectedGroupId}
             onGroupClick={handleGroupClick}
             loading={loading}
