@@ -9,9 +9,10 @@ import toast from 'react-hot-toast';
 
 interface NavbarProps {
   onMenuClick: () => void;
+  theme?: 'light' | 'dark';
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
+export const Navbar: React.FC<NavbarProps> = ({ onMenuClick, theme = 'light' }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const user = useSelector((state: RootState) => state.user.user);

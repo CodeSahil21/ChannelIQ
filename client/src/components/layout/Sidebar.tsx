@@ -5,9 +5,10 @@ import { useNavigate } from 'react-router-dom';
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  theme?: 'light' | 'dark';
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, theme = 'light' }) => {
   const navigate = useNavigate();
   
   const handleNavigation = (path: string) => {
