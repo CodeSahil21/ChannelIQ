@@ -51,7 +51,7 @@ const CreatePollModal: React.FC<CreatePollModalProps> = ({
         expiresAt: undefined
       });
     } catch (error) {
-      console.error('Failed to create poll:', error);
+      toast.error('Failed to create poll. Please try again.');
     }
   };
 

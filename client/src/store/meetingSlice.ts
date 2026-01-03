@@ -21,7 +21,9 @@ const initialState: MeetingState = {
   tokenLoading: false,
   liveKitReady: false,
   mutedParticipants: [],
-  unmuteRequests: []
+  unmuteRequests: [],
+  cameraDisabledParticipants: [],
+  screenSharingParticipants: []
 };
 
 export const createMeeting = createAsyncThunk(
@@ -187,17 +189,17 @@ const meetingSlice = createSlice({
         // Add new participant
         state.participants.push(action.payload);
       }
-      console.log('📊 Updated participants:', state.participants.length);
+      // Participants updated
     },
     removeParticipant: (state, action: PayloadAction<number>) => {
       const beforeCount = state.participants.length;
       state.participants = state.participants.filter(p => p.userId !== action.payload);
-      console.log(`📊 Removed participant ${action.payload}, count: ${beforeCount} → ${state.participants.length}`);
+      // Participant removed
     },
     updateMeetingStatus: (state, action: PayloadAction<'SCHEDULED' | 'LIVE' | 'ENDED' | 'CANCELLED'>) => {
       if (state.currentMeeting) {
         state.currentMeeting.status = action.payload;
-        console.log(`📊 Meeting status updated: ${action.payload}`);
+        // Meeting status updated
       }
     },
     // Real-time socket actions (matching chat pattern)
@@ -205,25 +207,25 @@ const meetingSlice = createSlice({
       const index = state.participants.findIndex(p => p.userId === action.payload.userId);
       if (index === -1) {
         state.participants.push(action.payload);
-        console.log(`📊 Participant joined via socket: ${action.payload.userName}`);
+        // Participant joined via socket
       }
     },
     socketParticipantLeft: (state, action: PayloadAction<number>) => {
       const beforeCount = state.participants.length;
       state.participants = state.participants.filter(p => p.userId !== action.payload);
-      console.log(`📊 Participant left via socket: ${action.payload}, count: ${beforeCount} → ${state.participants.length}`);
+      // Participant left via socket
     },
     socketParticipantRoleChanged: (state, action: PayloadAction<{userId: number, newRole: ParticipantRole}>) => {
       const participant = state.participants.find(p => p.userId === action.payload.userId);
       if (participant) {
         participant.role = action.payload.newRole;
-        console.log(`📊 Participant role changed via socket: ${action.payload.userId} → ${action.payload.newRole}`);
+        // Participant role changed via socket
       }
     },
     socketMeetingStatusChanged: (state, action: PayloadAction<'LIVE' | 'ENDED'>) => {
       if (state.currentMeeting) {
         state.currentMeeting.status = action.payload;
-        console.log(`📊 Meeting status changed via socket: ${action.payload}`);
+        // Meeting status changed via socket
       }
     },
     // Mute control actions
@@ -243,6 +245,24 @@ const meetingSlice = createSlice({
     },
     removeUnmuteRequest: (state, action: PayloadAction<number>) => {
       state.unmuteRequests = state.unmuteRequests.filter(req => req.userId !== action.payload);
+    },
+    // Camera control actions
+    participantCameraDisabled: (state, action: PayloadAction<number>) => {
+      if (!state.cameraDisabledParticipants.includes(action.payload)) {
+        state.cameraDisabledParticipants.push(action.payload);
+      }
+    },
+    participantCameraEnabled: (state, action: PayloadAction<number>) => {
+      state.cameraDisabledParticipants = state.cameraDisabledParticipants.filter(id => id !== action.payload);
+    },
+    // Screen share control actions
+    participantScreenShareStarted: (state, action: PayloadAction<number>) => {
+      if (!state.screenSharingParticipants.includes(action.payload)) {
+        state.screenSharingParticipants.push(action.payload);
+      }
+    },
+    participantScreenShareStopped: (state, action: PayloadAction<number>) => {
+      state.screenSharingParticipants = state.screenSharingParticipants.filter(id => id !== action.payload);
     },
     resetMeetingState: () => initialState
   },
@@ -389,6 +409,10 @@ export const {
   participantUnmuted,
   addUnmuteRequest,
   removeUnmuteRequest,
+  participantCameraDisabled,
+  participantCameraEnabled,
+  participantScreenShareStarted,
+  participantScreenShareStopped,
   resetMeetingState
 } = meetingSlice.actions;
 

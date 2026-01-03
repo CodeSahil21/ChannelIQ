@@ -37,7 +37,7 @@ const PollsListModal: React.FC<PollsListModalProps> = ({ isOpen, onClose, groupI
     if (!socket) return undefined;
 
     const handlePollVoteUpdate = (data: { pollId: string; optionId: string; userId: number; voteCount: number; hasVoted?: boolean }) => {
-      console.log('Poll vote update received:', data);
+      // Poll vote update received
       setLocalPolls(prev => prev.map(poll => {
         if (poll.id === data.pollId) {
           return {
@@ -65,11 +65,11 @@ const PollsListModal: React.FC<PollsListModalProps> = ({ isOpen, onClose, groupI
   }, [socket]);
 
   const handleVote = (pollId: string, optionId: string) => {
-    console.log('Voting:', pollId, optionId);
+    // Voting
     votePoll(pollId, optionId, (response) => {
-      console.log('Vote response:', response);
+      // Vote response received
       if (!response.success) {
-        console.error('Vote failed:', response.error);
+        toast.error('Vote failed. Please try again.');
       }
     });
   };
@@ -78,7 +78,7 @@ const PollsListModal: React.FC<PollsListModalProps> = ({ isOpen, onClose, groupI
     try {
       await dispatch(deletePoll(messageId)).unwrap();
     } catch (error) {
-      console.error('Failed to delete poll:', error);
+      toast.error('Failed to delete poll. Please try again.');
     }
   };
 

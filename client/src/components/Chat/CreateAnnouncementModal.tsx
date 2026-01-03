@@ -42,7 +42,7 @@ const CreateAnnouncementModal: React.FC<CreateAnnouncementModalProps> = ({
       onClose();
       setFormData({ title: '', content: '' });
     } catch (error) {
-      console.error('Failed to create announcement:', error);
+      toast.error('Failed to create announcement. Please try again.');
     }
   };
 

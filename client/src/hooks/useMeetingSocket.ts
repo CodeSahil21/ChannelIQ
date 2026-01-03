@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useSelector } from 'react-redux';
 import { useAppDispatch } from './useAppDispatch';
-import { updateParticipant, removeParticipant, updateMeetingStatus, socketParticipantJoined, socketParticipantLeft, socketParticipantRoleChanged, socketMeetingStatusChanged, participantMuted, participantUnmuted, addUnmuteRequest } from '../store/meetingSlice';
+import { updateParticipant, removeParticipant, updateMeetingStatus, socketParticipantJoined, socketParticipantLeft, socketParticipantRoleChanged, socketMeetingStatusChanged, participantMuted, participantUnmuted, addUnmuteRequest, participantCameraDisabled, participantCameraEnabled, participantScreenShareStarted, participantScreenShareStopped } from '../store/meetingSlice';
 import type { ParticipantRole } from '../types/meeting.types';
 import type { RootState } from '../store';
 
@@ -14,11 +14,8 @@ export const useMeetingSocket = (meetingId: string | null) => {
 
   useEffect(() => {
     if (!currentUser?.id || !meetingId) {
-      console.log('❌ Missing requirements:', { currentUser: !!currentUser?.id, meetingId });
       return;
     }
-
-    console.log('🔌 Attempting to connect to meeting socket via API gateway...');
     const newSocket = io('http://localhost:4000', {
       withCredentials: true,
       transports: ['websocket', 'polling'],
@@ -29,21 +26,17 @@ export const useMeetingSocket = (meetingId: string | null) => {
 
     newSocket.on('connect', () => {
       setIsConnected(true);
-      console.log('Connected to meeting socket');
     });
 
     newSocket.on('connect_error', (error) => {
       setIsConnected(false);
-      console.error('Meeting socket connection error:', error);
     });
 
     newSocket.on('disconnect', (reason) => {
       setIsConnected(false);
-      console.log('Disconnected from meeting socket:', reason);
     });
 
     newSocket.on('participantJoined', (data) => {
-      console.log('🟢 Participant joined:', data);
       dispatch(socketParticipantJoined({
         id: data.userId,
         meetingId: data.meetingId,
@@ -56,12 +49,10 @@ export const useMeetingSocket = (meetingId: string | null) => {
     });
 
     newSocket.on('participantLeft', (data) => {
-      console.log('🔴 Participant left:', data);
       dispatch(socketParticipantLeft(data.userId));
     });
 
     newSocket.on('participantRoleChanged', (data) => {
-      console.log('🔄 Participant role changed:', data);
       dispatch(socketParticipantRoleChanged({
         userId: data.userId,
         newRole: data.newRole as ParticipantRole
@@ -69,32 +60,140 @@ export const useMeetingSocket = (meetingId: string | null) => {
     });
 
     newSocket.on('meetingStarted', (data) => {
-      console.log('🟢 Meeting started:', data);
       dispatch(socketMeetingStatusChanged('LIVE'));
     });
 
     newSocket.on('meetingEnded', (data) => {
-      console.log('🔴 Meeting ended:', data);
       dispatch(socketMeetingStatusChanged('ENDED'));
     });
 
     newSocket.on('participantMuted', (data) => {
-      console.log('🔇 Participant muted:', data);
+      if (data.targetUserId === currentUser?.id) {
+        const room = (window as any).livekitRoom;
+        if (room) {
+          room.localParticipant.setMicrophoneEnabled(false).catch(() => {});
+        }
+      }
       dispatch(participantMuted(data.targetUserId));
     });
 
     newSocket.on('participantUnmuted', (data) => {
-      console.log('🔊 Participant unmuted:', data);
+      if (data.targetUserId === currentUser?.id) {
+        const room = (window as any).livekitRoom;
+        if (room) {
+          room.localParticipant.setMicrophoneEnabled(true).catch(() => {});
+        }
+      }
       dispatch(participantUnmuted(data.targetUserId));
     });
 
+    const setupLiveKitListeners = () => {
+      const room = (window as any).livekitRoom;
+      if (room && room.on) {
+        try {
+          room.off('trackMuted');
+          room.off('trackUnmuted');
+          room.off('trackPublished');
+          room.off('trackUnpublished');
+        } catch (e) {
+          // Ignore errors if listeners don't exist
+        }
+        
+        room.on('trackMuted', (track: any, participant: any) => {
+          if (track.kind === 'audio') {
+            dispatch(participantMuted(parseInt(participant.identity)));
+          }
+        });
+        
+        room.on('trackUnmuted', (track: any, participant: any) => {
+          if (track.kind === 'audio') {
+            dispatch(participantUnmuted(parseInt(participant.identity)));
+          }
+        });
+        
+        room.on('trackPublished', (track: any, participant: any) => {
+          if (track.kind === 'video' && track.source === 'camera') {
+            dispatch(participantCameraEnabled(parseInt(participant.identity)));
+          } else if (track.source === 'screen_share') {
+            dispatch(participantScreenShareStarted(parseInt(participant.identity)));
+          }
+        });
+        
+        room.on('trackUnpublished', (track: any, participant: any) => {
+          if (track.kind === 'video' && track.source === 'camera') {
+            dispatch(participantCameraDisabled(parseInt(participant.identity)));
+          } else if (track.source === 'screen_share') {
+            dispatch(participantScreenShareStopped(parseInt(participant.identity)));
+          }
+        });
+      }
+    };
+
+    const checkRoom = setInterval(() => {
+      if ((window as any).livekitRoom) {
+        setupLiveKitListeners();
+        clearInterval(checkRoom);
+      }
+    }, 1000);
+
     newSocket.on('unmuteRequested', (data) => {
-      console.log('✋ Unmute requested:', data);
       dispatch(addUnmuteRequest({
         userId: data.userId,
         userName: data.userName || `User ${data.userId}`,
         timestamp: data.timestamp
       }));
+    });
+
+    newSocket.on('participantCameraToggled', (data) => {
+      if (data.targetUserId === currentUser?.id) {
+        const room = (window as any).livekitRoom;
+        if (room) {
+          room.localParticipant.setCameraEnabled(data.enabled).catch(() => {});
+        }
+      }
+      if (data.enabled) {
+        dispatch(participantCameraEnabled(data.targetUserId));
+      } else {
+        dispatch(participantCameraDisabled(data.targetUserId));
+      }
+    });
+
+    newSocket.on('participantScreenShareToggled', (data) => {
+      if (data.targetUserId === currentUser?.id) {
+        const room = (window as any).livekitRoom;
+        if (room) {
+          if (data.enabled) {
+            room.localParticipant.setScreenShareEnabled(true).catch(() => {});
+          } else {
+            room.localParticipant.setScreenShareEnabled(false).catch(() => {});
+          }
+        }
+      }
+      if (data.enabled) {
+        dispatch(participantScreenShareStarted(data.targetUserId));
+      } else {
+        dispatch(participantScreenShareStopped(data.targetUserId));
+      }
+    });
+
+    newSocket.on('rolePermissionsChanged', (data) => {
+      if (data.userId === currentUser?.id) {
+        const room = (window as any).livekitRoom;
+        if (room) {
+          // Role permissions updated
+        }
+      }
+    });
+
+    newSocket.on('participantKicked', (data) => {
+      if (data.userId === currentUser?.id) {
+        const room = (window as any).livekitRoom;
+        if (room) {
+          room.disconnect();
+        }
+        alert('You have been removed from the meeting');
+        window.location.href = '/meetings';
+      }
     });
 
     setSocket(newSocket);
@@ -134,6 +233,24 @@ export const useMeetingSocket = (meetingId: string | null) => {
     }
   }, [socket, meetingId]);
 
+  const toggleCamera = useCallback((targetUserId: number, enabled: boolean) => {
+    if (meetingId) {
+      socket?.emit('toggleCamera', { meetingId, targetUserId, enabled });
+    }
+  }, [socket, meetingId]);
+
+  const toggleScreenShare = useCallback((targetUserId: number, enabled: boolean) => {
+    if (meetingId) {
+      socket?.emit('toggleScreenShare', { meetingId, targetUserId, enabled });
+    }
+  }, [socket, meetingId]);
+
+  const kickParticipant = useCallback((targetUserId: number) => {
+    if (meetingId) {
+      socket?.emit('kickParticipant', { meetingId, targetUserId });
+    }
+  }, [socket, meetingId]);
+
   return {
     socket,
     isConnected,
@@ -141,6 +258,9 @@ export const useMeetingSocket = (meetingId: string | null) => {
     leaveMeetingRoom,
     muteParticipant,
     unmuteParticipant,
-    requestUnmute
+    requestUnmute,
+    toggleCamera,
+    toggleScreenShare,
+    kickParticipant
   };
 };

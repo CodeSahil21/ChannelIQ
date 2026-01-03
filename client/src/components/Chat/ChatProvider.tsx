@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useSocketChat } from '../../hooks/useSocketChat';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchMessages, clearMessages, addMessage, updateMessage, updateReaction } from '../../store/messagesSlice';
+import { toast } from 'react-hot-toast';
 import type { RootState, AppDispatch } from '../../store';
 
 interface ChatContextType {
@@ -61,8 +62,14 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   useEffect(() => {
     if (!socket) return;
 
-    const handleNewMessage = (message: any) => {
-      dispatch(addMessage(message));
+    const handleOptimisticMessage = (message: any) => {
+      // Mark as optimistic to handle duplicates
+      dispatch(addMessage({ ...message, isOptimistic: true }));
+    };
+
+    const handlePersistedMessage = (message: any) => {
+      // Replace optimistic message or add new one
+      dispatch(addMessage({ ...message, isOptimistic: false }));
     };
 
     const handleMessageUpdate = (data: any) => {
@@ -73,14 +80,14 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       dispatch(updateReaction(data));
     };
 
-    socket.on('message:optimistic', handleNewMessage);
-    socket.on('message:persisted', handleNewMessage);
+    socket.on('message:optimistic', handleOptimisticMessage);
+    socket.on('message:persisted', handlePersistedMessage);
     socket.on('message:updated', handleMessageUpdate);
     socket.on('reaction:updated', handleReactionUpdate);
 
     return () => {
-      socket.off('message:optimistic', handleNewMessage);
-      socket.off('message:persisted', handleNewMessage);
+      socket.off('message:optimistic', handleOptimisticMessage);
+      socket.off('message:persisted', handlePersistedMessage);
       socket.off('message:updated', handleMessageUpdate);
       socket.off('reaction:updated', handleReactionUpdate);
     };
@@ -98,7 +105,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     
     socketJoinGroup(groupId, (response) => {
       if (!response.success) {
-        console.error('Failed to join group:', response.error);
+        toast.error('Failed to join group. Please try again.');
       }
     });
   };
@@ -115,7 +122,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     if (!currentGroupId) return;
     socketSendMessage({ ...data, groupId: currentGroupId }, (response) => {
       if (!response.success) {
-        console.error('Failed to send message:', response.error);
+        toast.error('Failed to send message. Please try again.');
       }
     });
   };
@@ -123,7 +130,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const editMessage = (messageId: string, content: string) => {
     socketEditMessage(messageId, content, (response) => {
       if (!response.success) {
-        console.error('Failed to edit message:', response.error);
+        toast.error('Failed to edit message. Please try again.');
       }
     });
   };
@@ -131,7 +138,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const deleteMessage = (messageId: string) => {
     socketDeleteMessage(messageId, (response) => {
       if (!response.success) {
-        console.error('Failed to delete message:', response.error);
+        toast.error('Failed to delete message. Please try again.');
       }
     });
   };
@@ -139,7 +146,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const addReaction = (messageId: string, emoji: string) => {
     socketAddReaction(messageId, emoji, (response) => {
       if (!response.success) {
-        console.error('Failed to add reaction:', response.error);
+        toast.error('Failed to add reaction. Please try again.');
       }
     });
   };
@@ -147,7 +154,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   const removeReaction = (messageId: string, emoji: string) => {
     socketRemoveReaction(messageId, emoji, (response) => {
       if (!response.success) {
-        console.error('Failed to remove reaction:', response.error);
+        toast.error('Failed to remove reaction. Please try again.');
       }
     });
   };

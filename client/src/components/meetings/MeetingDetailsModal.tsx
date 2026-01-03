@@ -22,7 +22,7 @@ const MeetingDetailsModal: React.FC<MeetingDetailsModalProps> = ({
       setCopiedField(fieldName);
       setTimeout(() => setCopiedField(''), 2000);
     } catch (err) {
-      console.error('Failed to copy:', err);
+      toast.error('Failed to copy to clipboard.');
     }
   };
 

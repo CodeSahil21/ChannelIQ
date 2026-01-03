@@ -81,7 +81,7 @@ export const LoginForm: React.FC = () => {
           toast.error("Server error. Please try again.");
         }
       } else {
-        console.error(err);
+        toast.error('Login failed. Please check your credentials.');
         toast.error("Network error. Could not connect to server.");
       }
     } finally {

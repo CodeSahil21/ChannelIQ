@@ -25,12 +25,12 @@ const GroupProfile: React.FC<GroupProfileProps> = ({
   const [showImageModal, setShowImageModal] = useState(false);
   
   const handleOpenModal = () => {
-    console.log('Opening image modal');
+    // Image modal opened
     setShowImageModal(true);
   };
   
   const handleCloseModal = () => {
-    console.log('Closing image modal');
+    // Image modal closed
     setShowImageModal(false);
   };
   const getInitials = (name: string) => {

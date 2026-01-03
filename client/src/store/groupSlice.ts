@@ -191,6 +191,25 @@ export const inviteUser = createAsyncThunk(
   }
 );
 
+// Remove Member
+export const removeMember = createAsyncThunk(
+  'groups/removeMember',
+  async ({ groupId, userId }: { groupId: string; userId: number }, { rejectWithValue }) => {
+    try {
+      const response = await axios.delete(
+        `http://localhost:4000/api/groups/${groupId}/members/${userId}`,
+        { withCredentials: true }
+      );
+      toast.success(response.data.message);
+      return { groupId, userId };
+    } catch (error: any) {
+      const message = error.response?.data?.message || 'Failed to remove member';
+      toast.error(message);
+      return rejectWithValue(message);
+    }
+  }
+);
+
 // Leave Group
 export const leaveGroup = createAsyncThunk(
   'groups/leave',
@@ -454,6 +473,25 @@ const groupSlice = createSlice({
       .addCase(inviteUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+      })
+      
+      // Remove Member
+      .addCase(removeMember.fulfilled, (state, action) => {
+        const { groupId, userId } = action.payload;
+        // Update member count in current group
+        if (state.currentGroup?.id === groupId && state.currentGroup?._count) {
+          state.currentGroup._count.members -= 1;
+        }
+        // Update member count in groups list
+        const groupIndex = state.groups.findIndex(g => g.groupId === groupId);
+        if (groupIndex !== -1 && state.groups[groupIndex].group._count) {
+          state.groups[groupIndex].group._count.members -= 1;
+        }
+        // Update member count in search results
+        const searchIndex = state.searchResults.findIndex(g => g.id === groupId);
+        if (searchIndex !== -1 && state.searchResults[searchIndex]._count) {
+          state.searchResults[searchIndex]._count.members -= 1;
+        }
       })
       
       // Leave Group

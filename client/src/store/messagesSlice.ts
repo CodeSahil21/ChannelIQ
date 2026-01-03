@@ -9,6 +9,7 @@ interface Message {
   createdAt: Date;
   updatedAt: Date;
   isDeleted: boolean;
+  isOptimistic?: boolean;
   sender: {
     id: number;
     fullName: string;
@@ -57,7 +58,25 @@ const messagesSlice = createSlice({
   reducers: {
     // Real-time socket actions
     addMessage: (state, action) => {
-      state.messages.push(action.payload);
+      const newMessage = action.payload;
+      
+      if (newMessage.isOptimistic) {
+        // Add optimistic message
+        state.messages.push(newMessage);
+      } else {
+        // Check if this is replacing an optimistic message
+        const optimisticIndex = state.messages.findIndex(
+          msg => msg.id === newMessage.id && msg.isOptimistic
+        );
+        
+        if (optimisticIndex !== -1) {
+          // Replace optimistic message with persisted one
+          state.messages[optimisticIndex] = { ...newMessage, isOptimistic: false };
+        } else {
+          // Add new persisted message (no optimistic version existed)
+          state.messages.push({ ...newMessage, isOptimistic: false });
+        }
+      }
     },
     updateMessage: (state, action) => {
       const { messageId, content, isDeleted, updatedAt } = action.payload;

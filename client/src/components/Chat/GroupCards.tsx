@@ -44,10 +44,6 @@ const GroupCard: React.FC<GroupCardProps> = ({ membership, onClick }) => {
               'Public'
             )}
           </span>
-          <span className="group-members">
-            <HiUsers className="members-icon" />
-            {group._count?.members || 0} members
-          </span>
         </div>
       </div>
     </div>

@@ -79,7 +79,7 @@ export const RegisterForm: React.FC = () => {
           toast.error("Server error. Please try again.");
         }
       } else {
-        console.error(err);
+        toast.error('Registration failed. Please try again.');
         toast.error("Network error. Could not connect to server.");
       }
     } finally {

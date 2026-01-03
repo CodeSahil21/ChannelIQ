@@ -34,7 +34,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ userId, onCl
         setProfile(res.data.data || null);
       }
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      toast.error('Failed to load profile. Please try again.');
     } finally {
       setLoading(false);
     }

@@ -33,7 +33,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onProfileDeleted }) =>
       );
       
       if (response.data.success) {
-        console.log('Profile data loaded:', response.data.data);
+        // Profile data loaded
         setProfile(response.data.data);
       }
     } catch (err: any) {
@@ -265,7 +265,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onProfileDeleted }) =>
         currentImageUrl={profile?.profilePic}
         currentFileName={profile?.profilePic}
         onImageUpdate={(fileName) => {
-          console.log('Image updated:', fileName);
+          // Image updated
           if (profile) {
             setProfile({ ...profile, profilePic: fileName });
           }

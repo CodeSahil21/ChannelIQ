@@ -177,7 +177,7 @@ export const useConnections = () => {
         setStats(res.data.data || null);
       }
     } catch (error: any) {
-      console.error('Error fetching stats');
+      toast.error('Failed to load connection stats.');
     }
   }, []);
 
@@ -188,7 +188,7 @@ export const useConnections = () => {
         return res.data.data?.status || null;
       }
     } catch (error: any) {
-      console.error('Error fetching status');
+      toast.error('Failed to load connection status.');
     }
     return null;
   }, []);

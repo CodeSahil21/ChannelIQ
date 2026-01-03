@@ -7,6 +7,7 @@ import DeleteGroupModal from './DeleteGroupModal';
 import AddMembersModal from './AddMembersModal';
 import RemoveMemberModal from './RemoveMemberModal';
 import LeaveGroupModal from './LeaveGroupModal';
+import MemberActionDropdown from './MemberActionDropdown';
 import { PollsListModal, AnnouncementsListModal, PinnedMessagesModal } from './index';
 import { ChatProvider, useChatContext } from './ChatProvider';
 import { ChatMessages } from './ChatMessages';
@@ -39,17 +40,7 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
   const [showPinnedMessagesModal, setShowPinnedMessagesModal] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<{ userId: number; name: string } | null>(null);
   const [activeDropdown, setActiveDropdown] = useState<number | null>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setActiveDropdown(null);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  const dropdownTriggerRefs = useRef<{ [key: number]: React.RefObject<HTMLButtonElement> }>({});
 
   const { updateGroup, deleteGroup, leaveGroup } = useGroups();
 
@@ -149,9 +140,9 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
           />
           
           {/* Members Section */}
-          <div className="members-section" style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid #e5e7eb' }}>
-            <h3>Members ({fullGroup._count?.members || 0})</h3>
-            <div className="members-list-container">
+          <div className="members-section">
+            <h3 style={{ marginBottom: '12px' }}>Members ({fullGroup._count?.members || 0})</h3>
+            <div className="members-list-container" style={{ marginTop: '0' }}>
               {fullGroup.members?.map(member => {
                 const currentUserMembership = fullGroup.members?.find(m => m.userId === currentUserId);
                 const currentUserRole = currentUserMembership?.role || 'MEMBER';
@@ -169,6 +160,11 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
                   };
                   return badges[role as keyof typeof badges] || badges.MEMBER;
                 };
+                
+                // Create ref for this member's dropdown trigger
+                if (!dropdownTriggerRefs.current[member.userId]) {
+                  dropdownTriggerRefs.current[member.userId] = React.createRef<HTMLButtonElement>();
+                }
                 
                 return (
                   <div key={member.id} className="member-list-item">
@@ -196,72 +192,24 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
                     </div>
 
                     {isCreator && member.userId !== currentUserId && (
-                      <div className="member-item-actions" style={{ position: 'relative' }}>
+                      <div className="member-item-actions">
                         <button 
+                          ref={dropdownTriggerRefs.current[member.userId]}
                           className="member-dots-btn"
                           onClick={() => setActiveDropdown(activeDropdown === member.userId ? null : member.userId)}
                         >
                           <HiDotsVertical />
                         </button>
                         
-                        {activeDropdown === member.userId && (
-                          <div 
-                            ref={dropdownRef}
-                            className="member-dropdown"
-                            style={{
-                              position: 'absolute',
-                              right: '0',
-                              top: '100%',
-                              backgroundColor: 'white',
-                              border: '1px solid #ccc',
-                              borderRadius: '4px',
-                              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                              zIndex: 1000,
-                              minWidth: '150px'
-                            }}
-                          >
-                            <button 
-                              className="member-dropdown-item"
-                              onClick={() => {
-                                handleRoleChange(member.userId, 'CO_ADMIN');
-                                setActiveDropdown(null);
-                              }}
-                            >
-                              <HiCog />
-                              Make Co-Admin
-                            </button>
-                            <button 
-                              className="member-dropdown-item"
-                              onClick={() => {
-                                handleRoleChange(member.userId, 'MEMBER');
-                                setActiveDropdown(null);
-                              }}
-                            >
-                              <HiCog />
-                              Make Member
-                            </button>
-                            <button 
-                              className="member-dropdown-item"
-                              onClick={() => {
-                                handleMuteToggle(member.userId);
-                                setActiveDropdown(null);
-                              }}
-                            >
-                              {member.isMuted ? <HiVolumeUp /> : <HiVolumeOff />}
-                              {member.isMuted ? 'Unmute' : 'Mute'}
-                            </button>
-                            <button 
-                              className="member-dropdown-item danger"
-                              onClick={() => {
-                                handleRemoveMemberClick(member.userId, member.user.fullName);
-                                setActiveDropdown(null);
-                              }}
-                            >
-                              <HiUserRemove />
-                              Remove Member
-                            </button>
-                          </div>
-                        )}
+                        <MemberActionDropdown
+                          isOpen={activeDropdown === member.userId}
+                          onClose={() => setActiveDropdown(null)}
+                          triggerRef={dropdownTriggerRefs.current[member.userId]}
+                          onRoleChange={(role) => handleRoleChange(member.userId, role)}
+                          onMuteToggle={() => handleMuteToggle(member.userId)}
+                          onRemoveMember={() => handleRemoveMemberClick(member.userId, member.user.fullName)}
+                          isMuted={member.isMuted}
+                        />
                       </div>
                     )}
                   </div>

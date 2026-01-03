@@ -60,6 +60,10 @@ export interface MeetingState {
   joinLoading: boolean;
   tokenLoading: boolean;
   liveKitReady: boolean;
+  mutedParticipants: number[];
+  unmuteRequests: Array<{ userId: number; userName: string; timestamp: string }>;
+  cameraDisabledParticipants: number[];
+  screenSharingParticipants: number[];
 }
 
 export interface ApiResponse<T> {

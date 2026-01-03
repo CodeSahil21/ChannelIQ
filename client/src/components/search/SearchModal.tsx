@@ -29,7 +29,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onUse
         setResults(res.data.data || []);
       }
     } catch (error) {
-      console.error('Search error:', error);
+      toast.error('Search failed. Please try again.');
     } finally {
       setLoading(false);
     }

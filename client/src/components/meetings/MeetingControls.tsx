@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
+import { useAppSelector } from '../../hooks/useAppDispatch';
 import {
   startMeeting,
   endMeeting,
@@ -20,14 +21,29 @@ const MeetingControls: React.FC<MeetingControlsProps> = ({
   error
 }) => {
   const dispatch = useAppDispatch();
+  const currentUser = useAppSelector(state => state.user.user);
+  const participants = useAppSelector(state => state.meeting.participants);
+  const mutedParticipants = useAppSelector(state => state.meeting.mutedParticipants);
+  const cameraDisabledParticipants = useAppSelector(state => state.meeting.cameraDisabledParticipants);
+  const screenSharingParticipants = useAppSelector(state => state.meeting.screenSharingParticipants);
+  
+  // Get current user's role from Redux state instead of props
+  const currentUserParticipant = participants.find(p => p.userId === currentUser?.id);
+  const currentUserRole = currentUserParticipant?.role || userRole;
+  
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [password, setPassword] = useState('');
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
 
-  const canStartMeeting = userRole === 'HOST' || userRole === 'CO_HOST';
-  const canEndMeeting = userRole === 'HOST';
-  const canManagePassword = userRole === 'HOST';
+  const canStartMeeting = currentUserRole === 'HOST' || currentUserRole === 'CO_HOST';
+  const canEndMeeting = currentUserRole === 'HOST';
+  const canManagePassword = currentUserRole === 'HOST';
+  
+  // Current user's media status
+  const isCurrentUserMuted = currentUser ? mutedParticipants.includes(currentUser.id) : false;
+  const isCurrentUserCameraDisabled = currentUser ? cameraDisabledParticipants.includes(currentUser.id) : false;
+  const isCurrentUserScreenSharing = currentUser ? screenSharingParticipants.includes(currentUser.id) : false;
 
   const handleStartMeeting = () => {
     if (!meeting || !canStartMeeting) return;
@@ -64,7 +80,7 @@ const MeetingControls: React.FC<MeetingControlsProps> = ({
     dispatch(removePassword(meeting.id));
   };
 
-  if (!meeting || !userRole) {
+  if (!meeting || !currentUserRole) {
     return null;
   }
 
@@ -73,7 +89,7 @@ const MeetingControls: React.FC<MeetingControlsProps> = ({
       <div className="meeting-controls__header">
         <h3>Meeting Controls</h3>
         <span className="meeting-controls__role">
-          Role: {userRole.replace('_', ' ')}
+          Role: {currentUserRole?.replace('_', ' ')}
         </span>
       </div>
 

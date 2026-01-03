@@ -157,7 +157,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, showAvatar, u
                       document.body.removeChild(link);
                       window.URL.revokeObjectURL(url);
                     } catch (error) {
-                      console.error('Download failed:', error);
+                      toast.error('Download failed. Please try again.');
                     } finally {
                       btn.disabled = false;
                       btn.innerHTML = '<svg>...</svg>';
@@ -197,7 +197,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, showAvatar, u
                       document.body.removeChild(link);
                       window.URL.revokeObjectURL(url);
                     } catch (error) {
-                      console.error('Download failed:', error);
+                      toast.error('Download failed. Please try again.');
                     } finally {
                       btn.disabled = false;
                       btn.innerHTML = originalContent;
@@ -238,7 +238,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, showAvatar, u
                     document.body.removeChild(link);
                     window.URL.revokeObjectURL(url);
                   } catch (error) {
-                    console.error('Download failed:', error);
+                    toast.error('Download failed. Please try again.');
                   } finally {
                     btn.disabled = false;
                     btn.innerHTML = originalContent;

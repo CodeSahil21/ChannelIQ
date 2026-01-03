@@ -33,12 +33,10 @@ export const useSocket = () => {
 
     newSocket.on('connect', () => {
       setIsConnected(true);
-      console.log('Socket connected:', newSocket.id);
     });
 
     newSocket.on('disconnect', () => {
       setIsConnected(false);
-      console.log('Socket disconnected');
     });
 
     setSocket(newSocket);

@@ -1,0 +1,329 @@
+/* Meeting Participants Component Styles */
+.meeting-participants {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #1a1a1a;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.meeting-participants__header {
+  padding: 16px;
+  border-bottom: 1px solid #333;
+  background: #2a2a2a;
+}
+
+.meeting-participants__header h3 {
+  margin: 0 0 4px 0;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.meeting-participants__manage-hint {
+  font-size: 12px;
+  color: #888;
+}
+
+.meeting-participants__error {
+  padding: 16px;
+  background: #2d1b1b;
+  border: 1px solid #4a2626;
+  border-radius: 6px;
+  margin: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ff6b6b;
+}
+
+.meeting-participants__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.meeting-participants__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  color: #888;
+}
+
+.meeting-participants__empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.meeting-participants__empty p {
+  margin: 8px 0 4px 0;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.meeting-participants__empty span {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+/* Participant Card */
+.participant-card {
+  background: #2a2a2a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  transition: all 0.2s ease;
+}
+
+.participant-card:hover {
+  background: #333;
+  border-color: #444;
+}
+
+.participant-card__content {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  gap: 12px;
+}
+
+/* Avatar */
+.participant-card__avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* Info Section */
+.participant-card__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.participant-card__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.participant-card__name {
+  color: #fff;
+  font-weight: 500;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.participant-card__status {
+  display: flex;
+  gap: 4px;
+}
+
+.status-icon {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.participant-card__email {
+  color: #888;
+  font-size: 12px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.participant-card__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.participant-card__join-time {
+  color: #666;
+  font-size: 11px;
+}
+
+/* Role Badge */
+.participant-role {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.participant-role--host {
+  background: #4ade80;
+  color: #000;
+}
+
+.participant-role--cohost {
+  background: #60a5fa;
+  color: #000;
+}
+
+.participant-role--participant {
+  background: #6b7280;
+  color: #fff;
+}
+
+/* Actions */
+.participant-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.participant-card:hover .participant-card__actions {
+  opacity: 1;
+}
+
+.action-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: #444;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.action-btn:hover {
+  background: #555;
+  transform: scale(1.05);
+}
+
+.action-btn:active {
+  transform: scale(0.95);
+}
+
+/* Action Button Variants */
+.action-btn--mute:hover {
+  background: #dc2626;
+}
+
+.action-btn--unmute:hover {
+  background: #16a34a;
+}
+
+.action-btn--camera-off:hover {
+  background: #dc2626;
+}
+
+.action-btn--camera-on:hover {
+  background: #16a34a;
+}
+
+.action-btn--screen-share:hover,
+.action-btn--screen-stop:hover {
+  background: #2563eb;
+}
+
+.action-btn--promote:hover {
+  background: #16a34a;
+}
+
+.action-btn--demote:hover {
+  background: #ea580c;
+}
+
+.action-btn--kick:hover {
+  background: #dc2626;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .participant-card__content {
+    padding: 10px;
+    gap: 10px;
+  }
+  
+  .participant-card__avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+  }
+  
+  .participant-card__actions {
+    opacity: 1; /* Always show on mobile */
+    gap: 2px;
+  }
+  
+  .action-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+  
+  .participant-card__name {
+    font-size: 13px;
+  }
+  
+  .participant-card__email {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .participant-card__meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .participant-card__actions {
+    flex-wrap: wrap;
+    max-width: 120px;
+  }
+}
+
+/* Legend */
+.meeting-participants__legend {
+  padding: 12px 16px;
+  border-top: 1px solid #333;
+  background: #2a2a2a;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: #888;
+}
+
+.legend-item:last-child {
+  margin-bottom: 0;
+}
+
+.legend-icon {
+  font-size: 14px;
+}

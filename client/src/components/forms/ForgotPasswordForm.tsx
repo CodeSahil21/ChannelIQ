@@ -43,7 +43,7 @@ export const ForgotPasswordForm: React.FC = () => {
           toast.error("Server error. Please try again.");
         }
       } else {
-        console.error(err);
+        toast.error('Password reset request failed. Please try again.');
         toast.error("Network error. Could not connect to server.");
       }
     } finally {

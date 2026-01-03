@@ -52,7 +52,7 @@ export const DirectImage: React.FC<DirectImageProps> = ({
       className={className}
       onError={() => {
         setError(true);
-        console.warn(`Failed to load image: ${imageUrl}`);
+        toast.error('Failed to load image.');
       }}
       onLoad={() => setError(false)}
     />

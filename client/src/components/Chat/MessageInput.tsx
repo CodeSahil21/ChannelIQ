@@ -5,6 +5,7 @@ import { useSelector } from 'react-redux';
 import { CreatePollModal, CreateAnnouncementModal } from './index';
 import { FileUpload } from './FileUpload';
 import { useFileUpload } from '../../hooks/useFileUpload';
+import { toast } from 'react-hot-toast';
 import type { RootState } from '../../store';
 import { useGroups } from '../../hooks/useGroups';
 
@@ -110,16 +111,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({ groupId }) => {
     try {
       const result = await uploadFile(groupId, file);
       if (result) {
-        // Send file message through socket after successful upload
-        sendMessage({
-          type: result.messageType,
-          fileUrl: result.fileUrl,
-          content: file.name // Use filename as content
-        });
-        console.log('File uploaded and message sent:', result);
+        // File uploaded successfully - message will be created via Kafka event
+        // No need to send duplicate message through socket
+        toast.success('File uploaded successfully');
       }
     } catch (error) {
-      console.error('File upload failed:', error);
+      toast.error('File upload failed. Please try again.');
     } finally {
       setIsUploading(false);
     }

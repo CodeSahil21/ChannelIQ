@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LiveKitRoom as LiveKitRoomComponent, VideoConference, useLocalParticipant } from '@livekit/components-react';
+import { LiveKitRoom as LiveKitRoomComponent, VideoConference, useLocalParticipant, useRoomContext } from '@livekit/components-react';
 import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
-import { getLiveKitToken, setLiveKitReady, leaveMeeting, participantMuted, participantUnmuted } from '../../store/meetingSlice';
+import { getLiveKitToken, setLiveKitReady, leaveMeeting, participantMuted, participantUnmuted, participantCameraDisabled, participantCameraEnabled, participantScreenShareStarted, participantScreenShareStopped } from '../../store/meetingSlice';
 import { useMeetingSocket } from '../../hooks/useMeetingSocket';
 import type { Meeting, ParticipantRole } from '../../types/meeting.types';
 
@@ -14,7 +14,7 @@ interface LiveKitRoomProps {
 const LiveKitRoom: React.FC<LiveKitRoomProps> = ({ meeting, userRole }) => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { tokenLoading, liveKitReady, mutedParticipants } = useAppSelector(state => state.meeting);
+  const { tokenLoading, liveKitReady, mutedParticipants, cameraDisabledParticipants, screenSharingParticipants } = useAppSelector(state => state.meeting);
   const currentUser = useAppSelector(state => state.user.user);
   const { requestUnmute } = useMeetingSocket(meeting?.id || null);
   
@@ -29,9 +29,6 @@ const LiveKitRoom: React.FC<LiveKitRoomProps> = ({ meeting, userRole }) => {
     try {
       setConnectionError('');
       const result = await dispatch(getLiveKitToken(meeting.id)).unwrap();
-      console.log('LiveKit token result:', result);
-      console.log('Token type:', typeof result.token);
-      console.log('Token value:', result.token);
       setToken(result.token);
       setWsUrl(result.wsUrl);
     } catch (error) {
@@ -56,9 +53,8 @@ const LiveKitRoom: React.FC<LiveKitRoomProps> = ({ meeting, userRole }) => {
     if (meeting?.id) {
       try {
         await dispatch(leaveMeeting(meeting.id)).unwrap();
-        console.log('🚪 Left meeting via LiveKit disconnect');
       } catch (error) {
-        console.error('Error leaving meeting:', error);
+        // Error handled silently
       }
     }
     
@@ -135,9 +131,11 @@ const LiveKitRoom: React.FC<LiveKitRoomProps> = ({ meeting, userRole }) => {
         onConnected={handleConnected}
         onDisconnected={handleDisconnected}
       >
-        <MuteHandler 
+        <MediaControlHandler 
           currentUserId={currentUser?.id || 0}
           mutedParticipants={mutedParticipants}
+          cameraDisabledParticipants={cameraDisabledParticipants}
+          screenSharingParticipants={screenSharingParticipants}
           requestUnmute={requestUnmute}
         />
         <VideoConference 
@@ -148,29 +146,62 @@ const LiveKitRoom: React.FC<LiveKitRoomProps> = ({ meeting, userRole }) => {
   );
 };
 
-// Component to handle mute/unmute based on socket events
-const MuteHandler: React.FC<{
+// Component to handle all media controls based on socket events
+const MediaControlHandler: React.FC<{
   currentUserId: number;
   mutedParticipants: number[];
+  cameraDisabledParticipants: number[];
+  screenSharingParticipants: number[];
   requestUnmute: () => void;
-}> = ({ currentUserId, mutedParticipants, requestUnmute }) => {
+}> = ({ currentUserId, mutedParticipants, cameraDisabledParticipants, screenSharingParticipants, requestUnmute }) => {
   const { localParticipant } = useLocalParticipant();
+  const room = useRoomContext();
   const [isLocallyMuted, setIsLocallyMuted] = useState(false);
+  const [isCameraDisabled, setIsCameraDisabled] = useState(false);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
 
-  // Handle mute/unmute based on socket events
   useEffect(() => {
     const shouldBeMuted = mutedParticipants.includes(currentUserId);
     
     if (shouldBeMuted && !isLocallyMuted) {
-      // Mute the participant
       localParticipant.setMicrophoneEnabled(false);
       setIsLocallyMuted(true);
     } else if (!shouldBeMuted && isLocallyMuted) {
-      // Unmute the participant
       localParticipant.setMicrophoneEnabled(true);
       setIsLocallyMuted(false);
     }
   }, [mutedParticipants, currentUserId, localParticipant, isLocallyMuted]);
+
+  useEffect(() => {
+    const shouldCameraBeDisabled = cameraDisabledParticipants.includes(currentUserId);
+    
+    if (shouldCameraBeDisabled && !isCameraDisabled) {
+      localParticipant.setCameraEnabled(false);
+      setIsCameraDisabled(true);
+    } else if (!shouldCameraBeDisabled && isCameraDisabled) {
+      localParticipant.setCameraEnabled(true);
+      setIsCameraDisabled(false);
+    }
+  }, [cameraDisabledParticipants, currentUserId, localParticipant, isCameraDisabled]);
+
+  useEffect(() => {
+    const shouldScreenShare = screenSharingParticipants.includes(currentUserId);
+    
+    if (shouldScreenShare && !isScreenSharing) {
+      localParticipant.setScreenShareEnabled(true);
+      setIsScreenSharing(true);
+    } else if (!shouldScreenShare && isScreenSharing) {
+      localParticipant.setScreenShareEnabled(false);
+      setIsScreenSharing(false);
+    }
+  }, [screenSharingParticipants, currentUserId, localParticipant, isScreenSharing]);
+
+  // Store room reference globally for socket handlers
+  useEffect(() => {
+    if (room) {
+      (window as any).livekitRoom = room;
+    }
+  }, [room]);
 
   return null; // This component doesn't render anything
 };

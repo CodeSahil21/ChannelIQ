@@ -43,7 +43,7 @@ const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({ isOpen, onClose
       onClose();
       resetForm();
     } catch (error) {
-      console.error('Failed to create meeting:', error);
+      toast.error('Failed to create meeting. Please try again.');
     } finally {
       setLoading(false);
     }

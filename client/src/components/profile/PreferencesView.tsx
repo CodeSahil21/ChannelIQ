@@ -97,7 +97,7 @@ export const PreferencesView: React.FC = () => {
       if (err.response?.status === 400) {
         toast.error(err.response.data.message || 'Validation failed');
       } else if (err.response?.status === 404) {
-        console.log(err);
+        toast.error('Failed to update preferences. Please try again.');
         toast.error('User not found');
       } else if (err.response?.status === 500) {
         toast.error('Server error. Please try again later');
