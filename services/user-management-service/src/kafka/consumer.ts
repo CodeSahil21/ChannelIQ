@@ -13,7 +13,7 @@ export const startConsumer = async (): Promise<void> => {
     });
 
     await kafkaConsumer.run({
-      eachMessage: async ({ topic, partition, message, heartbeat }) => {
+      eachMessage: async ({ topic,message, heartbeat }) => {
         try {
           // Call heartbeat at the start
           await heartbeat();
