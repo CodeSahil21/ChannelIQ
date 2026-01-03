@@ -21,7 +21,7 @@ export const startConsumer = async (): Promise<void> => {
     });
 
     await kafkaConsumer.run({
-      eachMessage: async ({ topic, partition, message, heartbeat }: EachMessagePayload) => {
+      eachMessage: async ({ topic, message, heartbeat }: EachMessagePayload) => {
         try {
           await heartbeat();
           
@@ -33,13 +33,13 @@ export const startConsumer = async (): Promise<void> => {
 
           const parsedMessage = JSON.parse(value);
 
-          if (config.KAFKA_DEBUG) {
-            console.log(`📨 Received message from ${topic}:${partition}`, {
-              key: message.key?.toString(),
-              eventType: parsedMessage.eventType,
-              userId: parsedMessage.userId
-            });
-          }
+          // if (config.KAFKA_DEBUG) {
+          //   console.log(`📨 Received message from ${topic}:${partition}`, {
+          //     key: message.key?.toString(),
+          //     eventType: parsedMessage.eventType,
+          //     userId: parsedMessage.userId
+          //   });
+          // }
 
           switch (topic) {
             case 'user-management-events':
@@ -67,7 +67,7 @@ export const startConsumer = async (): Promise<void> => {
               break;
               
             default:
-              console.warn(`⚠️ Received message from unknown topic: ${topic}`);
+              console.warn("");
               await heartbeat();
           }
 
@@ -129,9 +129,9 @@ const handleUserManagementEvent = async (event: UserManagementEvent): Promise<vo
         const deletedUserId = event.userId;
         if (typeof deletedUserId === 'number') {
           await deleteUserById(deletedUserId);
-          console.log(`🗑️ User with ID ${deletedUserId} deleted successfully.`);
+          // console.log(`🗑️ User with ID ${deletedUserId} deleted successfully.`);
         } else {
-          console.warn('⚠️ USER_DELETED event missing valid userId:', event);
+          console.warn('⚠️ USER_DELETED event missing valid userId:');
         }
         break;
         
@@ -144,7 +144,7 @@ const handleUserManagementEvent = async (event: UserManagementEvent): Promise<vo
             fullName,
             profilePic 
           });
-          console.log(`👤 User profile created: ${userId} (${fullName})`);
+          // console.log(`👤 User profile created: ${userId} (${fullName})`);
         } catch (serviceError) {
           console.error(`❌ Failed to create user from event:`, serviceError);
           throw serviceError;
@@ -154,7 +154,7 @@ const handleUserManagementEvent = async (event: UserManagementEvent): Promise<vo
       case 'USER_FULLNAME_UPDATED':
         try {
           await updateUserFullName(event.userId, event.fullName, event.email, event.profilePic);
-          console.log(`📝 User fullName updated: ${event.userId} -> ${event.fullName}`);
+          // console.log(`📝 User fullName updated: ${event.userId} -> ${event.fullName}`);
         } catch (serviceError) {
           console.error(`❌ Failed to update user fullName:`, serviceError);
           throw serviceError;
@@ -164,7 +164,7 @@ const handleUserManagementEvent = async (event: UserManagementEvent): Promise<vo
       case 'USER_PROFILE_DELETED':
         try {
           await deleteUserById(event.userId);
-          console.log(`🗑️ User profile deleted: ${event.userId}`);
+          // console.log(`🗑️ User profile deleted: ${event.userId}`);
         } catch (serviceError) {
           console.error(`❌ Failed to delete user profile:`, serviceError);
           throw serviceError;
@@ -172,7 +172,7 @@ const handleUserManagementEvent = async (event: UserManagementEvent): Promise<vo
         break;
         
       default:
-        console.warn(`⚠️ Unhandled user management event type: ${(event as any).eventType}`);
+        console.warn('');
         break;
     }
   } catch (error) {
@@ -183,7 +183,7 @@ const handleUserManagementEvent = async (event: UserManagementEvent): Promise<vo
 
 const handleChatEvent = async (event: any): Promise<void> => {
   try {
-    console.log(`💬 Processing chat event: ${event.eventType}`);
+    // console.log(`💬 Processing chat event: ${event.eventType}`);
     // Add chat event handling logic here
   } catch (error) {
     console.error(`❌ Error handling chat event:`, error);
@@ -199,7 +199,7 @@ const handleMediaEvent = async (event: MediaEvent): Promise<void> => {
       case 'PROFILE_IMAGE_UPLOADED':
         try {
           await updateUserProfileUrl(userId, event.imageUrl || null);
-          console.log(`🖼️ Profile image updated: ${userId} -> ${event.imageUrl}`);
+          // console.log(`🖼️ Profile image updated: ${userId} -> ${event.imageUrl}`);
         } catch (serviceError) {
           console.error(`❌ Failed to update profile image:`, serviceError);
           throw serviceError;
@@ -209,7 +209,7 @@ const handleMediaEvent = async (event: MediaEvent): Promise<void> => {
       case 'PROFILE_IMAGE_DELETED':
         try {
           await updateUserProfileUrl(userId, null);
-          console.log(`🗑️ Profile image deleted: ${userId}`);
+          // console.log(`🗑️ Profile image deleted: ${userId}`);
         } catch (serviceError) {
           console.error(`❌ Failed to delete profile image:`, serviceError);
           throw serviceError;
@@ -224,7 +224,7 @@ const handleMediaEvent = async (event: MediaEvent): Promise<void> => {
             break;
           }
           await updateGroupProfileImage(groupId, userId, event.imageUrl || null);
-          console.log(`🖼️ Group profile image updated: ${groupId} -> ${event.imageUrl}`);
+          // console.log(`🖼️ Group profile image updated: ${groupId} -> ${event.imageUrl}`);
         } catch (serviceError) {
           console.error(`❌ Failed to update group profile image:`, serviceError);
           throw serviceError;
@@ -239,7 +239,7 @@ const handleMediaEvent = async (event: MediaEvent): Promise<void> => {
             break;
           }
           await updateGroupProfileImage(groupId, userId, null);
-          console.log(`🗑️ Group profile image deleted: ${groupId}`);
+          // console.log(`🗑️ Group profile image deleted: ${groupId}`);
         } catch (serviceError) {
           console.error(`❌ Failed to delete group profile image:`, serviceError);
           throw serviceError;
@@ -279,7 +279,7 @@ const handleMediaEvent = async (event: MediaEvent): Promise<void> => {
             });
           }
 
-          console.log(`📎 Message file uploaded: ${groupId} -> ${event.imageUrl}`);
+          // console.log(`📎 Message file uploaded: ${groupId} -> ${event.imageUrl}`);
         } catch (serviceError) {
           console.error(`❌ Failed to handle message file upload:`, serviceError);
           throw serviceError;
@@ -306,7 +306,7 @@ const handleMediaEvent = async (event: MediaEvent): Promise<void> => {
             });
           }
 
-          console.log(`🗑️ Message file deleted: ${groupId} -> ${fileName}`);
+          // console.log(`🗑️ Message file deleted: ${groupId} -> ${fileName}`);
         } catch (serviceError) {
           console.error(`❌ Failed to handle message file deletion:`, serviceError);
           throw serviceError;
