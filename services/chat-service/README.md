@@ -23,6 +23,10 @@ The Chat Service is a real-time messaging microservice designed for WhatsApp-lik
 - Message persistence and status tracking
 - Group membership and permission enforcement
 - Cross-instance coordination via Redis
+- Poll creation and voting within groups
+- Message reactions and read receipts
+- Announcement broadcasting and pinned messages
+- Bulk message processing via Kafka events
 
 ## Tech Stack
 
@@ -52,6 +56,12 @@ The Chat Service is a real-time messaging microservice designed for WhatsApp-lik
 - ACID compliance for message ordering and consistency
 - Complex relational queries for group permissions
 - Prisma provides type-safe database operations
+
+**Kafka Integration**
+- Event streaming for user management events
+- Media file upload/delete event handling
+- Bulk message processing for high throughput
+- Cross-service communication and data synchronization
 
 **JWT + HTTP-Only Cookies**
 - Secure token storage (immune to XSS)
@@ -121,7 +131,7 @@ The Chat Service is a real-time messaging microservice designed for WhatsApp-lik
 
 **Message**
 - UUID primary key (distributed system safety)
-- Content, type (TEXT, IMAGE, POLL, ANNOUNCEMENT)
+- Content, type (TEXT, IMAGE, VIDEO, FILE, POLL, ANNOUNCEMENT)
 - Reply threading and file attachments
 - Soft deletion for audit trails
 
@@ -129,6 +139,21 @@ The Chat Service is a real-time messaging microservice designed for WhatsApp-lik
 - Per-user delivery tracking (SENT, DELIVERED, READ)
 - Bulk creation for group members
 - Real-time status updates via Socket.IO
+
+**Poll & PollOption**
+- Relational poll system with voting options
+- Multiple choice support and expiration dates
+- Vote tracking per user with real-time updates
+
+**MessageReaction**
+- Emoji reactions on messages
+- Per-user reaction tracking
+- Real-time reaction broadcasting
+
+**PinnedMessage**
+- Admin-controlled message pinning
+- Maximum 4 pinned messages per group
+- Chronological pinning history
 
 **Socket Connection Mapping**
 - userId → socketId[] (multiple devices)
@@ -236,6 +261,60 @@ interface UpdateRoleRequest {
 }
 ```
 
+**DELETE /groups/:groupId/members/:userId**
+- Remove member from group (admin only)
+- Self-leave functionality
+
+**PUT /groups/:groupId/settings**
+```typescript
+interface UpdateMemberSettingsRequest {
+  isMuted?: boolean;
+  muteUntil?: string | null;
+}
+```
+
+### Poll Management
+
+**POST /groups/:groupId/polls**
+```typescript
+interface CreatePollRequest {
+  question: string;
+  options: string[];
+  allowMultiple?: boolean;
+  expiresAt?: string;
+}
+```
+
+**GET /polls/:messageId**
+- Get poll details with current vote counts
+- User's voting status included
+
+**DELETE /polls/:messageId**
+- Delete poll (creator or admin only)
+
+### Message Features
+
+**POST /groups/:groupId/messages/:messageId/pin**
+- Pin message (admin only)
+- Maximum 4 pinned messages per group
+
+**DELETE /groups/:groupId/messages/:messageId/pin**
+- Unpin message (admin only)
+
+**GET /groups/:groupId/messages/pinned**
+- Get all pinned messages for group
+
+**POST /groups/:groupId/announcements**
+```typescript
+interface CreateAnnouncementRequest {
+  title: string;
+  content: string;
+}
+```
+
+**GET /groups/:groupId/announcements**
+- Get recent announcements (last 5 days)
+
 **Error Responses:**
 - 401: Invalid/expired JWT
 - 403: Insufficient permissions
@@ -279,7 +358,14 @@ interface UpdateRoleRequest {
 | `user:typing` | C→S | `{groupId: string, isTyping: boolean}` | Typing indicator |
 | `typing:updated` | S→C | `{userId: number, isTyping: boolean}` | Broadcast typing status |
 | `message:reaction:add` | C→S | `{messageId: string, emoji: string}` | Add reaction to message |
+| `message:reaction:remove` | C→S | `{messageId: string, emoji: string}` | Remove reaction from message |
 | `reaction:updated` | S→C | `{messageId: string, emoji: string, action: 'add'|'remove'}` | Broadcast reaction change |
+| `poll:vote` | C→S | `{pollId: string, optionId: string}` | Vote on poll option |
+| `poll:vote:update` | S→C | `{pollId: string, optionId: string, voteCount: number}` | Broadcast vote update |
+| `message:edit` | C→S | `{messageId: string, content: string}` | Edit sent message |
+| `message:delete` | C→S | `{messageId: string}` | Delete sent message |
+| `message:updated` | S→C | `{messageId: string, content?: string, isDeleted: boolean}` | Broadcast message changes |
+| `message:optimistic` | S→C | `MessageWithRelations` | Optimistic message update (bulk mode) |
 
 ### Message Broadcasting Strategy
 
@@ -593,6 +679,13 @@ CACHE_TTL_LONG=1800
 ENABLE_BULK_MESSAGES=false
 MESSAGE_BATCH_TIMEOUT=5000
 MESSAGE_MAX_BATCH_SIZE=100
+
+# Kafka Configuration
+KAFKA_CLIENT_ID=chat-service
+KAFKA_BROKER=localhost:9092
+KAFKA_CONSUMER_GROUP_ID=chat-service-group
+KAFKA_DEBUG=false
+KAFKA_REPLICATION_FACTOR=1
 ```
 
 ## Local Development Setup
@@ -815,22 +908,85 @@ app.get('/health', async (req, res) => {
 
 ### Message Persistence Timing
 
-**Write-After-Broadcast Strategy:**
+**Dual Processing Strategy:**
 ```typescript
-// 1. Broadcast immediately (optimistic)
-io.to(`group:${groupId}`).emit('message:persisted', message);
-
-// 2. Persist to database (background)
-await prisma.message.create({ data: messageData });
-
-// 3. Handle failures gracefully
+// Bulk processing (when enabled)
+if (useBulkProcessing) {
+  await MessageProducer.publishMessageEvent(messageData);
+  io.to(`group:${groupId}`).emit('message:optimistic', message);
+} else {
+  // Direct processing
+  const message = await SocketMessageService.createMessage(messageData);
+  io.to(`group:${groupId}`).emit('message:persisted', message);
+}
 ```
+
+**Bulk Message Processing:**
+- Kafka events for high-throughput scenarios
+- Optimistic updates for immediate user feedback
+- Background batch processing with configurable timeouts
+- Fallback to direct processing on Kafka failures
 
 **Rationale:**
 - User experience prioritized (immediate feedback)
+- Scalable message processing for high load
 - Database failures don't block real-time delivery
 - Message IDs prevent duplicates on retry
-- Acceptable risk for chat applications
+
+## Recent Enhancements
+
+### Kafka Integration
+
+**Event-Driven Architecture:**
+- User management events (create, update, delete)
+- Media upload/delete events with file handling
+- Bulk message processing for performance
+- Cross-service data synchronization
+
+**Consumer Implementation:**
+```typescript
+// Handle user management events
+switch (event.eventType) {
+  case 'USER_PROFILE_CREATED':
+    await CreateUserService(event);
+    break;
+  case 'USER_FULLNAME_UPDATED':
+    await updateUserFullName(event.userId, event.fullName);
+    break;
+}
+```
+
+### Enhanced Message Features
+
+**Poll System:**
+- Create polls with multiple options
+- Single/multiple choice voting
+- Real-time vote count updates
+- Poll expiration handling
+
+**Message Reactions:**
+- Emoji reactions on messages
+- Real-time reaction broadcasting
+- Optimistic reaction updates
+
+**Message Management:**
+- Edit sent messages
+- Delete messages (soft delete)
+- Pin important messages (admin only)
+- Announcement broadcasting
+
+### Performance Optimizations
+
+**Smart Caching:**
+- Redis caching for user profiles and group memberships
+- Cache-first authentication middleware
+- Optimized database queries with Prisma
+
+**Bulk Processing:**
+- Configurable bulk message processing
+- Kafka-based event streaming
+- Background batch operations
+- Graceful fallback mechanisms
 
 ## Future Improvements
 

@@ -11,10 +11,11 @@ The service is designed for high-scale corporate environments requiring secure, 
 - **LiveKit Integration** - Professional-grade video/audio streaming with WebRTC
 - **Real-Time Communication** - Socket.IO-based live updates for meeting events
 - **Security Features** - JWT authentication, password protection, invite tokens with expiration
-- **Participant Management** - Join/leave tracking, role promotion/demotion, mute controls
+- **Participant Management** - Join/leave tracking, role promotion/demotion, automatic host succession
 - **Event-Driven Architecture** - Kafka integration for cross-service communication
-- **High Performance** - Redis caching, connection pooling, rate limiting
+- **High Performance** - Redis caching, connection pooling, optimized database queries
 - **Horizontal Scaling** - Redis adapter for multi-instance Socket.IO coordination
+- **Search & Discovery** - Meeting search by ID with password status checking
 
 ## High-Level Architecture
 
@@ -106,6 +107,7 @@ src/
 | POST | `/api/meetings` | Required | Create new meeting |
 | GET | `/api/meetings` | Required | Get user's meetings (paginated) |
 | GET | `/api/meetings/:id` | Required | Get meeting details |
+| GET | `/api/meetings/search/:meetingId` | Required | Search meeting by ID |
 | PUT | `/api/meetings/:id` | Required | Update meeting (HOST only) |
 | DELETE | `/api/meetings/:id` | Required | Cancel meeting (HOST only) |
 
@@ -130,6 +132,7 @@ src/
 |--------|------|------|-------------|
 | POST | `/api/meetings/:id/promote` | Required | Promote to CO_HOST (HOST only) |
 | POST | `/api/meetings/:id/demote` | Required | Demote CO_HOST (HOST only) |
+| POST | `/api/meetings/:id/leave` | Required | Leave meeting (auto host succession) |
 
 ### Security Features
 
@@ -149,7 +152,8 @@ POST /api/meetings
   "description": "Daily team sync",
   "scheduledAt": "2024-01-15T10:00:00Z",
   "passwordEnabled": true,
-  "password": "secure123"
+  "password": "secure123",
+  "inviteExpiresAt": "2024-01-15T12:00:00Z"
 }
 
 // Response
@@ -159,7 +163,28 @@ POST /api/meetings
     "id": "uuid-meeting-id",
     "title": "Team Standup",
     "inviteToken": "hex-token",
-    "status": "SCHEDULED"
+    "status": "SCHEDULED",
+    "participants": []
+  }
+}
+
+// Join Meeting
+POST /api/meetings/:id/join
+{
+  "inviteToken": "hex-token",
+  "password": "secure123"
+}
+
+// Search Meeting
+GET /api/meetings/search/:meetingId
+// Response
+{
+  "success": true,
+  "data": {
+    "id": "uuid-meeting-id",
+    "title": "Team Standup",
+    "status": "SCHEDULED",
+    "passwordEnabled": true
   }
 }
 ```
@@ -179,18 +204,38 @@ POST /api/meetings
 | `leaveMeetingRoom` | Client→Server | `{meetingId}` | Leave meeting room |
 | `participantJoined` | Server→Client | `ParticipantEventData` | New participant joined |
 | `participantLeft` | Server→Client | `ParticipantEventData` | Participant left |
+| `participantRoleChanged` | Server→Client | `RoleChangeEventData` | Participant role updated |
 | `meetingStarted` | Server→Client | `MeetingEventData` | Meeting went live |
 | `meetingEnded` | Server→Client | `MeetingEventData` | Meeting ended |
 
-**Participant Control Events:**
+**Event Data Types:**
 
-| Event | Direction | Data | Description |
-|-------|-----------|------|-------------|
-| `muteParticipant` | Client→Server | `{meetingId, targetUserId}` | Mute participant (HOST/CO_HOST) |
-| `unmuteParticipant` | Client→Server | `{meetingId, targetUserId}` | Unmute participant |
-| `requestUnmute` | Client→Server | `{meetingId}` | Request unmute permission |
-| `participantMuted` | Server→Client | `MuteEventData` | Participant was muted |
-| `unmuteRequested` | Server→Client | `UnmuteRequestData` | Unmute request received |
+```typescript
+interface ParticipantEventData {
+  meetingId: string;
+  userId: number;
+  userName: string;
+  userEmail: string;
+  role: 'HOST' | 'CO_HOST' | 'PARTICIPANT';
+  timestamp: string;
+}
+
+interface RoleChangeEventData {
+  meetingId: string;
+  userId: number;
+  userName: string;
+  oldRole: 'HOST' | 'CO_HOST' | 'PARTICIPANT';
+  newRole: 'HOST' | 'CO_HOST' | 'PARTICIPANT';
+  changedBy: number;
+  timestamp: string;
+}
+
+interface MeetingEventData {
+  meetingId: string;
+  hostId: number;
+  timestamp: string;
+}
+```
 
 **Scaling Strategy:**
 - Redis Pub/Sub adapter enables cross-instance room synchronization
@@ -325,15 +370,36 @@ npm run dev
 - Kafka cluster provides at-least-once delivery guarantees
 
 **Current Limitations:**
-- Maximum 3 co-hosts per meeting (configurable in code)
+- Maximum 3 co-hosts per meeting (enforced in database transactions)
 - Meeting recordings not implemented (requires LiveKit egress)
 - No meeting scheduling notifications (requires notification-service)
 - Participant limit enforced by LiveKit plan, not service logic
+- Host succession logic: promotes oldest co-host or ends meeting if no co-hosts available
 
 **Expected Upstream Behavior:**
 - API Gateway provides request routing and initial authentication
 - Auth-service maintains JWT blacklist and session state
 - Frontend handles LiveKit WebRTC client integration
+
+## Recent Enhancements
+
+### Advanced Participant Management
+- **Automatic Host Succession** - When host leaves, oldest co-host is promoted automatically
+- **Role Change Events** - Real-time notifications for role promotions/demotions
+- **Enhanced Join Flow** - Support for both invite tokens and password authentication
+- **Meeting Search** - Public meeting discovery with password status indication
+
+### Performance Optimizations
+- **Smart Caching** - Redis caching for meeting data and participant lists
+- **Database Transactions** - Atomic operations for role changes and participant limits
+- **Optimized Queries** - Efficient database queries with proper indexing
+- **Event Publishing** - Kafka events for cross-service meeting state synchronization
+
+### Security Improvements
+- **Invite Token Expiration** - Time-limited meeting access tokens
+- **Password Validation** - Secure password hashing with bcrypt
+- **Access Control** - Granular permissions based on participant roles
+- **Session Management** - Redis-based session validation and blacklisting
 
 ## Future Improvements
 

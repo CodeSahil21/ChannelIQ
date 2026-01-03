@@ -694,6 +694,32 @@ curl http://localhost:3003/health
 - **Scalability**: Efficient queries for connection lists and counts
 - **Privacy**: Granular control over connection visibility
 
+## Recent Enhancements
+
+### Enhanced Profile Management
+- **Comprehensive Profile Fields** - Extended user profiles with job title, department, skills, languages, and social links
+- **Profile Completion Tracking** - Percentage-based completion tracking for better user onboarding
+- **Soft Delete Implementation** - Maintains data integrity while allowing user restoration
+- **Advanced Search** - Full-name search with department and job title filtering
+
+### Connection System Improvements
+- **Enhanced Connection Status** - Added DECLINED status for better request management
+- **Message Support** - Optional messages with connection requests
+- **Blocking System** - Comprehensive user blocking with dedicated endpoints
+- **Activity Timestamps** - Detailed tracking of connection lifecycle events
+
+### Event-Driven Architecture
+- **Kafka Integration** - Real-time event publishing for profile changes
+- **Cross-Service Sync** - Automatic synchronization with chat and other services
+- **Smart Cache Invalidation** - Event-driven cache management for optimal performance
+- **Bulk Operations** - Efficient bulk user profile lookups with caching
+
+### Performance Optimizations
+- **Multi-Layer Caching** - Redis caching for profiles, connections, and search results
+- **Database Indexing** - Optimized indexes for user queries and connection lookups
+- **Query Optimization** - Efficient database queries with proper field selection
+- **Connection Pooling** - Prisma connection pooling for high concurrency
+
 ## Future Improvements
 
 ### Short-term Enhancements
