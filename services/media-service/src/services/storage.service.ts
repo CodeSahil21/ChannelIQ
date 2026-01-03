@@ -24,9 +24,9 @@ class StorageService {
       
       if (!bucketExists) {
         await this.minioClient.makeBucket(this.bucketName, 'us-east-1');
-        console.log(`✅ Bucket '${this.bucketName}' created successfully`);
+        // console.log(`✅ Bucket '${this.bucketName}' created successfully`);
       } else {
-        console.log(`📋 Bucket '${this.bucketName}' already exists`);
+        // console.log(`📋 Bucket '${this.bucketName}' already exists`);
       }
       
       // Set bucket policy to public read
@@ -41,7 +41,7 @@ class StorageService {
       };
       
       await this.minioClient.setBucketPolicy(this.bucketName, JSON.stringify(policy));
-      console.log(`✅ Bucket '${this.bucketName}' set to public read`);
+      // console.log(`✅ Bucket '${this.bucketName}' set to public read`);
       
     } catch (error) {
       console.error('❌ Failed to initialize bucket:', error);
@@ -72,7 +72,7 @@ class StorageService {
       const publicUrl = process.env.MINIO_PUBLIC_URL || 'http://localhost:9000';
       const fileUrl = `${publicUrl}/${this.bucketName}/${fileName}`;
       
-      console.log(`✅ File uploaded successfully: ${fileName}`);
+      // console.log(`✅ File uploaded successfully: ${fileName}`);
       return { fileName, fileUrl };
       
     } catch (error) {
@@ -90,7 +90,7 @@ class StorageService {
       }
       
       await this.minioClient.removeObject(this.bucketName, actualFileName);
-      console.log(`✅ File deleted successfully: ${actualFileName}`);
+      // console.log(`✅ File deleted successfully: ${actualFileName}`);
     } catch (error) {
       console.error('❌ Failed to delete file:', error);
       throw error;

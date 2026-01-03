@@ -34,7 +34,7 @@ export const publishMediaEvent = async (event: MediaEvent): Promise<void> => {
     };
 
     await kafkaProducer.send(message);
-    console.log(`✅ Media event published: ${event.eventType} for user ${event.userId}`);
+    // console.log(`✅ Media event published: ${event.eventType} for user ${event.userId}`);
     
   } catch (error) {
     console.error('❌ Failed to publish media event:', error);

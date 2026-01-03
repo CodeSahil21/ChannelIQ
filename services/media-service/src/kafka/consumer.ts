@@ -11,19 +11,19 @@ export const startConsumer = async (): Promise<void> => {
       eachMessage: async ({ topic, partition, message }) => {
         try {
           const eventData = JSON.parse(message.value?.toString() || '{}');
-          console.log(`📨 Received message from ${topic}:`, eventData);
+          // console.log(`📨 Received message from ${topic}:`, eventData);
 
           // Handle user events if needed for media service
           switch (eventData.eventType) {
             case 'USER_REGISTERED':
-              console.log(`👤 User registered: ${eventData.userId} (${eventData.email})`);
+              // console.log(`👤 User registered: ${eventData.userId} (${eventData.email})`);
               break;
             case 'USER_DELETED':
               // Clean up user's media files
-              console.log(`🗑️ User deleted, cleaning up media for user: ${eventData.userId}`);
+              // console.log(`🗑️ User deleted, cleaning up media for user: ${eventData.userId}`);
               break;
             default:
-              console.log(`ℹ️ Unhandled event type: ${eventData.eventType}`);
+              // console.log(`ℹ️ Unhandled event type: ${eventData.eventType}`);
           }
 
         } catch (error) {
