@@ -26,7 +26,7 @@ class EventPublisher {
                 }]
             });
 
-            console.log(`Published user_deleted event for user ${userData.userId}`);
+            console.log(`Published user_deleted event for user `);
         } catch (error) {
             console.error('Failed to publish user deleted event:', error);
             throw error;
@@ -55,7 +55,7 @@ async publishUserProfileCreated(userData: {
             }]
         });
 
-        console.log(`Published USER_PROFILE_CREATED event for user ${userData.userId} to chat service`);
+        console.log(`Published USER_PROFILE_CREATED event for user  to chat service`);
     } catch (error) {
         console.error('Failed to publish user profile created event:', error);
         throw error;
@@ -84,7 +84,7 @@ async publishUserFullNameUpdated(userData: {
             }]
         });
 
-        console.log(`Published USER_FULLNAME_UPDATED event for user ${userData.userId} to chat service`);
+        console.log(`Published USER_FULLNAME_UPDATED event for user to chat service`);
     } catch (error) {
         console.error('Failed to publish user fullName updated event:', error);
         throw error;
@@ -110,7 +110,7 @@ async publishUserProfileDeleted(userData: {
             }]
         });
 
-        console.log(`Published USER_PROFILE_DELETED event for user ${userData.userId} to chat service`);
+        console.log(`Published USER_PROFILE_DELETED event for user to chat service`);
     } catch (error) {
         console.error('Failed to publish user profile deleted event:', error);
         throw error;

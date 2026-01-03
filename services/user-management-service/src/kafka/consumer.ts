@@ -26,11 +26,11 @@ export const startConsumer = async (): Promise<void> => {
 
           const parsedMessage = JSON.parse(value);
 
-          console.log(`📨 Received message from ${topic}:${partition}`, {
-            key: message.key?.toString(),
-            eventType: parsedMessage.eventType,
-            userId: parsedMessage.userId
-          });
+          // console.log(`📨 Received message from ${topic}:${partition}`, {
+          //   key: message.key?.toString(),
+          //   eventType: parsedMessage.eventType,
+          //   userId: parsedMessage.userId
+          // });
 
           // Handle different event types with switch statement
           switch (parsedMessage.eventType) {
@@ -65,7 +65,7 @@ export const startConsumer = async (): Promise<void> => {
               break;
 
             default:
-              console.log(`⚠️ Unknown event type: ${parsedMessage.eventType}`);
+              console.log("");
               await heartbeat();
           }
 
@@ -93,57 +93,57 @@ export const startConsumer = async (): Promise<void> => {
 
 const handleUserRegisteredEvent = async (event: UserRegisteredEvent): Promise<void> => {
     try {
-        console.log(`👤 Processing USER_REGISTERED event for user ${event.userId}`);
+        console.log(`👤 Processing USER_REGISTERED event for user`);
         await CreateUserService({userId: event.userId, email: event.email});
-        console.log(`✅ User ${event.userId} created successfully`);
+        console.log(`✅ User  created successfully`);
     } catch (error) {
-        console.error(`❌ Failed to handle USER_REGISTERED event for user ${event.userId}:`, error);
+        console.error(`❌ Failed to handle USER_REGISTERED event for user:`, error);
         throw error;
     }
 };
 
 const handleUserLoggedInEventWrapper = async (event: UserLoggedInEventType): Promise<void> => {
     try {
-        console.log(`🔑 Processing USER_LOGGED_IN event for user ${event.userId}`);
+        console.log(`🔑 Processing USER_LOGGED_IN event for user `);
         await handleUserLoggedInEvent(event.userId);
-        console.log(`✅ User ${event.userId} marked as online`);
+        console.log(`✅ User marked as online`);
     } catch (error) {
-        console.error(`❌ Failed to handle USER_LOGGED_IN event for user ${event.userId}:`, error);
+        console.error(`❌ Failed to handle USER_LOGGED_IN event for user:`, error);
         throw error;
     }
 };
 
 const handleUserLoggedOutEventWrapper = async (event: UserLoggedOutEventType): Promise<void> => {
     try {
-        console.log(`🚪 Processing USER_LOGGED_OUT event for user ${event.userId}`);
+        console.log(`🚪 Processing USER_LOGGED_OUT event for user`);
         await handleUserLoggedOutEvent(event.userId);
-        console.log(`✅ User ${event.userId} marked as offline`);
+        console.log(`✅ User marked as offline`);
     } catch (error) {
-        console.error(`❌ Failed to handle USER_LOGGED_OUT event for user ${event.userId}:`, error);
+        console.error(`❌ Failed to handle USER_LOGGED_OUT event for user:`, error);
         throw error;
     }
 };
 
 const handleProfileImageUploadedEvent = async (event: any): Promise<void> => {
     try {
-        console.log(`🖼️ Processing PROFILE_IMAGE_UPLOADED event for user ${event.userId}`);
-        // Extract fileName from the presigned URL or use metadata
+        console.log(`🖼️ Processing PROFILE_IMAGE_UPLOADED event for user `);
+
         const fileName = event.metadata?.fileName || event.imageUrl?.split('/').pop()?.split('?')[0];
         await updateUserProfileImage(parseInt(event.userId), fileName);
-        console.log(`✅ Profile image updated for user ${event.userId}`);
+        console.log(`✅ Profile image updated for user `);
     } catch (error) {
-        console.error(`❌ Failed to handle PROFILE_IMAGE_UPLOADED event for user ${event.userId}:`, error);
+        console.error(`❌ Failed to handle PROFILE_IMAGE_UPLOADED event for user :`, error);
         throw error;
     }
 };
 
 const handleProfileImageDeletedEvent = async (event: any): Promise<void> => {
     try {
-        console.log(`🗑️ Processing PROFILE_IMAGE_DELETED event for user ${event.userId}`);
+        console.log(`🗑️ Processing PROFILE_IMAGE_DELETED event for user `);
         await updateUserProfileImage(parseInt(event.userId), null);
-        console.log(`✅ Profile image removed for user ${event.userId}`);
+        console.log(`✅ Profile image removed for user `);
     } catch (error) {
-        console.error(`❌ Failed to handle PROFILE_IMAGE_DELETED event for user ${event.userId}:`, error);
+        console.error(`❌ Failed to handle PROFILE_IMAGE_DELETED event for user :`, error);
         throw error;
     }
 };
