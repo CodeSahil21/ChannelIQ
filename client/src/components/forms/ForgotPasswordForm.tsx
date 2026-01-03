@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
+import { HiKey, HiShieldCheck, HiMail, HiLockClosed } from 'react-icons/hi';
 import type { ForgotPasswordFormData } from '../../types';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -12,8 +13,6 @@ export const ForgotPasswordForm: React.FC = () => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-
-
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,14 +51,41 @@ export const ForgotPasswordForm: React.FC = () => {
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <div className="auth-header">
-          <h1 className="auth-title">Reset Password</h1>
-          <p className="auth-subtitle">Enter your email to receive an OTP</p>
+    <div className="enhanced-auth-container">
+      <div className="auth-hero-section">
+        <div className="auth-hero-content">
+          <div className="auth-hero-badge">
+            <HiKey className="hero-badge-icon" />
+            <span>Password Recovery</span>
+          </div>
+          <h1 className="auth-hero-title">Reset Your Password</h1>
+          <p className="auth-hero-subtitle">
+            Don't worry! Enter your email address and we'll send you a secure OTP to reset your password
+          </p>
+          <div className="auth-features">
+            <div className="auth-feature">
+              <HiMail className="auth-feature-icon" />
+              <span>Email Verification</span>
+            </div>
+            <div className="auth-feature">
+              <HiShieldCheck className="auth-feature-icon" />
+              <span>Secure Process</span>
+            </div>
+            <div className="auth-feature">
+              <HiLockClosed className="auth-feature-icon" />
+              <span>Account Protection</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div className="enhanced-auth-card">
+        <div className="auth-card-header">
+          <h2 className="auth-card-title">Reset Password</h2>
+          <p className="auth-card-subtitle">Enter your email to receive an OTP</p>
         </div>
         
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="auth-form">
           <Input
             label="Email Address"
             type="email"
@@ -74,8 +100,10 @@ export const ForgotPasswordForm: React.FC = () => {
           </Button>
         </form>
         
-        <div className="auth-link">
-          Remember your password? <Link to="/login">Sign in</Link>
+        <div className="auth-links">
+          <div className="auth-link-secondary">
+            Remember your password? <Link to="/login">Sign in</Link>
+          </div>
         </div>
       </div>
     </div>
