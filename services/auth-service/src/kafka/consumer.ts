@@ -10,7 +10,7 @@ export const startConsumer = async (): Promise<void> => {
     });
 
     await kafkaConsumer.run({
-      eachMessage: async ({ topic, partition, message, heartbeat }) => {
+      eachMessage: async ({ topic, message, heartbeat }) => {
         try {
           // Add heartbeat at the start
           await heartbeat();
@@ -23,11 +23,11 @@ export const startConsumer = async (): Promise<void> => {
 
           const parsedMessage = JSON.parse(value);
 
-          console.log(`📨 Received message from ${topic}:${partition}`, {
-            key: message.key?.toString(),
-            type: parsedMessage.type,
-            userId: parsedMessage.data?.userId
-          });
+          // console.log(`📨 Received message from ${topic}:${partition}`, {
+          //   key: message.key?.toString(),
+          //   type: parsedMessage.type,
+          //   userId: parsedMessage.data?.userId
+          // });
 
           if (topic === 'user-management-events') {
             // Add heartbeat before processing
@@ -71,12 +71,12 @@ const handleUserManagementEvent = async (event: UserDeletedEvent): Promise<void>
       const userId = event.userId;
       if (typeof userId === 'number') {
         await deleteUserById(userId);
-        console.log(`🗑️ User with ID ${userId} deleted successfully.`);
+        // console.log(`🗑️ User with ID ${userId} deleted successfully.`);
       } else {
         console.warn('⚠️ USER_DELETED event missing valid userId:', event);
       }
     } else {
-      console.warn(`⚠️ Unhandled user management event type: ${event.eventType}`);
+      console.warn(`⚠️ Unhandled user management event type:`);
     }
   } catch (error) {
     console.error(`❌ Error handling USER_DELETED event:`, error);

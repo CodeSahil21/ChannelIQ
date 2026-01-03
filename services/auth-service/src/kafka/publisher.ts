@@ -28,7 +28,7 @@ class EventPublisher {
             }
         }]
     });
-    console.log('✅ User registered event published:', userData.userId);
+    // console.log('✅ User registered event published:', userData.userId);
    } catch (error) {
       console.error('❌ Failed to publish user registered event:', error);
       // In production, you might want to implement retry logic or dead letter queue
@@ -57,7 +57,7 @@ async publishUserLoggedIn(userData: {
                 }
             }]
         });
-        console.log('✅ User logged in event published:', userData.userId);
+        // console.log('✅ User logged in event published:', userData.userId);
     } catch (error) {
         console.error('❌ Failed to publish user logged in event:', error);
         throw new Error(`Event publishing failed: ${error}`);
@@ -83,7 +83,7 @@ async publishUserLoggedOut(userData: {
                 }
             }]
         });
-        console.log('✅ User logged out event published:', userData.userId);
+        // console.log('✅ User logged out event published:', userData.userId);
     } catch (error) {
         console.error('❌ Failed to publish user logged out event:', error);
         throw new Error(`Event publishing failed: ${error}`);
