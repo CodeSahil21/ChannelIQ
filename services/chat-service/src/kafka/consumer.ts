@@ -9,8 +9,6 @@ import { MessageEvent } from './messageProducer';
 import { MessageBufferService } from '../services/messageBuffer.service';
 
 
-import { config } from '../utils/config';
-
 export const startConsumer = async (): Promise<void> => {
   try {
     console.log('🔄 Starting Kafka consumer...');
@@ -45,12 +43,6 @@ export const startConsumer = async (): Promise<void> => {
             case 'user-management-events':
               await heartbeat();
               await handleUserManagementEvent(parsedMessage);
-              await heartbeat();
-              break;
-              
-            case 'chat-events':
-              await heartbeat();
-              await handleChatEvent(parsedMessage);
               await heartbeat();
               break;
               
@@ -181,15 +173,6 @@ const handleUserManagementEvent = async (event: UserManagementEvent): Promise<vo
   }
 };
 
-const handleChatEvent = async (event: any): Promise<void> => {
-  try {
-    // console.log(`💬 Processing chat event: ${event.eventType}`);
-    // Add chat event handling logic here
-  } catch (error) {
-    console.error(`❌ Error handling chat event:`, error);
-    throw error;
-  }
-};
 
 const handleMediaEvent = async (event: MediaEvent): Promise<void> => {
   try {
