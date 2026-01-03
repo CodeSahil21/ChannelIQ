@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import toast from 'react-hot-toast';
 import type { Meeting } from '../../types/meeting.types';
 
 interface MeetingDetailsModalProps {

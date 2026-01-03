@@ -5,7 +5,7 @@ import { HiCog, HiUserRemove, HiVolumeOff, HiVolumeUp } from 'react-icons/hi';
 interface MemberActionDropdownProps {
   isOpen: boolean;
   onClose: () => void;
-  triggerRef: React.RefObject<HTMLButtonElement>;
+  triggerRef: React.RefObject<HTMLButtonElement | null>;
   onRoleChange: (role: 'CO_ADMIN' | 'MEMBER') => void;
   onMuteToggle: () => void;
   onRemoveMember: () => void;

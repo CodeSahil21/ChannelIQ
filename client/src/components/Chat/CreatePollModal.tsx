@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { HiX, HiPlus, HiTrash } from 'react-icons/hi';
+import toast from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
 import { createPoll } from '../../store/groupContentSlice';
 import type { CreatePollRequest } from '../../types';

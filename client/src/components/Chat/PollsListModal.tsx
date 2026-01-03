@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { HiX, HiTrash, HiChartBar } from 'react-icons/hi';
+import { toast } from 'react-hot-toast';
 import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
 import { fetchPolls, deletePoll } from '../../store/groupContentSlice';
-import { useSocketChat } from '../../hooks/useSocketChat';
+import { useSocket } from '../../hooks/useSocket';
 
 interface PollsListModalProps {
   isOpen: boolean;
@@ -13,7 +14,7 @@ interface PollsListModalProps {
 const PollsListModal: React.FC<PollsListModalProps> = ({ isOpen, onClose, groupId }) => {
   const dispatch = useAppDispatch();
   const { polls } = useAppSelector(state => state.groupContent);
-  const { socket, votePoll, joinGroup } = useSocketChat();
+  const { socket, votePoll, joinGroup } = useSocket();
   const [selectedPoll, setSelectedPoll] = useState<string | null>(null);
   const [localPolls, setLocalPolls] = useState(polls.items);
 
@@ -42,7 +43,7 @@ const PollsListModal: React.FC<PollsListModalProps> = ({ isOpen, onClose, groupI
         if (poll.id === data.pollId) {
           return {
             ...poll,
-            options: poll.options.map(option => {
+            options: poll.options?.map(option => {
               if (option.id === data.optionId) {
                 return { 
                   ...option, 
@@ -51,7 +52,7 @@ const PollsListModal: React.FC<PollsListModalProps> = ({ isOpen, onClose, groupI
                 };
               }
               return option;
-            })
+            }) || []
           };
         }
         return poll;
@@ -123,7 +124,7 @@ const PollsListModal: React.FC<PollsListModalProps> = ({ isOpen, onClose, groupI
                   </div>
                   
                   <div className="poll-options">
-                    {poll.options.map((option) => (
+                    {poll.options?.map((option) => (
                       <div key={option.id} className="poll-option">
                         <button
                           onClick={() => handleVote(poll.id, option.id)}
@@ -131,22 +132,22 @@ const PollsListModal: React.FC<PollsListModalProps> = ({ isOpen, onClose, groupI
                         >
                           <span className="poll-option-text">{option.text}</span>
                           <div className="poll-option-stats">
-                            <span className="poll-votes">{option.votes} votes</span>
+                            <span className="poll-votes">{option.votes || 0} votes</span>
                             <div className="poll-progress">
                               <div 
                                 className="poll-progress-bar" 
-                                style={{ width: `${(option.votes / Math.max(1, poll.options.reduce((sum, opt) => sum + opt.votes, 0))) * 100}%` }}
+                                style={{ width: `${((option.votes || 0) / Math.max(1, poll.options?.reduce((sum, opt) => sum + (opt.votes || 0), 0) || 1)) * 100}%` }}
                               ></div>
                             </div>
                           </div>
                         </button>
                       </div>
-                    ))}
+                    )) || []}
                   </div>
                   
                   <div className="poll-meta">
-                    <span className="poll-creator">By {poll.createdBy.fullName}</span>
-                    <span className="poll-date">{new Date(poll.createdAt).toLocaleDateString()}</span>
+                    <span className="poll-creator">By {poll.createdBy?.fullName || 'Unknown'}</span>
+                    <span className="poll-date">{poll.createdAt ? new Date(poll.createdAt).toLocaleDateString() : 'Unknown date'}</span>
                     {poll.expiresAt && (
                       <span className="poll-expires">Expires: {new Date(poll.expiresAt).toLocaleDateString()}</span>
                     )}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import toast from 'react-hot-toast';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { createMeeting } from '../../store/meetingSlice';
 import type { Meeting } from '../../types/meeting.types';

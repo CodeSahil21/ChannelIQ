@@ -40,7 +40,7 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
   const [showPinnedMessagesModal, setShowPinnedMessagesModal] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<{ userId: number; name: string } | null>(null);
   const [activeDropdown, setActiveDropdown] = useState<number | null>(null);
-  const dropdownTriggerRefs = useRef<{ [key: number]: React.RefObject<HTMLButtonElement> }>({});
+  const dropdownTriggerRefs = useRef<{ [key: number]: React.RefObject<HTMLButtonElement | null> }>({});
 
   const { updateGroup, deleteGroup, leaveGroup } = useGroups();
 
@@ -163,7 +163,7 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
                 
                 // Create ref for this member's dropdown trigger
                 if (!dropdownTriggerRefs.current[member.userId]) {
-                  dropdownTriggerRefs.current[member.userId] = React.createRef<HTMLButtonElement>();
+                  dropdownTriggerRefs.current[member.userId] = React.createRef<HTMLButtonElement | null>();
                 }
                 
                 return (

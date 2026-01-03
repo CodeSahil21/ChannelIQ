@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaSearch, FaTimes, FaUserCircle } from 'react-icons/fa';
+import toast from 'react-hot-toast';
 import { userApi } from '../../api/user.api';
 import type { UserSearchResult } from '../../types';
 

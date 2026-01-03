@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { toast } from 'react-hot-toast';
 import { FaTimes, FaUserCircle, FaBriefcase, FaBuilding, FaMapMarkerAlt, FaLinkedin, FaGithub, FaGlobe, FaTwitter } from 'react-icons/fa';
 import { userApi } from '../../api/user.api';
 import { useConnections } from '../../hooks/useConnections';

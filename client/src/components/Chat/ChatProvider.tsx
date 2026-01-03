@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useSocketChat } from '../../hooks/useSocketChat';
+import { useSocket } from '../../hooks/useSocket';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchMessages, clearMessages, addMessage, updateMessage, updateReaction } from '../../store/messagesSlice';
 import { toast } from 'react-hot-toast';
@@ -56,7 +56,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     removeReaction: socketRemoveReaction,
     startTyping: socketStartTyping,
     stopTyping: socketStopTyping
-  } = useSocketChat();
+  } = useSocket();
 
   // Socket listeners for real-time updates
   useEffect(() => {

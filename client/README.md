@@ -1,10 +1,10 @@
-# ChannelIQ Frontend
+# CorporateChat Frontend
 
-Enterprise-grade React application for corporate communication and collaboration. Built with modern TypeScript, Redux Toolkit, and real-time Socket.IO integration for seamless team connectivity.
+Enterprise-grade React application for corporate communication and collaboration. Built with modern TypeScript, Redux Toolkit, Socket.IO for real-time messaging, and LiveKit for video conferencing.
 
 ## Project Overview
 
-ChannelIQ Frontend is a comprehensive web application designed for corporate teams to communicate, collaborate, and manage professional relationships. The application provides secure authentication, profile management, connection networking, group chat functionality, and real-time messaging capabilities.
+CorporateChat Frontend is a comprehensive web application designed for corporate teams to communicate, collaborate, and manage professional relationships. The application provides secure authentication, profile management, connection networking, group chat functionality, real-time messaging, and integrated video meetings.
 
 **Target Users:**
 - Corporate employees and teams
@@ -17,6 +17,7 @@ ChannelIQ Frontend is a comprehensive web application designed for corporate tea
 - Lack of professional networking within organizations
 - Inefficient team collaboration and project coordination
 - Security concerns with external messaging platforms
+- Need for integrated video conferencing solutions
 
 **System Integration:**
 The frontend communicates with a microservices backend architecture through an API Gateway, ensuring scalable, secure, and maintainable enterprise-grade communication.
@@ -32,10 +33,11 @@ The frontend communicates with a microservices backend architecture through an A
 | **Routing** | React Router DOM | 7.10.1 | Client-side routing and navigation |
 | **HTTP Client** | Axios | 1.13.2 | API communication with interceptors |
 | **Real-time** | Socket.IO Client | 4.8.1 | WebSocket-based real-time features |
+| **Video Conferencing** | LiveKit | 2.16.1 | WebRTC-based video meetings |
+| **LiveKit Components** | @livekit/components-react | 2.9.17 | Pre-built video UI components |
 | **Styling** | Vanilla CSS | - | Custom CSS with CSS variables |
 | **Animations** | Framer Motion | 12.23.25 | Smooth UI animations and transitions |
 | **Icons** | React Icons | 5.5.0 | Comprehensive icon library |
-| **Icons** | Lucide React | 0.561.0 | Modern icon set |
 | **Notifications** | React Hot Toast | 2.6.0 | Toast notification system |
 | **Linting** | ESLint | 9.39.1 | Code quality and consistency |
 | **Type Checking** | TypeScript ESLint | 8.46.4 | TypeScript-specific linting rules |
@@ -84,59 +86,122 @@ src/
 │   ├── connection.api.ts   # Connection management endpoints
 │   ├── groupContent.api.ts # Group content and messaging
 │   ├── media.api.ts        # File upload and media handling
+│   ├── meeting.api.ts      # Video meeting management
 │   └── user.api.ts         # User profile and search
 ├── components/             # Reusable UI components
 │   ├── Chat/              # Real-time messaging components
-│   │   ├── ChatProvider.tsx    # Socket.IO context provider
-│   │   ├── MessageList.tsx     # Message rendering and virtualization
-│   │   ├── MessageInput.tsx    # Message composition with file upload
-│   │   └── GroupDetailView.tsx # Group management interface
+│   │   ├── ChatProvider.tsx        # Socket.IO context provider
+│   │   ├── ChatMessages.tsx        # Message rendering container
+│   │   ├── MessageList.tsx         # Message list with virtualization
+│   │   ├── MessageItem.tsx         # Individual message component
+│   │   ├── MessageInput.tsx        # Message composition with file upload
+│   │   ├── GroupDetailView.tsx     # Group management interface
+│   │   ├── GroupProfile.tsx        # Group information display
+│   │   ├── GroupCards.tsx          # Group list cards
+│   │   ├── CreateGroupModal.tsx    # Group creation interface
+│   │   ├── UpdateGroupModal.tsx    # Group editing interface
+│   │   ├── DeleteGroupModal.tsx    # Group deletion confirmation
+│   │   ├── AddMembersModal.tsx     # Member invitation interface
+│   │   ├── RemoveMemberModal.tsx   # Member removal confirmation
+│   │   ├── LeaveGroupModal.tsx     # Group leave confirmation
+│   │   ├── MemberActionDropdown.tsx # Member management actions
+│   │   ├── SearchGroupModal.tsx    # Group search interface
+│   │   ├── PollsListModal.tsx      # Group polls management
+│   │   ├── CreatePollModal.tsx     # Poll creation interface
+│   │   ├── AnnouncementsListModal.tsx # Group announcements
+│   │   ├── CreateAnnouncementModal.tsx # Announcement creation
+│   │   ├── PinnedMessagesModal.tsx # Pinned messages display
+│   │   ├── FileUpload.tsx          # File upload component
+│   │   ├── TypingIndicator.tsx     # Real-time typing status
+│   │   └── GroupActions.tsx        # Group action buttons
 │   ├── connections/       # Professional networking features
-│   │   ├── ConnectionsList.tsx # User connections management
-│   │   ├── PendingRequests.tsx # Connection request handling
-│   │   └── ConnectionStats.tsx # Network analytics
+│   │   ├── ConnectionsList.tsx     # User connections management
+│   │   ├── PendingRequests.tsx     # Connection request handling
+│   │   ├── SentRequests.tsx        # Sent connection requests
+│   │   ├── BlockedUsers.tsx        # Blocked users management
+│   │   ├── ConnectionCard.tsx      # Individual connection display
+│   │   ├── ConnectionButton.tsx    # Connection action button
+│   │   ├── ConnectionStats.tsx     # Network analytics
+│   │   ├── SendRequestModal.tsx    # Connection request interface
+│   │   └── ConnectionNotificationBadge.tsx # Request notifications
 │   ├── forms/             # Authentication and data entry forms
-│   │   ├── LoginForm.tsx       # User authentication
-│   │   ├── RegisterForm.tsx    # Account creation
-│   │   └── ProfileForm.tsx     # Profile management
+│   │   ├── LoginForm.tsx           # User authentication
+│   │   ├── RegisterForm.tsx        # Account creation
+│   │   ├── ForgotPasswordForm.tsx  # Password recovery
+│   │   ├── ResetPasswordForm.tsx   # Password reset
+│   │   └── VerifyOtpForm.tsx       # OTP verification
 │   ├── layout/            # Application shell components
-│   │   ├── Layout.tsx          # Main application wrapper
-│   │   ├── Navbar.tsx          # Navigation header
-│   │   └── Sidebar.tsx         # Navigation sidebar
+│   │   ├── Layout.tsx              # Main application wrapper
+│   │   ├── Navbar.tsx              # Navigation header
+│   │   └── Sidebar.tsx             # Navigation sidebar
+│   ├── meetings/          # Video conferencing components
+│   │   ├── CreateMeetingModal.tsx  # Meeting creation interface
+│   │   ├── JoinMeetingModal.tsx    # Meeting join interface
+│   │   ├── MeetingDetailsModal.tsx # Meeting information display
+│   │   ├── LiveKitRoom.tsx         # LiveKit room wrapper
+│   │   ├── MeetingControls.tsx     # Meeting control buttons
+│   │   ├── MeetingParticipants.tsx # Participant management
+│   │   ├── MeetingHero.tsx         # Meeting landing section
+│   │   ├── MeetingJoinCard.tsx     # Meeting join card
+│   │   └── RemoveParticipantModal.tsx # Participant removal
 │   ├── profile/           # User profile management
-│   │   ├── ProfileView.tsx     # Profile display
-│   │   ├── EditProfile.tsx     # Profile editing
-│   │   └── PreferencesView.tsx # User preferences
+│   │   ├── ProfileView.tsx         # Profile display
+│   │   ├── EditProfile.tsx         # Profile editing
+│   │   ├── CreateProfile.tsx       # Initial profile setup
+│   │   ├── PreferencesView.tsx     # User preferences
+│   │   ├── ProfileImageModal.tsx   # Profile image upload
+│   │   └── DeleteProfileModal.tsx  # Profile deletion
 │   ├── search/            # User discovery and search
-│   │   ├── SearchModal.tsx     # User search interface
-│   │   └── UserProfileModal.tsx # User profile preview
+│   │   ├── SearchModal.tsx         # User search interface
+│   │   └── UserProfileModal.tsx    # User profile preview
 │   └── ui/                # Reusable UI primitives
-│       ├── Button.tsx          # Styled button component
-│       ├── Input.tsx           # Form input component
-│       ├── Loader.tsx          # Loading indicators
-│       └── ErrorBoundary.tsx   # Error handling wrapper
+│       ├── Button.tsx              # Styled button component
+│       ├── Input.tsx               # Form input component
+│       ├── PasswordInput.tsx       # Password input with visibility toggle
+│       ├── Loader.tsx              # Loading indicators
+│       ├── ErrorBoundary.tsx       # Error handling wrapper
+│       ├── PageTransition.tsx      # Page transition animations
+│       └── PresignedImage.tsx      # Secure image display
 ├── hooks/                 # Custom React hooks
 │   ├── useAppDispatch.ts  # Typed Redux dispatch hook
 │   ├── useSocket.ts       # Socket.IO connection management
+│   ├── useMeetingSocket.ts # Meeting-specific socket events
 │   ├── useConnections.ts  # Connection management logic
-│   └── useProfile.ts      # Profile management logic
+│   ├── useProfile.ts      # Profile management logic
+│   ├── useGroups.ts       # Group management logic
+│   ├── useFileUpload.ts   # File upload handling
+│   └── useUserSearch.ts   # User search functionality
 ├── pages/                 # Route-level page components
+│   ├── Home.tsx           # Landing page
 │   ├── Login.tsx          # Authentication page
+│   ├── Register.tsx       # User registration
+│   ├── ForgotPassword.tsx # Password recovery
+│   ├── ResetPassword.tsx  # Password reset
+│   ├── VerifyOtp.tsx      # OTP verification
 │   ├── Dashboard.tsx      # Main dashboard
 │   ├── Profile.tsx        # User profile page
+│   ├── Preferences.tsx    # User preferences
 │   ├── Connections.tsx    # Professional networking
-│   └── ChatPage.tsx       # Real-time messaging
+│   ├── ChatPage.tsx       # Real-time messaging
+│   ├── Meeting.tsx        # Video meeting page
+│   └── MeetingDemo.tsx    # Meeting demo/test page
 ├── store/                 # Redux Toolkit configuration
 │   ├── index.ts           # Store configuration
 │   ├── userSlice.ts       # User authentication state
 │   ├── themeSlice.ts      # Theme and preferences
 │   ├── connectionSlice.ts # Professional connections
 │   ├── groupSlice.ts      # Group management
-│   └── messagesSlice.ts   # Real-time messaging state
+│   ├── groupContentSlice.ts # Group content and polls
+│   ├── messagesSlice.ts   # Real-time messaging state
+│   ├── mediaSlice.ts      # File upload and media
+│   ├── meetingSlice.ts    # Video meeting state
+│   └── profileSlice.ts    # Profile management
 ├── types/                 # TypeScript type definitions
 │   ├── index.ts           # Common types and interfaces
 │   ├── connection.types.ts # Connection-related types
 │   ├── group.types.ts     # Group and messaging types
+│   ├── groupContent.types.ts # Group content types
+│   ├── meeting.types.ts   # Video meeting types
 │   └── user.types.ts      # User profile types
 ├── utils/                 # Utility functions and helpers
 │   └── apiCache.ts        # Client-side API response caching
@@ -149,6 +214,14 @@ src/
 
 - **api/**: Service-specific API clients with consistent error handling and type safety
 - **components/**: Feature-organized components with clear domain boundaries
+  - **Chat/**: Comprehensive messaging system with group management, polls, announcements
+  - **connections/**: Professional networking with connection requests and management
+  - **forms/**: Authentication forms with OTP verification and password recovery
+  - **layout/**: Application shell with navigation and responsive design
+  - **meetings/**: Video conferencing integration with LiveKit components
+  - **profile/**: User profile management with image upload and preferences
+  - **search/**: User discovery and profile preview functionality
+  - **ui/**: Reusable UI primitives and utility components
 - **hooks/**: Custom hooks encapsulating complex logic and state management
 - **pages/**: Route-level components representing application screens
 - **store/**: Redux Toolkit slices with async thunks for API integration
@@ -262,10 +335,11 @@ interface RootState {
   theme: ThemeState;         // UI preferences and theming
   connections: ConnectionState; // Professional networking
   groups: GroupState;        // Group management and membership
+  groupContent: GroupContentState; // Group polls and announcements
   messages: MessagesState;   // Real-time messaging
   media: MediaState;         // File upload and media handling
   profile: ProfileState;     // Profile management
-  groupContent: GroupContentState; // Group-specific content
+  meeting: MeetingState;     // Video meeting state
 }
 ```
 
@@ -346,12 +420,54 @@ export const useSocket = () => {
 - **Presence Updates**: User online/offline status synchronization
 - **Group Events**: Member join/leave notifications
 - **Reaction Updates**: Real-time emoji reactions on messages
+- **Meeting Events**: Video meeting notifications and participant updates
 
 ### Performance Optimizations
 - **Connection Pooling**: Shared socket connection across components
 - **Event Debouncing**: Throttled typing indicators to reduce server load
 - **Optimistic Updates**: Immediate UI updates with server reconciliation
 - **Reconnection Logic**: Automatic reconnection with exponential backoff
+
+## Video Conferencing
+
+### LiveKit Integration
+The application integrates LiveKit for enterprise-grade video conferencing capabilities.
+
+### Meeting Features
+- **Room Creation**: Dynamic meeting room generation
+- **Participant Management**: Add/remove participants with role-based permissions
+- **Screen Sharing**: Desktop and application sharing
+- **Audio/Video Controls**: Mute/unmute, camera on/off controls
+- **Chat Integration**: In-meeting text chat
+- **Recording**: Meeting recording capabilities
+- **Breakout Rooms**: Support for smaller group discussions
+
+### LiveKit Components
+```typescript
+// LiveKitRoom.tsx - Meeting room wrapper
+import { LiveKitRoom, VideoConference } from '@livekit/components-react';
+import '@livekit/components-styles';
+
+const MeetingRoom = ({ token, serverUrl }) => {
+  return (
+    <LiveKitRoom
+      video={true}
+      audio={true}
+      token={token}
+      serverUrl={serverUrl}
+      data-lk-theme="default"
+    >
+      <VideoConference />
+    </LiveKitRoom>
+  );
+};
+```
+
+### Meeting State Management
+- **Meeting Creation**: API integration for room provisioning
+- **Token Management**: Secure JWT token handling for room access
+- **Participant Tracking**: Real-time participant state synchronization
+- **Meeting History**: Past meeting records and recordings
 
 ## UI & UX Principles
 
@@ -404,17 +520,23 @@ Create a `.env` file in the project root:
 VITE_API_BASE_URL=http://localhost:4000
 VITE_SOCKET_URL=http://localhost:4000
 
+# LiveKit Configuration
+VITE_LIVEKIT_URL=wss://your-livekit-server.com
+VITE_LIVEKIT_API_KEY=your-api-key
+VITE_LIVEKIT_SECRET_KEY=your-secret-key
+
 # Feature Flags
 VITE_ENABLE_CHAT=true
 VITE_ENABLE_CONNECTIONS=true
 VITE_ENABLE_GROUPS=true
+VITE_ENABLE_MEETINGS=true
 
 # Environment
 VITE_NODE_ENV=development
 
 # Media Configuration
 VITE_MAX_FILE_SIZE=10485760
-VITE_ALLOWED_FILE_TYPES=image/jpeg,image/png,image/webp
+VITE_ALLOWED_FILE_TYPES=image/jpeg,image/png,image/webp,application/pdf
 
 # Security
 VITE_ENABLE_ANALYTICS=false
@@ -630,25 +752,28 @@ jobs:
 ## Future Improvements
 
 ### Feature Enhancements
-- **Video Calling Integration**: WebRTC-based video conferencing
-- **Advanced Search**: Full-text search across messages and profiles
+- **Advanced Meeting Features**: Whiteboard integration, meeting templates, and scheduling
+- **Advanced Search**: Full-text search across messages, files, and profiles
 - **Mobile Application**: React Native mobile app development
 - **Offline Support**: Progressive Web App with offline capabilities
 - **Advanced Analytics**: User engagement and communication metrics
+- **AI Integration**: Smart message suggestions and content moderation
 
 ### Performance Upgrades
 - **Service Worker**: Background sync and push notifications
 - **Virtual Scrolling**: Efficient rendering of large message lists
-- **Image Optimization**: WebP format with lazy loading
+- **Image Optimization**: WebP format with lazy loading and compression
 - **Bundle Analysis**: Continuous bundle size monitoring
 - **Edge Caching**: CDN integration for global performance
+- **Meeting Optimization**: Adaptive bitrate and quality controls
 
 ### UX Improvements
 - **Keyboard Shortcuts**: Power user keyboard navigation
-- **Drag & Drop**: File upload with drag-and-drop interface
+- **Drag & Drop**: Enhanced file upload with drag-and-drop interface
 - **Voice Messages**: Audio message recording and playback
 - **Message Threading**: Threaded conversations for better organization
 - **Custom Themes**: User-customizable color schemes and layouts
+- **Meeting Layouts**: Grid, speaker, and presentation view modes
 
 ### Testing Expansion
 - **Unit Testing**: Jest and React Testing Library integration
@@ -656,13 +781,16 @@ jobs:
 - **E2E Testing**: Cypress or Playwright end-to-end testing
 - **Visual Regression**: Automated UI consistency testing
 - **Performance Testing**: Lighthouse CI integration
+- **Meeting Testing**: WebRTC connection and quality testing
 
 ### Security Enhancements
 - **Two-Factor Authentication**: TOTP-based 2FA implementation
+- **End-to-End Encryption**: Message encryption for sensitive communications
 - **Session Management**: Advanced session security and monitoring
 - **Audit Logging**: Comprehensive user action logging
 - **Content Moderation**: AI-powered content filtering
 - **Privacy Controls**: Granular privacy settings and data export
+- **Meeting Security**: Waiting rooms, meeting locks, and participant verification
 
 ## Contribution Guidelines
 
@@ -691,4 +819,4 @@ jobs:
 
 MIT License - see LICENSE file for details.
 
-Copyright (c) 2024 ChannelIQ. All rights reserved.
+Copyright (c) 2024 CorporateChat. All rights reserved.
