@@ -51,7 +51,7 @@ export const initMeetingSocket = (server: http.Server): TypedServer => {
   io.on('connection', async (socket) => {
     try {
       const userId = socket.data.user?.id?.toString().replace(/[\x00-\x1F\x7F\r\n]/g, '') || 'Unknown';
-      console.log('Meeting socket connected:', userId);
+      // console.log('Meeting socket connected:', userId);
       
       if (!socket.data.user?.id) {
         socket.disconnect();

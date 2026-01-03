@@ -18,7 +18,7 @@ export const registerMeetingHandlers = (io: TypedServer, socket: TypedSocket) =>
 
       if (participant) {
         socket.join(`meeting:${meetingId}`);
-        console.log(`User ${socket.data.user.id} joined meeting room ${meetingId}`);
+        // console.log(`User ${socket.data.user.id} joined meeting room ${meetingId}`);
         
         // Emit participant joined event to all other participants
         socket.to(`meeting:${meetingId}`).emit('participantJoined', {
@@ -37,7 +37,7 @@ export const registerMeetingHandlers = (io: TypedServer, socket: TypedSocket) =>
 
   const leaveMeetingRoom = (meetingId: string) => {
     socket.leave(`meeting:${meetingId}`);
-    console.log(`User ${socket.data.user?.id} left meeting room ${meetingId}`);
+    // console.log(`User ${socket.data.user?.id} left meeting room ${meetingId}`);
     
     // Emit participant left event to all other participants
     if (socket.data.user?.id) {
@@ -56,7 +56,7 @@ export const registerMeetingHandlers = (io: TypedServer, socket: TypedSocket) =>
     try {
       if (!socket.data.user?.id) return;
 
-      console.log('Mute request received:', { from: socket.data.user.id, target: data.targetUserId, meetingId: data.meetingId });
+      // console.log('Mute request received:', { from: socket.data.user.id, target: data.targetUserId, meetingId: data.meetingId });
 
       // Verify user has permission (HOST or CO_HOST)
       const participant = await prisma.meetingParticipant.findFirst({
@@ -88,7 +88,7 @@ export const registerMeetingHandlers = (io: TypedServer, socket: TypedSocket) =>
     try {
       if (!socket.data.user?.id) return;
 
-      console.log('Unmute request received:', { from: socket.data.user.id, target: data.targetUserId, meetingId: data.meetingId });
+      // console.log('Unmute request received:', { from: socket.data.user.id, target: data.targetUserId, meetingId: data.meetingId });
 
       // Verify user has permission (HOST or CO_HOST)
       const participant = await prisma.meetingParticipant.findFirst({
@@ -147,7 +147,7 @@ export const registerMeetingHandlers = (io: TypedServer, socket: TypedSocket) =>
     try {
       if (!socket.data.user?.id) return;
 
-      console.log('Camera toggle request received:', { from: socket.data.user.id, target: data.targetUserId, enabled: data.enabled, meetingId: data.meetingId });
+      // console.log('Camera toggle request received:', { from: socket.data.user.id, target: data.targetUserId, enabled: data.enabled, meetingId: data.meetingId });
 
       // Verify user has permission (HOST or CO_HOST)
       const participant = await prisma.meetingParticipant.findFirst({
@@ -181,7 +181,7 @@ export const registerMeetingHandlers = (io: TypedServer, socket: TypedSocket) =>
     try {
       if (!socket.data.user?.id) return;
 
-      console.log('Screen share toggle request received:', { from: socket.data.user.id, target: data.targetUserId, enabled: data.enabled, meetingId: data.meetingId });
+      // console.log('Screen share toggle request received:', { from: socket.data.user.id, target: data.targetUserId, enabled: data.enabled, meetingId: data.meetingId });
 
       // Verify user has permission (HOST or CO_HOST)
       const participant = await prisma.meetingParticipant.findFirst({
@@ -215,7 +215,7 @@ export const registerMeetingHandlers = (io: TypedServer, socket: TypedSocket) =>
     try {
       if (!socket.data.user?.id) return;
 
-      console.log('Kick participant request received:', { from: socket.data.user.id, target: data.targetUserId, meetingId: data.meetingId });
+      // console.log('Kick participant request received:', { from: socket.data.user.id, target: data.targetUserId, meetingId: data.meetingId });
 
       // Verify user has permission (HOST or CO_HOST)
       const participant = await prisma.meetingParticipant.findFirst({
@@ -242,7 +242,7 @@ export const registerMeetingHandlers = (io: TypedServer, socket: TypedSocket) =>
         const targetSockets = await io.in(`meeting:${data.meetingId}`).fetchSockets();
         const targetSocket = targetSockets.find(s => s.data.user?.id === data.targetUserId);
         if (targetSocket) {
-          console.log('Sending kick event to target user:', data.targetUserId);
+          // console.log('Sending kick event to target user:', data.targetUserId);
           targetSocket.emit('participantKicked', {
             meetingId: data.meetingId,
             userId: data.targetUserId,
@@ -278,7 +278,7 @@ export const registerMeetingHandlers = (io: TypedServer, socket: TypedSocket) =>
   socket.on('kickParticipant', kickParticipant);
 
   socket.on('disconnect', () => {
-    console.log(`User ${socket.data.user?.id} disconnected from meeting socket`);
+    // console.log(`User ${socket.data.user?.id} disconnected from meeting socket`);
     
     // Emit participant left event to all meeting rooms this user was in
     if (socket.data.user?.id) {

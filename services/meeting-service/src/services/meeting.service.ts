@@ -445,9 +445,9 @@ const validateMeetingAccess = async (
 };
 
 const validateJoinAccess = async (meeting: any, data: JoinMeetingRequest): Promise<boolean> => {
-  console.log('Validating join access:', { meetingId: meeting.id, data });
-  console.log('Meeting invite token:', meeting.inviteToken);
-  console.log('Meeting password enabled:', meeting.passwordEnabled);
+  // console.log('Validating join access:', { meetingId: meeting.id, data });
+  // console.log('Meeting invite token:', meeting.inviteToken);
+  // console.log('Meeting password enabled:', meeting.passwordEnabled);
   
   // Check invite token
   if (data.inviteToken) {
