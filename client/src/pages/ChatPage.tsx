@@ -151,7 +151,7 @@ export const ChatPage: React.FC = () => {
               <HiSearch className="chat-search-icon" />
               <input 
                 type="text" 
-                placeholder="Search conversations..." 
+                placeholder="Search your groups..." 
                 className="chat-search-input"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}

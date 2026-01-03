@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { useAppSelector } from '../../hooks/useAppDispatch';
 import { useMeetingSocket } from '../../hooks/useMeetingSocket';
@@ -9,6 +9,7 @@ import {
   socketParticipantJoined
 } from '../../store/meetingSlice';
 import type { ParticipantRole } from '../../types/meeting.types';
+import RemoveParticipantModal from './RemoveParticipantModal';
 import styles from './MeetingParticipants.module.css';
 
 interface MeetingParticipantsProps {
@@ -30,6 +31,13 @@ const MeetingParticipants: React.FC<MeetingParticipantsProps> = ({
   const currentUser = useAppSelector(state => state.user.user);
   const canManageRoles = userRole === 'HOST';
   const canMuteParticipants = userRole === 'HOST' || userRole === 'CO_HOST';
+  
+  const [removeModalOpen, setRemoveModalOpen] = useState(false);
+  const [participantToRemove, setParticipantToRemove] = useState<{
+    userId: number;
+    name: string;
+    email: string;
+  } | null>(null);
 
   // Initialize meeting socket for real-time updates
   const { isConnected, joinMeetingRoom, muteParticipant, unmuteParticipant, toggleCamera, toggleScreenShare, kickParticipant } = useMeetingSocket(meetingId);
@@ -80,11 +88,27 @@ const MeetingParticipants: React.FC<MeetingParticipantsProps> = ({
     toggleScreenShare(userId, enabled);
   };
 
-  const handleKickParticipant = (userId: number) => {
+  const handleKickParticipant = (userId: number, userName: string, userEmail: string) => {
     if (!canManageRoles) return;
-    if (confirm('Are you sure you want to remove this participant from the meeting?')) {
-      kickParticipant(userId);
+    setParticipantToRemove({
+      userId,
+      name: userName || 'Unknown User',
+      email: userEmail || `User ${userId}`
+    });
+    setRemoveModalOpen(true);
+  };
+
+  const confirmRemoveParticipant = () => {
+    if (participantToRemove) {
+      kickParticipant(participantToRemove.userId);
+      setRemoveModalOpen(false);
+      setParticipantToRemove(null);
     }
+  };
+
+  const cancelRemoveParticipant = () => {
+    setRemoveModalOpen(false);
+    setParticipantToRemove(null);
   };
 
   const getRoleBadge = (role: ParticipantRole) => {
@@ -209,7 +233,11 @@ const MeetingParticipants: React.FC<MeetingParticipantsProps> = ({
                       </button>
                       
                       <button
-                        onClick={() => handleKickParticipant(participant.userId)}
+                        onClick={() => handleKickParticipant(
+                          participant.userId,
+                          participant.userName || 'Unknown User',
+                          participant.userEmail || `User ${participant.userId}`
+                        )}
                         className={`${styles['action-btn']} ${styles['action-btn--kick']}`}
                         title="Remove from Meeting"
                       >
@@ -236,6 +264,14 @@ const MeetingParticipants: React.FC<MeetingParticipantsProps> = ({
           </div>
         </div>
       )}
+      
+      <RemoveParticipantModal
+        isOpen={removeModalOpen}
+        participantName={participantToRemove?.name || ''}
+        participantEmail={participantToRemove?.email || ''}
+        onConfirm={confirmRemoveParticipant}
+        onCancel={cancelRemoveParticipant}
+      />
     </div>
   );
 };

@@ -5083,6 +5083,7 @@ input:checked + .toggle-slider:before {
   border: 1px solid var(--border-color);
   width: fit-content;
   max-width: 100%;
+  margin-bottom: 20px; /* Space for reactions */
 }
 
 .own-message .message-bubble {
@@ -5119,6 +5120,7 @@ input:checked + .toggle-slider:before {
   border-radius: 8px;
   padding: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 10;
 }
 
 .action-btn {
@@ -5140,26 +5142,40 @@ input:checked + .toggle-slider:before {
   color: var(--text-primary);
 }
 
-/* Message Reactions */
+/* Message Reactions - Fixed Positioning */
 .message-reactions {
+  position: absolute;
+  bottom: -12px;
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-top: 8px;
+  z-index: 5;
+}
+
+.own-message .message-reactions {
+  right: 12px;
+}
+
+.message-item:not(.own-message) .message-reactions {
+  left: 12px;
 }
 
 .reaction-btn {
-  background: var(--bg-secondary);
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 4px 8px;
   font-size: 12px;
   cursor: pointer;
   transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  white-space: nowrap;
 }
 
 .reaction-btn:hover {
-  background: var(--bg-primary);
+  background: var(--bg-secondary);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .reaction-btn.active {
@@ -5172,13 +5188,20 @@ input:checked + .toggle-slider:before {
   display: none;
   position: absolute;
   bottom: -32px;
-  left: 0;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 20px;
   padding: 4px 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  z-index: 10;
+  z-index: 15;
+}
+
+.own-message .quick-reactions {
+  right: 0;
+}
+
+.message-item:not(.own-message) .quick-reactions {
+  left: 0;
 }
 
 .message-item:hover .quick-reactions {

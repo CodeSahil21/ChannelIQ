@@ -81,8 +81,11 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, showAvatar, u
   };
 
   const handleReaction = (emoji: string) => {
+    if (!currentUserId) return;
+    
     const reactions = message.reactions || [];
     const existingReaction = reactions.find(r => r.emoji === emoji && r.userId === currentUserId);
+    
     if (existingReaction) {
       removeReaction(message.id, emoji);
     } else {
@@ -307,32 +310,32 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, showAvatar, u
               )}
             </div>
           )}
-        </div>
-        
-        {Object.keys(groupedReactions).length > 0 && (
-          <div className="message-reactions">
-            {Object.entries(groupedReactions).map(([emoji, reactions]) => (
+          
+          {Object.keys(groupedReactions).length > 0 && (
+            <div className="message-reactions">
+              {Object.entries(groupedReactions).map(([emoji, reactions]) => (
+                <button
+                  key={emoji}
+                  className={`reaction-btn ${reactions.some(r => r.userId === currentUserId) ? 'active' : ''}`}
+                  onClick={() => handleReaction(emoji)}
+                >
+                  {emoji} {reactions.length}
+                </button>
+              ))}
+            </div>
+          )}
+          
+          <div className="quick-reactions">
+            {['👍', '❤️', '😂', '😮', '😢', '😡'].map(emoji => (
               <button
                 key={emoji}
-                className={`reaction-btn ${reactions.some(r => r.userId === currentUserId) ? 'active' : ''}`}
+                className="quick-reaction"
                 onClick={() => handleReaction(emoji)}
               >
-                {emoji} {reactions.length}
+                {emoji}
               </button>
             ))}
           </div>
-        )}
-        
-        <div className="quick-reactions">
-          {['👍', '❤️', '😂', '😮', '😢', '😡'].map(emoji => (
-            <button
-              key={emoji}
-              className="quick-reaction"
-              onClick={() => handleReaction(emoji)}
-            >
-              {emoji}
-            </button>
-          ))}
         </div>
       </div>
     </div>
