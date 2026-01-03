@@ -108,7 +108,9 @@ interface UserProfileCreatedEvent {
 interface UserFullNameUpdatedEvent {
   eventType: 'USER_FULLNAME_UPDATED';
   userId: number;
+  email: string;
   fullName: string;
+  profilePic: string;
   timestamp: Date;
 }
 
@@ -151,7 +153,7 @@ const handleUserManagementEvent = async (event: UserManagementEvent): Promise<vo
         
       case 'USER_FULLNAME_UPDATED':
         try {
-          await updateUserFullName(event.userId, event.fullName);
+          await updateUserFullName(event.userId, event.fullName, event.email, event.profilePic);
           console.log(`📝 User fullName updated: ${event.userId} -> ${event.fullName}`);
         } catch (serviceError) {
           console.error(`❌ Failed to update user fullName:`, serviceError);

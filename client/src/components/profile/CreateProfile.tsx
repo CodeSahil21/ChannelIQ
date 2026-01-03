@@ -31,6 +31,8 @@ export const CreateProfile: React.FC<CreateProfileProps> = ({ onProfileCreated }
     portfolioUrl: '',
     twitterUrl: ''
   });
+  const [skillsText, setSkillsText] = useState('');
+  const [languagesText, setLanguagesText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const totalSteps = 3;
@@ -40,6 +42,10 @@ export const CreateProfile: React.FC<CreateProfileProps> = ({ onProfileCreated }
       toast.error('Full name is required');
       return;
     }
+
+    // Convert text inputs to arrays before submission
+    const skillsArray = skillsText.split(',').map(s => s.trim()).filter(Boolean);
+    const languagesArray = languagesText.split(',').map(s => s.trim()).filter(Boolean);
 
     setIsLoading(true);
 
@@ -56,8 +62,8 @@ export const CreateProfile: React.FC<CreateProfileProps> = ({ onProfileCreated }
       if (formData.bio?.trim()) cleanedData.bio = formData.bio.trim();
       if (formData.location?.trim()) cleanedData.location = formData.location.trim();
       if (formData.timezone?.trim()) cleanedData.timezone = formData.timezone.trim();
-      if (formData.skills && formData.skills.length > 0) cleanedData.skills = formData.skills;
-      if (formData.languages && formData.languages.length > 0) cleanedData.languages = formData.languages;
+      if (skillsArray.length > 0) cleanedData.skills = skillsArray;
+      if (languagesArray.length > 0) cleanedData.languages = languagesArray;
       if (formData.managerId) cleanedData.managerId = formData.managerId;
       if (formData.managerName?.trim()) cleanedData.managerName = formData.managerName.trim();
       if (formData.linkedinUrl?.trim()) cleanedData.linkedinUrl = formData.linkedinUrl.trim();
@@ -220,21 +226,23 @@ export const CreateProfile: React.FC<CreateProfileProps> = ({ onProfileCreated }
             <div className="step-form-grid">
               <div className="skills-field">
                 <label className="skills-label">Skills</label>
-                <input
-                  className="skills-input"
-                  value={(formData.skills || []).join(', ')}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, skills: e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean)})}
+                <textarea
+                  className="bio-textarea"
+                  value={skillsText}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setSkillsText(e.target.value)}
                   placeholder="JavaScript, React, Node.js (comma separated)"
+                  rows={3}
                 />
               </div>
               
               <div className="languages-field">
                 <label className="languages-label">Languages</label>
-                <input
-                  className="languages-input"
-                  value={(formData.languages || []).join(', ')}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, languages: e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean)})}
+                <textarea
+                  className="bio-textarea"
+                  value={languagesText}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setLanguagesText(e.target.value)}
                   placeholder="English, Spanish, French (comma separated)"
+                  rows={3}
                 />
               </div>
               

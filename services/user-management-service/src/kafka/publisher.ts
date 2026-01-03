@@ -64,7 +64,9 @@ async publishUserProfileCreated(userData: {
 
 async publishUserFullNameUpdated(userData: {
     userId: number;
+    email: string;
     fullName: string;
+    profilePic: string;
 }): Promise<void> {
     try {
         const event = createUserFullNameUpdatedEvent(userData);

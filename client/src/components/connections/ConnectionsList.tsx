@@ -46,21 +46,15 @@ const ConnectionsListComponent = () => {
 
   if (connections.length === 0) {
     return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="flex flex-col items-center justify-center py-20 text-center bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl rounded-3xl border border-gray-200/50 dark:border-gray-800/50"
-      >
-        <motion.div
-          animate={{ y: [0, -10, 0] }}
-          transition={{ duration: 2, repeat: Infinity }}
-          className="w-24 h-24 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-3xl flex items-center justify-center mb-6 shadow-xl shadow-blue-500/30"
-        >
-          <FaUserFriends className="text-4xl text-white" />
-        </motion.div>
-        <p className="text-xl font-bold text-gray-900 dark:text-white mb-2">No connections yet</p>
-        <p className="text-sm text-gray-500 dark:text-gray-400">Start connecting with people</p>
-      </motion.div>
+      <div className="empty-state-container">
+        <div className="empty-state-content">
+          <div className="empty-state-icon">
+            <FaUserFriends />
+          </div>
+          <h3 className="empty-state-title">No connections yet</h3>
+          <p className="empty-state-subtitle">Start connecting with people</p>
+        </div>
+      </div>
     );
   }
 

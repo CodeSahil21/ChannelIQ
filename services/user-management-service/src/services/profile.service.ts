@@ -11,10 +11,6 @@ import { UserStatus } from '../utils/prismaTypes';
 import { createDefaultPreferences } from './preference.service';
 import { eventPublisher } from '../kafka/publisher';
 
-
-
-
-
 // Create a new user
 export const CreateUserService = async ({userId, email}: CreateUser): Promise<{ id: number; email: string; profileCreated: boolean; status: UserStatus; isDeleted: boolean; createdAt: Date; updatedAt: Date }> => {
     // Check if user exists
@@ -175,7 +171,7 @@ export const checkProfileCompletion = async (id: number): Promise<boolean> => {
 export const updateUserProfile = async(id:number, data:UpdateUserProfile):Promise<UserProfileResponse>=>{
     const user = await prisma.user.findUnique({
         where: { id: id },
-        select: { profileCreated: true, isDeleted: true, fullName: true }
+        select: { profileCreated: true, isDeleted: true, fullName: true, email: true, profilePic: true }
     });
     
     if (!user || user.isDeleted) {
@@ -203,7 +199,9 @@ export const updateUserProfile = async(id:number, data:UpdateUserProfile):Promis
             try {
                 await eventPublisher.publishUserFullNameUpdated({
                     userId: id,
-                    fullName: data.fullName!
+                    email: user.email,
+                    fullName: data.fullName!,
+                    profilePic: user.profilePic || ''
                 });
             } catch (eventError) {
                 console.error(`Failed to publish fullName update event for user ${id}:`, eventError);

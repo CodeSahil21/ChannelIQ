@@ -7,6 +7,8 @@ interface CreateUserData {
   profilePic: string;
 }
 
+
+
 // Create User Service
 export const CreateUserService = async (data: CreateUserData): Promise<void> => {
   await prisma.user.upsert({
@@ -26,10 +28,16 @@ export const CreateUserService = async (data: CreateUserData): Promise<void> => 
 };
 
 // Update User Full Name
-export const updateUserFullName = async (userId: number, fullName: string): Promise<void> => {
-  await prisma.user.update({
+export const updateUserFullName = async (userId: number, fullName: string, email: string, profilePic: string): Promise<void> => {
+  await prisma.user.upsert({
     where: { id: userId },
-    data: { fullName }
+    update: { fullName },
+    create: {
+      id: userId,
+      email,
+      fullName,
+      profileUrl: profilePic
+    }
   });
 };
 
@@ -37,7 +45,7 @@ export const updateUserFullName = async (userId: number, fullName: string): Prom
 export const updateUserProfileUrl = async (userId: number, profileUrl: string | null): Promise<void> => {
   await prisma.user.update({
     where: { id: userId },
-    data: { profileUrl }
+    data: { profileUrl },
   });
 };
 

@@ -248,7 +248,9 @@ export interface createUserProfileCreatedEventType extends BaseEvent{
 export interface UserFullNameUpdatedEventType extends BaseEvent{
     eventType: 'USER_FULLNAME_UPDATED';
     userId: number;
+    email: string;
     fullName: string;
+    profilePic: string;
 }
 
 export interface UserProfileDeletedEventType extends BaseEvent{

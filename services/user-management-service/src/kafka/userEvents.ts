@@ -30,12 +30,16 @@ export const createUserProfileCreatedEvent = (data: {
 
 export const createUserFullNameUpdatedEvent = (data: {
   userId: number;
+  email: string;
   fullName: string;
+  profilePic: string;
 }): UserFullNameUpdatedEventType => {
   return {
     eventType: 'USER_FULLNAME_UPDATED',
     userId: data.userId,
+    email: data.email,
     fullName: data.fullName,
+    profilePic: data.profilePic,
     timestamp: new Date()
   };
 }
