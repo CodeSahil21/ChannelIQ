@@ -43,6 +43,13 @@ export const MessageInput: React.FC<MessageInputProps> = ({ groupId }) => {
     setMessage('');
     stopTyping(groupId);
     setIsTyping(false);
+    
+    // Auto-adjust textarea height after clearing
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.style.height = 'auto';
+      }
+    }, 0);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

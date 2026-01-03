@@ -26,6 +26,11 @@ export const MessageList: React.FC<MessageListProps> = ({ groupId, userRole }) =
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
+  const groupMessages = React.useMemo(() => 
+    messages.filter(msg => msg.groupId === groupId), 
+    [messages, groupId]
+  );
+
   const scrollToBottom = () => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -34,14 +39,30 @@ export const MessageList: React.FC<MessageListProps> = ({ groupId, userRole }) =
 
   // Auto-scroll when messages change or typing indicator appears/disappears
   useEffect(() => {
-    const timer = setTimeout(scrollToBottom, 100);
-    return () => clearTimeout(timer);
+    scrollToBottom();
   }, [messages, Object.keys(typingUsers).length]);
 
-  const groupMessages = React.useMemo(() => 
-    messages.filter(msg => msg.groupId === groupId), 
-    [messages, groupId]
-  );
+  // Auto-scroll when group changes (opening messages section)
+  useEffect(() => {
+    if (groupMessages.length > 0) {
+      const timer = setTimeout(() => {
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [groupId, groupMessages.length]);
+
+  // Auto-scroll when component mounts
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
+      }
+    }, 200);
+    return () => clearTimeout(timer);
+  }, []);
 
   if (loading && groupMessages.length === 0) {
     return (
