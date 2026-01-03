@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { HiUser, HiBriefcase, HiGlobe } from 'react-icons/hi';
+import { motion, AnimatePresence } from 'framer-motion';
+import { HiUser, HiBriefcase, HiGlobe, HiArrowRight, HiArrowLeft, HiSparkles } from 'react-icons/hi';
 import { Input } from '../ui/Input';
-
 import { Button } from '../ui/Button';
 import type { CreateProfileFormData } from '../../types';
 import axios from 'axios';
@@ -98,7 +97,29 @@ export const CreateProfile: React.FC<CreateProfileProps> = ({ onProfileCreated }
   const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, totalSteps));
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
 
-
+  const steps = [
+    {
+      id: 1,
+      title: 'Basic Information',
+      subtitle: 'Tell us about yourself',
+      icon: HiUser,
+      color: 'from-blue-500 to-purple-600'
+    },
+    {
+      id: 2,
+      title: 'Professional Details',
+      subtitle: 'Share your professional background',
+      icon: HiBriefcase,
+      color: 'from-purple-500 to-pink-600'
+    },
+    {
+      id: 3,
+      title: 'Skills & Social Links',
+      subtitle: 'Showcase your expertise and connect',
+      icon: HiGlobe,
+      color: 'from-pink-500 to-red-600'
+    }
+  ];
 
   const renderStep = () => {
     switch (currentStep) {
@@ -107,15 +128,10 @@ export const CreateProfile: React.FC<CreateProfileProps> = ({ onProfileCreated }
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="step-content"
+            exit={{ opacity: 0, x: -20 }}
+            className="create-profile-step"
           >
-            <div className="step-header">
-              <HiUser className="step-icon" />
-              <h3>Basic Information</h3>
-              <p>Tell us about yourself</p>
-            </div>
-            
-            <div className="form-grid">
+            <div className="step-form-grid">
               <Input
                 label="Full Name *"
                 value={formData.fullName}
@@ -154,15 +170,10 @@ export const CreateProfile: React.FC<CreateProfileProps> = ({ onProfileCreated }
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="step-content"
+            exit={{ opacity: 0, x: -20 }}
+            className="create-profile-step"
           >
-            <div className="step-header">
-              <HiBriefcase className="step-icon" />
-              <h3>Professional Details</h3>
-              <p>Share your professional background</p>
-            </div>
-            
-            <div className="form-grid">
+            <div className="step-form-grid">
               <Input
                 label="Phone Number"
                 value={formData.phoneNumber || ''}
@@ -184,14 +195,14 @@ export const CreateProfile: React.FC<CreateProfileProps> = ({ onProfileCreated }
                 placeholder="Manager's name"
               />
               
-              <div className="form-group">
-                <label className="form-label">Bio</label>
+              <div className="bio-field">
+                <label className="bio-label">Bio</label>
                 <textarea
-                  className="form-textarea"
+                  className="bio-textarea"
                   value={formData.bio || ''}
                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFormData({...formData, bio: e.target.value})}
                   placeholder="Tell us about yourself..."
-                  rows={3}
+                  rows={4}
                 />
               </div>
             </div>
@@ -203,29 +214,24 @@ export const CreateProfile: React.FC<CreateProfileProps> = ({ onProfileCreated }
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="step-content"
+            exit={{ opacity: 0, x: -20 }}
+            className="create-profile-step"
           >
-            <div className="step-header">
-              <HiGlobe className="step-icon" />
-              <h3>Skills & Social Links</h3>
-              <p>Showcase your expertise and connect</p>
-            </div>
-            
-            <div className="form-grid">
-              <div className="form-group">
-                <label className="form-label">Skills</label>
+            <div className="step-form-grid">
+              <div className="skills-field">
+                <label className="skills-label">Skills</label>
                 <input
-                  className="form-input"
+                  className="skills-input"
                   value={(formData.skills || []).join(', ')}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, skills: e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean)})}
                   placeholder="JavaScript, React, Node.js (comma separated)"
                 />
               </div>
               
-              <div className="form-group">
-                <label className="form-label">Languages</label>
+              <div className="languages-field">
+                <label className="languages-label">Languages</label>
                 <input
-                  className="form-input"
+                  className="languages-input"
                   value={(formData.languages || []).join(', ')}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, languages: e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean)})}
                   placeholder="English, Spanish, French (comma separated)"
@@ -268,53 +274,112 @@ export const CreateProfile: React.FC<CreateProfileProps> = ({ onProfileCreated }
     }
   };
 
+  const currentStepData = steps[currentStep - 1];
+  const StepIcon = currentStepData.icon;
+
   return (
-    <div className="create-profile-container">
+    <div className="enhanced-create-profile">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="create-profile-card"
+        className="create-profile-main"
       >
-        <div className="profile-header">
-          <h1 className="profile-main-title">Create Your Profile</h1>
-          <p className="profile-main-subtitle">Let's build your professional presence</p>
-          
-          <div className="progress-bar">
-            <div className="progress-track">
-              <div 
-                className="progress-fill"
-                style={{ width: `${(currentStep / totalSteps) * 100}%` }}
-              />
+        {/* Step Header */}
+        <div className="create-profile-header">
+          <div className="step-indicator">
+            <div className={`step-icon-wrapper bg-gradient-to-r ${currentStepData.color}`}>
+              <StepIcon className="step-icon" />
             </div>
-            <span className="progress-text">{currentStep} of {totalSteps}</span>
+            <div className="step-info">
+              <h2 className="step-title">{currentStepData.title}</h2>
+              <p className="step-subtitle">{currentStepData.subtitle}</p>
+            </div>
+          </div>
+          
+          <div className="progress-section">
+            <div className="progress-bar-container">
+              <div className="progress-track">
+                <motion.div 
+                  className="progress-fill"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(currentStep / totalSteps) * 100}%` }}
+                  transition={{ duration: 0.3 }}
+                />
+              </div>
+              <span className="progress-text">{currentStep} of {totalSteps}</span>
+            </div>
+            
+            <div className="step-dots">
+              {steps.map((step, index) => (
+                <div 
+                  key={step.id}
+                  className={`step-dot ${
+                    index + 1 <= currentStep ? 'active' : ''
+                  } ${
+                    index + 1 === currentStep ? 'current' : ''
+                  }`}
+                />
+              ))}
+            </div>
           </div>
         </div>
         
-        <div>
-          {renderStep()}
+        {/* Step Content */}
+        <div className="create-profile-content">
+          <AnimatePresence mode="wait">
+            {renderStep()}
+          </AnimatePresence>
+        </div>
+        
+        {/* Navigation */}
+        <div className="create-profile-navigation">
+          {currentStep > 1 && (
+            <Button 
+              type="button" 
+              variant="secondary" 
+              onClick={prevStep}
+              className="nav-button prev-button"
+            >
+              <HiArrowLeft /> Previous
+            </Button>
+          )}
           
-          <div className="form-actions">
-            {currentStep > 1 && (
-              <Button type="button" variant="secondary" onClick={prevStep}>
-                Previous
-              </Button>
-            )}
-            
-            {currentStep < totalSteps ? (
-              <Button 
-                type="button" 
-                variant="primary" 
-                onClick={nextStep}
-                disabled={!formData.fullName}
-              >
-                Next Step
-              </Button>
-            ) : (
-              <Button type="button" variant="primary" onClick={handleSubmit} disabled={isLoading || !formData.fullName}>
-                {isLoading ? 'Creating Profile...' : 'Create Profile'}
-              </Button>
-            )}
-          </div>
+          <div className="nav-spacer" />
+          
+          {currentStep < totalSteps ? (
+            <Button 
+              type="button" 
+              variant="primary" 
+              onClick={nextStep}
+              disabled={!formData.fullName}
+              className="nav-button next-button"
+            >
+              Next Step <HiArrowRight />
+            </Button>
+          ) : (
+            <Button 
+              type="button" 
+              variant="primary" 
+              onClick={handleSubmit} 
+              disabled={isLoading || !formData.fullName}
+              className="nav-button create-button"
+            >
+              {isLoading ? (
+                <>
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                    className="button-spinner"
+                  />
+                  Creating Profile...
+                </>
+              ) : (
+                <>
+                  <HiSparkles /> Create Profile
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </motion.div>
     </div>

@@ -1,10 +1,10 @@
-# CorporateChat Frontend
+# ChannelIQ Frontend
 
 Enterprise-grade React application for corporate communication and collaboration. Built with modern TypeScript, Redux Toolkit, and real-time Socket.IO integration for seamless team connectivity.
 
 ## Project Overview
 
-CorporateChat Frontend is a comprehensive web application designed for corporate teams to communicate, collaborate, and manage professional relationships. The application provides secure authentication, profile management, connection networking, group chat functionality, and real-time messaging capabilities.
+ChannelIQ Frontend is a comprehensive web application designed for corporate teams to communicate, collaborate, and manage professional relationships. The application provides secure authentication, profile management, connection networking, group chat functionality, and real-time messaging capabilities.
 
 **Target Users:**
 - Corporate employees and teams
@@ -234,7 +234,7 @@ api.interceptors.response.use(
 ```typescript
 // API base URLs configured per environment
 const API_BASE = process.env.NODE_ENV === 'production' 
-  ? 'https://api.corporatechat.com'
+  ? 'https://api.channeliQ.com'
   : 'http://localhost:4000';
 ```
 
@@ -592,8 +592,8 @@ dist/
 ### Environment Configuration
 ```typescript
 // Production environment variables
-VITE_API_BASE_URL=https://api.corporatechat.com
-VITE_SOCKET_URL=https://api.corporatechat.com
+VITE_API_BASE_URL=https://api.channeliQ.com
+VITE_SOCKET_URL=https://api.channeliQ.com
 VITE_NODE_ENV=production
 ```
 
@@ -691,4 +691,4 @@ jobs:
 
 MIT License - see LICENSE file for details.
 
-Copyright (c) 2024 CorporateChat. All rights reserved.
+Copyright (c) 2024 ChannelIQ. All rights reserved.

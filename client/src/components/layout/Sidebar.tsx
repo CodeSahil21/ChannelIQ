@@ -22,7 +22,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         <div className="sidebar-header">
           <div className="sidebar-brand">
             <div className="sidebar-brand-icon">CC</div>
-            <h2>Corporate Chat</h2>
+            <h2>ChannelIQ</h2>
           </div>
           <button className="close-button" onClick={onClose}>
             <HiX />
@@ -87,7 +87,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         
         <div className="sidebar-footer">
           <div className="sidebar-footer-text">
-            <div className="footer-title">Corporate Chat</div>
+            <div className="footer-title">ChannelIQ</div>
             <div className="footer-version">Version 1.0.0</div>
           </div>
         </div>

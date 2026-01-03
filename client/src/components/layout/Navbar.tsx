@@ -37,7 +37,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
           <button className="menu-button" onClick={onMenuClick}>
             <HiMenu />
           </button>
-          <h1 className="navbar-title">Corporate Chat</h1>
+          <h1 className="navbar-title">ChannelIQ</h1>
         </div>
         
         <div className="navbar-right">

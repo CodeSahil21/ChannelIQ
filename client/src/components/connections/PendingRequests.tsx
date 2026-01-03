@@ -33,21 +33,23 @@ export const PendingRequests = () => {
 
   if (pendingRequests.length === 0) {
     return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="flex flex-col items-center justify-center py-20 text-center bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl rounded-3xl border border-gray-200/50 dark:border-gray-800/50"
-      >
+      <div className="empty-state-container">
         <motion.div
-          animate={{ y: [0, -10, 0] }}
-          transition={{ duration: 2, repeat: Infinity }}
-          className="w-24 h-24 bg-gradient-to-br from-orange-500 to-red-500 rounded-3xl flex items-center justify-center mb-6 shadow-xl shadow-orange-500/30"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="empty-state-content"
         >
-          <FaEnvelope className="text-4xl text-white" />
+          <motion.div
+            animate={{ y: [0, -10, 0] }}
+            transition={{ duration: 2, repeat: Infinity }}
+            className="empty-state-icon"
+          >
+            <FaEnvelope />
+          </motion.div>
+          <p className="empty-state-title">No pending requests</p>
+          <p className="empty-state-subtitle">You're all caught up! 🎉</p>
         </motion.div>
-        <p className="text-xl font-bold text-gray-900 dark:text-white mb-2">No pending requests</p>
-        <p className="text-sm text-gray-500 dark:text-gray-400">You're all caught up! 🎉</p>
-      </motion.div>
+      </div>
     );
   }
 

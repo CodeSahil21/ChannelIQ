@@ -33,21 +33,23 @@ export const BlockedUsers = () => {
 
   if (blockedUsers.length === 0) {
     return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="flex flex-col items-center justify-center py-20 text-center bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl rounded-3xl border border-gray-200/50 dark:border-gray-800/50"
-      >
+      <div className="empty-state-container">
         <motion.div
-          animate={{ y: [0, -10, 0] }}
-          transition={{ duration: 2, repeat: Infinity }}
-          className="w-24 h-24 bg-gradient-to-br from-gray-600 to-gray-800 rounded-3xl flex items-center justify-center mb-6 shadow-xl shadow-gray-500/30"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="empty-state-content"
         >
-          <FaShieldAlt className="text-4xl text-white" />
+          <motion.div
+            animate={{ y: [0, -10, 0] }}
+            transition={{ duration: 2, repeat: Infinity }}
+            className="empty-state-icon blocked-icon"
+          >
+            <FaShieldAlt />
+          </motion.div>
+          <p className="empty-state-title">No blocked users</p>
+          <p className="empty-state-subtitle">Your block list is empty</p>
         </motion.div>
-        <p className="text-xl font-bold text-gray-900 dark:text-white mb-2">No blocked users</p>
-        <p className="text-sm text-gray-500 dark:text-gray-400">Your block list is empty</p>
-      </motion.div>
+      </div>
     );
   }
 

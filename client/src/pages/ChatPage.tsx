@@ -98,7 +98,7 @@ export const ChatPage: React.FC = () => {
           {/* Header */}
           <div className="chat-sidebar-header">
             <div className="chat-header-top">
-              <h1 className="chat-sidebar-title">Corporate Chat</h1>
+              <h1 className="chat-sidebar-title">ChannelIQ</h1>
               <div className="chat-header-actions">
                 <button 
                   className="chat-action-btn"
@@ -182,7 +182,7 @@ export const ChatPage: React.FC = () => {
             <div className="chat-welcome">
               <div className="chat-welcome-content">
                 <div className="chat-welcome-icon">💬</div>
-                <h2 className="chat-welcome-title">Welcome to Corporate Chat</h2>
+                <h2 className="chat-welcome-title">Welcome to ChannelIQ</h2>
                 <p className="chat-welcome-description">
                   Select a group to start chatting with your team
                 </p>

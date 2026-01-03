@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { HiUser, HiSparkles, HiShieldCheck, HiLightningBolt } from 'react-icons/hi';
 import { Layout } from '../components/layout/Layout';
 import { CreateProfile } from '../components/profile/CreateProfile';
 import { ProfileView } from '../components/profile/ProfileView';
@@ -49,11 +51,13 @@ const Profile: React.FC = () => {
   if (isLoading) {
     return (
       <Layout>
-        <div className="inline-loader">
-          <div className="theme-loader medium">
-            <div className="theme-loader-spinner"></div>
-          </div>
-          <p className="theme-loader-text">Loading profile...</p>
+        <div className="profile-loading-container">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+            className="profile-loading-spinner"
+          />
+          <p className="profile-loading-text">Loading your profile...</p>
         </div>
       </Layout>
     );
@@ -61,11 +65,71 @@ const Profile: React.FC = () => {
 
   return (
     <Layout>
-      {!profileData || profileData.profileCreated === false ? (
-        <CreateProfile onProfileCreated={handleProfileCreated} />
-      ) : (
-        <ProfileView onProfileDeleted={handleProfileDeleted} />
-      )}
+      <div className="enhanced-profile-container">
+        {!profileData || profileData.profileCreated === false ? (
+          <>
+            {/* Hero Section for Profile Creation */}
+            <div className="profile-hero-section">
+              <div className="profile-hero-content">
+                <div className="profile-hero-badge">
+                  <HiUser className="hero-badge-icon" />
+                  <span>Professional Profile</span>
+                </div>
+                
+                <h1 className="profile-hero-title">
+                  Build Your Professional Identity
+                </h1>
+                
+                <p className="profile-hero-subtitle">
+                  Create a comprehensive profile to showcase your skills, experience, and connect with colleagues
+                </p>
+                
+                <div className="profile-hero-features">
+                  <div className="hero-feature">
+                    <HiShieldCheck className="hero-feature-icon" />
+                    <span>Secure & Private</span>
+                  </div>
+                  
+                  <div className="hero-feature">
+                    <HiLightningBolt className="hero-feature-icon" />
+                    <span>Quick Setup</span>
+                  </div>
+                  
+                  <div className="hero-feature">
+                    <HiSparkles className="hero-feature-icon" />
+                    <span>Professional</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="profile-hero-visual">
+                <div className="profile-visualization">
+                  <div className="profile-node profile-node--center">
+                    <HiUser />
+                    <span>You</span>
+                  </div>
+                  
+                  <div className="profile-node profile-node--skill">
+                    <span>Skills</span>
+                  </div>
+                  
+                  <div className="profile-node profile-node--experience">
+                    <span>Experience</span>
+                  </div>
+                  
+                  <div className="profile-node profile-node--network">
+                    <span>Network</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <CreateProfile onProfileCreated={handleProfileCreated} />
+          </>
+        ) : (
+          <ProfileView onProfileDeleted={handleProfileDeleted} />
+        )}
+      </div>
     </Layout>
   );
 };

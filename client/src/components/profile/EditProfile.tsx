@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { HiUser, HiBriefcase, HiGlobe, HiX } from 'react-icons/hi';
+import { motion, AnimatePresence } from 'framer-motion';
+import { HiUser, HiBriefcase, HiGlobe, HiX, HiArrowRight, HiArrowLeft, HiSparkles } from 'react-icons/hi';
 import { Input } from '../ui/Input';
-
 import { Button } from '../ui/Button';
 import type { CreateProfileFormData, UserProfileResponse } from '../../types';
 import axios from 'axios';
@@ -101,7 +100,29 @@ export const EditProfile: React.FC<EditProfileProps> = ({ profile, onCancel, onU
   const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, totalSteps));
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
 
-
+  const steps = [
+    {
+      id: 1,
+      title: 'Basic Information',
+      subtitle: 'Update your basic details',
+      icon: HiUser,
+      color: 'from-blue-500 to-purple-600'
+    },
+    {
+      id: 2,
+      title: 'Professional Details',
+      subtitle: 'Update your professional background',
+      icon: HiBriefcase,
+      color: 'from-purple-500 to-pink-600'
+    },
+    {
+      id: 3,
+      title: 'Skills & Social Links',
+      subtitle: 'Update your expertise and connections',
+      icon: HiGlobe,
+      color: 'from-pink-500 to-red-600'
+    }
+  ];
 
   const renderStep = () => {
     switch (currentStep) {
@@ -110,15 +131,10 @@ export const EditProfile: React.FC<EditProfileProps> = ({ profile, onCancel, onU
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="step-content"
+            exit={{ opacity: 0, x: -20 }}
+            className="edit-profile-step"
           >
-            <div className="step-header">
-              <HiUser className="step-icon" />
-              <h3>Basic Information</h3>
-              <p>Update your basic details</p>
-            </div>
-            
-            <div className="form-grid">
+            <div className="step-form-grid">
               <Input
                 label="Full Name *"
                 value={formData.fullName}
@@ -157,15 +173,10 @@ export const EditProfile: React.FC<EditProfileProps> = ({ profile, onCancel, onU
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="step-content"
+            exit={{ opacity: 0, x: -20 }}
+            className="edit-profile-step"
           >
-            <div className="step-header">
-              <HiBriefcase className="step-icon" />
-              <h3>Professional Details</h3>
-              <p>Update your professional background</p>
-            </div>
-            
-            <div className="form-grid">
+            <div className="step-form-grid">
               <Input
                 label="Phone Number"
                 value={formData.phoneNumber || ''}
@@ -187,14 +198,14 @@ export const EditProfile: React.FC<EditProfileProps> = ({ profile, onCancel, onU
                 placeholder="Manager's name"
               />
               
-              <div className="form-group">
-                <label className="form-label">Bio</label>
+              <div className="bio-field">
+                <label className="bio-label">Bio</label>
                 <textarea
-                  className="form-textarea"
+                  className="bio-textarea"
                   value={formData.bio || ''}
                   onChange={(e) => setFormData({...formData, bio: e.target.value})}
                   placeholder="Tell us about yourself..."
-                  rows={3}
+                  rows={4}
                 />
               </div>
             </div>
@@ -206,29 +217,24 @@ export const EditProfile: React.FC<EditProfileProps> = ({ profile, onCancel, onU
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="step-content"
+            exit={{ opacity: 0, x: -20 }}
+            className="edit-profile-step"
           >
-            <div className="step-header">
-              <HiGlobe className="step-icon" />
-              <h3>Skills & Social Links</h3>
-              <p>Update your expertise and connections</p>
-            </div>
-            
-            <div className="form-grid">
-              <div className="form-group">
-                <label className="form-label">Skills</label>
+            <div className="step-form-grid">
+              <div className="skills-field">
+                <label className="skills-label">Skills</label>
                 <input
-                  className="form-input"
+                  className="skills-input"
                   value={(formData.skills || []).join(', ')}
                   onChange={(e) => setFormData({...formData, skills: e.target.value.split(',').map(s => s.trim()).filter(Boolean)})}
                   placeholder="JavaScript, React, Node.js (comma separated)"
                 />
               </div>
               
-              <div className="form-group">
-                <label className="form-label">Languages</label>
+              <div className="languages-field">
+                <label className="languages-label">Languages</label>
                 <input
-                  className="form-input"
+                  className="languages-input"
                   value={(formData.languages || []).join(', ')}
                   onChange={(e) => setFormData({...formData, languages: e.target.value.split(',').map(s => s.trim()).filter(Boolean)})}
                   placeholder="English, Spanish, French (comma separated)"
@@ -271,60 +277,137 @@ export const EditProfile: React.FC<EditProfileProps> = ({ profile, onCancel, onU
     }
   };
 
+  const currentStepData = steps[currentStep - 1];
+  const StepIcon = currentStepData.icon;
+
   return (
     <div className="edit-profile-overlay">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="edit-profile-backdrop"
+        onClick={onCancel}
+      />
+      
       <div className="edit-profile-container">
         <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="edit-profile-card"
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          className="edit-profile-main"
         >
+          {/* Header */}
           <div className="edit-profile-header">
-            <h1 className="profile-main-title">Edit Profile</h1>
-            <button className="close-edit-btn" onClick={onCancel}>
-              <HiX />
-            </button>
-          </div>
-          
-          <div className="progress-bar">
-            <div className="progress-track">
-              <div 
-                className="progress-fill"
-                style={{ width: `${(currentStep / totalSteps) * 100}%` }}
-              />
+            <div className="edit-header-content">
+              <div className="step-indicator">
+                <div className={`step-icon-wrapper bg-gradient-to-r ${currentStepData.color}`}>
+                  <StepIcon className="step-icon" />
+                </div>
+                <div className="step-info">
+                  <h2 className="step-title">{currentStepData.title}</h2>
+                  <p className="step-subtitle">{currentStepData.subtitle}</p>
+                </div>
+              </div>
+              
+              <button className="edit-close-btn" onClick={onCancel}>
+                <HiX />
+              </button>
             </div>
-            <span className="progress-text">{currentStep} of {totalSteps}</span>
-          </div>
-          
-          <div>
-            {renderStep()}
             
-            <div className="form-actions">
-              {currentStep > 1 && (
-                <Button type="button" variant="secondary" onClick={prevStep}>
-                  Previous
-                </Button>
-              )}
+            <div className="progress-section">
+              <div className="progress-bar-container">
+                <div className="progress-track">
+                  <motion.div 
+                    className="progress-fill"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${(currentStep / totalSteps) * 100}%` }}
+                    transition={{ duration: 0.3 }}
+                  />
+                </div>
+                <span className="progress-text">{currentStep} of {totalSteps}</span>
+              </div>
               
-              <Button type="button" variant="secondary" onClick={onCancel}>
-                Cancel
-              </Button>
-              
-              {currentStep < totalSteps ? (
-                <Button 
-                  type="button" 
-                  variant="primary" 
-                  onClick={nextStep}
-                  disabled={!formData.fullName}
-                >
-                  Next Step
-                </Button>
-              ) : (
-                <Button type="button" variant="primary" onClick={handleSubmit} disabled={isLoading || !formData.fullName}>
-                  {isLoading ? 'Updating...' : 'Update Profile'}
-                </Button>
-              )}
+              <div className="step-dots">
+                {steps.map((step, index) => (
+                  <div 
+                    key={step.id}
+                    className={`step-dot ${
+                      index + 1 <= currentStep ? 'active' : ''
+                    } ${
+                      index + 1 === currentStep ? 'current' : ''
+                    }`}
+                  />
+                ))}
+              </div>
             </div>
+          </div>
+          
+          {/* Content */}
+          <div className="edit-profile-content">
+            <AnimatePresence mode="wait">
+              {renderStep()}
+            </AnimatePresence>
+          </div>
+          
+          {/* Navigation */}
+          <div className="edit-profile-navigation">
+            {currentStep > 1 && (
+              <Button 
+                type="button" 
+                variant="secondary" 
+                onClick={prevStep}
+                className="nav-button prev-button"
+              >
+                <HiArrowLeft /> Previous
+              </Button>
+            )}
+            
+            <Button 
+              type="button" 
+              variant="secondary" 
+              onClick={onCancel}
+              className="nav-button cancel-button"
+            >
+              Cancel
+            </Button>
+            
+            <div className="nav-spacer" />
+            
+            {currentStep < totalSteps ? (
+              <Button 
+                type="button" 
+                variant="primary" 
+                onClick={nextStep}
+                disabled={!formData.fullName}
+                className="nav-button next-button"
+              >
+                Next Step <HiArrowRight />
+              </Button>
+            ) : (
+              <Button 
+                type="button" 
+                variant="primary" 
+                onClick={handleSubmit} 
+                disabled={isLoading || !formData.fullName}
+                className="nav-button update-button"
+              >
+                {isLoading ? (
+                  <>
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                      className="button-spinner"
+                    />
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <HiSparkles /> Update Profile
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </motion.div>
       </div>

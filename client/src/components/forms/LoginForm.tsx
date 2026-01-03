@@ -5,6 +5,7 @@ import { Input } from '../ui/Input';
 import { PasswordInput } from '../ui/PasswordInput';
 import { Button } from '../ui/Button';
 import { Loader } from '../ui/Loader';
+import { HiShieldCheck, HiLightningBolt, HiUserGroup } from 'react-icons/hi';
 import type { LoginFormData } from '../../types';
 import type { RootState } from '../../store';
 import { setUser } from '../../store/userSlice';
@@ -48,8 +49,6 @@ export const LoginForm: React.FC = () => {
     return <Loader text="Checking authentication..." />;
   }
 
-
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -90,14 +89,41 @@ export const LoginForm: React.FC = () => {
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <div className="auth-header">
-          <h1 className="auth-title">Welcome Back</h1>
-          <p className="auth-subtitle">Sign in to your account</p>
+    <div className="enhanced-auth-container">
+      <div className="auth-hero-section">
+        <div className="auth-hero-content">
+          <div className="auth-hero-badge">
+            <HiShieldCheck className="hero-badge-icon" />
+            <span>Secure Login</span>
+          </div>
+          <h1 className="auth-hero-title">Welcome to ChannelIQ</h1>
+          <p className="auth-hero-subtitle">
+            Your professional communication platform for seamless collaboration
+          </p>
+          <div className="auth-features">
+            <div className="auth-feature">
+              <HiShieldCheck className="auth-feature-icon" />
+              <span>Enterprise Security</span>
+            </div>
+            <div className="auth-feature">
+              <HiLightningBolt className="auth-feature-icon" />
+              <span>Real-time Messaging</span>
+            </div>
+            <div className="auth-feature">
+              <HiUserGroup className="auth-feature-icon" />
+              <span>Team Collaboration</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div className="enhanced-auth-card">
+        <div className="auth-card-header">
+          <h2 className="auth-card-title">Sign In</h2>
+          <p className="auth-card-subtitle">Welcome back! Please sign in to your account</p>
         </div>
         
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="auth-form">
           <Input
             label="Email Address"
             type="email"
@@ -120,12 +146,13 @@ export const LoginForm: React.FC = () => {
           </Button>
         </form>
         
-        <div className="auth-link">
-          <Link to="/forgot-password">Forgot your password?</Link>
-        </div>
-        
-        <div className="auth-link">
-          Don't have an account? <Link to="/register">Create one</Link>
+        <div className="auth-links">
+          <Link to="/forgot-password" className="auth-link-primary">
+            Forgot your password?
+          </Link>
+          <div className="auth-link-secondary">
+            Don't have an account? <Link to="/register">Create one</Link>
+          </div>
         </div>
       </div>
     </div>
