@@ -334,7 +334,7 @@ export const joinMeetingController = async (
     await emitParticipantJoined({
       meetingId: id,
       userId: req.user!.id,
-      userName: result.userName,
+      userName: req.user!.email.split('@')[0],
       userEmail: result.userEmail,
       role: result.role,
       timestamp: new Date().toISOString()
@@ -381,9 +381,6 @@ export const getLiveKitTokenController = async (
 
     const token = await liveKitService.generateToken(id, req.user!.id, participant.role);
     const wsUrl = liveKitService.getWsUrl();
-    
-    console.log('Generated token type:', typeof token);
-    console.log('Generated token value:', token);
     
     res.json({
       success: true,
@@ -550,7 +547,7 @@ export const leaveMeetingController = async (
     await emitParticipantLeft({
       meetingId: id,
       userId: req.user!.id,
-      userName: result.userName,
+      userName: req.user!.email.split('@')[0],
       userEmail: result.userEmail,
       role: result.role,
       timestamp: new Date().toISOString()

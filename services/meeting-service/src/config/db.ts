@@ -5,6 +5,7 @@ import { env } from './env';
 
 let prisma: PrismaClient;
 let pool: Pool;
+let isDisconnected = false;
 
 export const connectDb = async (): Promise<void> => {
   if (prisma) return;
@@ -27,6 +28,10 @@ export const connectDb = async (): Promise<void> => {
 };
 
 export const disconnectDb = async (): Promise<void> => {
+  if (isDisconnected) return;
+  
+  isDisconnected = true;
+  
   if (prisma) {
     await prisma.$disconnect();
   }

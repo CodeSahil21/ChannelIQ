@@ -114,19 +114,30 @@ export class MemberService {
     
     if (result._count.members >= result.maxMembers) throw new ConflictError('Group has reached maximum capacity');
     
-    const [, invite] = await Promise.all([
-      result.requests && result.requests.length > 0 ? this.cleanupPendingRequests(groupId, targetUserId) : Promise.resolve(),
-      prisma.groupRequest.create({
-        data: {
+    // Use upsert to handle existing requests
+    const invite = await prisma.groupRequest.upsert({
+      where: {
+        groupId_senderId_receiverId_type: {
           groupId,
           senderId: adminUserId,
           receiverId: targetUserId,
-          type: RequestType.INVITE,
-          status: RequestStatus.PENDING,
-          message: message || null,
-        },
-      }),
-    ]);
+          type: RequestType.INVITE
+        }
+      },
+      update: {
+        status: RequestStatus.PENDING,
+        message: message || null,
+        createdAt: new Date()
+      },
+      create: {
+        groupId,
+        senderId: adminUserId,
+        receiverId: targetUserId,
+        type: RequestType.INVITE,
+        status: RequestStatus.PENDING,
+        message: message || null,
+      },
+    });
 
     await CacheService.deletePatterns([
       `chat:user:${targetUserId}:requests`,
@@ -184,14 +195,24 @@ export class MemberService {
         prisma.groupMember.delete({
           where: { userId_groupId: { userId: currentUserId, groupId } },
         }),
-        this.cleanupPendingRequests(groupId, currentUserId)
+        MemberService.cleanupPendingRequests(groupId, currentUserId)
       ]);
 
-      await CacheService.deletePatterns([
-        `chat:user:${currentUserId}:*`,
+      // Invalidate cache for all remaining group members since member count changed
+      const remainingMembers = await prisma.groupMember.findMany({
+        where: { groupId },
+        select: { userId: true }
+      });
+      
+      const cachePatterns = [
         `chat:group:${groupId}`,
-        `chat:members:${groupId}`
-      ]);
+        `chat:members:${groupId}`,
+        'chat:search:*',
+        ...remainingMembers.map(m => `chat:user:${m.userId}:*`),
+        `chat:user:${currentUserId}:*`
+      ];
+      
+      await CacheService.deletePatterns(cachePatterns);
 
       return {
         success: true,
@@ -221,14 +242,25 @@ export class MemberService {
       prisma.groupMember.delete({
         where: { userId_groupId: { userId: targetUserId, groupId } },
       }),
-      this.cleanupPendingRequests(groupId, targetUserId)
+      MemberService.cleanupPendingRequests(groupId, targetUserId)
     ]);
 
-    await CacheService.deletePatterns([
-      `chat:user:${targetUserId}:*`,
+    // Invalidate cache for all group members since member count changed
+    const allMembers = await prisma.groupMember.findMany({
+      where: { groupId },
+      select: { userId: true }
+    });
+    
+    const cachePatterns = [
       `chat:group:${groupId}`,
-      `chat:members:${groupId}`
-    ]);
+      `chat:members:${groupId}`,
+      'chat:search:*',
+      ...allMembers.map(m => `chat:user:${m.userId}:*`),
+      `chat:user:${targetUserId}:*`,
+      `chat:user:${currentUserId}:*`
+    ];
+    
+    await CacheService.deletePatterns(cachePatterns);
 
     return {
       success: true,

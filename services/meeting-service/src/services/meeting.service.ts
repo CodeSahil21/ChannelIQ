@@ -407,8 +407,6 @@ export const demoteCoHost = async (id: string, hostId: number, targetUserId: num
 
 const getUserDetails = async (userId: number): Promise<{name?: string, email?: string} | null> => {
   try {
-    // This would typically call user-management-service
-    // For now, return basic structure
     return {
       name: `User ${userId}`,
       email: `user${userId}@example.com`

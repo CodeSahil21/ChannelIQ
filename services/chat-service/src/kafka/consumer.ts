@@ -7,7 +7,7 @@ import { MediaEvent } from '../utils/types';
 import { EachMessagePayload } from 'kafkajs';
 import { MessageEvent } from './messageProducer';
 import { MessageBufferService } from '../services/messageBuffer.service';
-import { v4 as uuidv4 } from 'uuid';
+
 
 import { config } from '../utils/config';
 
@@ -260,39 +260,21 @@ const handleMediaEvent = async (event: MediaEvent): Promise<void> => {
             break;
           }
 
-          const useBulkProcessing = process.env.ENABLE_BULK_MESSAGES === 'true';
-          
-          if (useBulkProcessing) {
-            // Add to buffer for DB persistence only - no broadcasting
-            const messageId = uuidv4();
-            MessageBufferService.addMessage({
-              eventType: 'MESSAGE_CREATED',
-              messageId,
-              content: event.metadata?.originalName || 'File',
-              type: messageType as any,
-              fileUrl,
-              groupId,
-              senderId: userId,
-              timestamp: new Date()
-            });
-          } else {
-            // Direct processing for non-bulk mode
-            const message = await SocketMessageService.createMessage({
-              content: event.metadata?.originalName || 'File',
-              type: messageType as any,
-              fileUrl,
-              groupId,
-              senderId: userId
-            });
+          const message = await SocketMessageService.createMessage({
+            content: event.metadata?.originalName || 'File',
+            type: messageType as any,
+            fileUrl,
+            groupId,
+            senderId: userId
+          });
 
-            const io = getSocketServer();
-            if (io) {
-              io.to(`group:${groupId}`).emit('message:persisted', {
-                ...message,
-                reactions: [],
-                statuses: []
-              });
-            }
+          const io = getSocketServer();
+          if (io) {
+            io.to(`group:${groupId}`).emit('message:persisted', {
+              ...message,
+              reactions: [],
+              statuses: []
+            });
           }
 
           console.log(`📎 Message file uploaded: ${groupId} -> ${event.imageUrl}`);

@@ -49,8 +49,6 @@ import {
 } from '../services/group.service';
 import { ValidationError, NotFoundError, UnauthorizedError, ConflictError, ForbiddenError } from '../utils/errors';
 import { 
-  notifyMemberJoined, 
-  notifyMemberLeft, 
   emitAnnouncementCreated, 
   emitPollCreated, 
   emitPollDeleted, 
@@ -481,12 +479,6 @@ export const respondToRequestController = async (
 
     const result = await respondToRequest(requestId, userId, { status });
 
-    // Trigger socket notification if accepted
-    if (status === 'ACCEPTED' && result.membership) {
-      const userFullName = req.user!.fullName;
-      notifyMemberJoined(result.request.groupId, userFullName);
-    }
-
     res.status(200).json({
       success: true,
       message: `Request ${status.toLowerCase()} successfully`,
@@ -637,12 +629,6 @@ export const removeMemberController = async (
     const { groupId, userId: targetUserId } = validationResult.data.params;
 
     const result = await removeMember(groupId, targetUserId, currentUserId);
-
-    // Trigger socket notification
-    if (result.success && result.removedMember) {
-      const userFullName = req.user!.fullName;
-      notifyMemberLeft(groupId, userFullName);
-    }
 
     res.status(200).json(result);
   } catch (error: any) {

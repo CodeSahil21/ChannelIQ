@@ -31,11 +31,21 @@ export class MessageBufferService {
     }
 
     try {
-      const bulkData: BulkMessageData[] = batch.map(event => ({
+      // Filter out file messages - they're handled by media service
+      const textMessages = batch.filter(event => {
+        const isFileMessage = event.type && ['IMAGE', 'VIDEO', 'FILE'].includes(event.type) && event.fileUrl;
+        return !isFileMessage;
+      });
+
+      if (textMessages.length === 0) {
+        console.log('📎 No text messages to process in batch - all were file messages');
+        return;
+      }
+
+      const bulkData: BulkMessageData[] = textMessages.map(event => ({
         id: event.messageId,
         ...(event.content && { content: event.content }),
         type: event.type,
-        ...(event.fileUrl && { fileUrl: event.fileUrl }),
         groupId: event.groupId,
         senderId: event.senderId,
         ...(event.replyToId && { replyToId: event.replyToId }),

@@ -1,4 +1,4 @@
-import { AccessToken, VideoGrant } from 'livekit-server-sdk';
+import { AccessToken, VideoGrant, TrackSource } from 'livekit-server-sdk';
 import { ParticipantRole } from '@prisma/client';
 
 import { env } from '../config/env';
@@ -39,6 +39,7 @@ export class LiveKitService {
           ...baseGrant,
           canPublish: true,
           canPublishData: true,
+          canPublishSources: [TrackSource.CAMERA, TrackSource.MICROPHONE, TrackSource.SCREEN_SHARE],
           roomAdmin: true,
         };
       
@@ -47,12 +48,15 @@ export class LiveKitService {
           ...baseGrant,
           canPublish: true,
           canPublishData: true,
+          canPublishSources: [TrackSource.CAMERA, TrackSource.MICROPHONE, TrackSource.SCREEN_SHARE],
         };
       
       case 'PARTICIPANT':
         return {
           ...baseGrant,
-          canPublish: false, // Can be enabled via meeting settings
+          canPublish: true, // Allow publishing but controlled by socket events
+          canPublishData: true,
+          canPublishSources: [TrackSource.CAMERA, TrackSource.MICROPHONE, TrackSource.SCREEN_SHARE],
         };
       
       default:

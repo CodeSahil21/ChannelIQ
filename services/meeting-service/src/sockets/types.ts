@@ -9,6 +9,10 @@ export interface ServerToClientEvents {
   participantMuted: (data: MuteEventData) => void;
   participantUnmuted: (data: MuteEventData) => void;
   unmuteRequested: (data: UnmuteRequestData) => void;
+  participantCameraToggled: (data: MediaEventData) => void;
+  participantScreenShareToggled: (data: MediaEventData) => void;
+  rolePermissionsChanged: (data: RolePermissionData) => void;
+  participantKicked: (data: { meetingId: string; userId: number; kickedBy: number }) => void;
 }
 
 export interface ClientToServerEvents {
@@ -17,6 +21,9 @@ export interface ClientToServerEvents {
   muteParticipant: (data: { meetingId: string; targetUserId: number }) => void;
   unmuteParticipant: (data: { meetingId: string; targetUserId: number }) => void;
   requestUnmute: (data: { meetingId: string }) => void;
+  toggleCamera: (data: { meetingId: string; targetUserId: number; enabled: boolean }) => void;
+  toggleScreenShare: (data: { meetingId: string; targetUserId: number; enabled: boolean }) => void;
+  kickParticipant: (data: { meetingId: string; targetUserId: number }) => void;
 }
 
 export interface ParticipantEventData {
@@ -56,6 +63,21 @@ export interface UnmuteRequestData {
   userId: number;
   userName?: string;
   timestamp: string;
+}
+
+export interface MediaEventData {
+  meetingId: string;
+  targetUserId: number;
+  enabled: boolean;
+  controlledBy: number;
+  controlledByEmail?: string;
+  timestamp: string;
+}
+
+export interface RolePermissionData {
+  userId: number;
+  newRole: ParticipantRole;
+  canControlMedia: boolean;
 }
 
 export interface SocketData {

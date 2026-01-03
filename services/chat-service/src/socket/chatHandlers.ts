@@ -63,7 +63,8 @@ export const registerChatHandlers: SocketHandler = (io: TypedServer, socket: Typ
       }
 
       const messageId = uuidv4();
-      const useBulkProcessing = process.env.ENABLE_BULK_MESSAGES === 'true';
+      const isFileMessage = ['IMAGE', 'VIDEO', 'FILE'].includes(type);
+      const useBulkProcessing = process.env.ENABLE_BULK_MESSAGES === 'true' && !isFileMessage;
 
       if (useBulkProcessing) {
         // Bulk processing: Publish to Kafka and emit immediately
@@ -74,7 +75,6 @@ export const registerChatHandlers: SocketHandler = (io: TypedServer, socket: Typ
             senderId: socket.user.id,
             type,
             ...(content && { content }),
-            ...(fileUrl && { fileUrl }),
             ...(replyToId && { replyToId })
           };
           
@@ -93,7 +93,7 @@ export const registerChatHandlers: SocketHandler = (io: TypedServer, socket: Typ
             id: messageId,
             content: content || null,
             type,
-            fileUrl: fileUrl || null,
+            fileUrl: null,
             groupId,
             senderId: socket.user.id,
             replyToId: replyToId || null,

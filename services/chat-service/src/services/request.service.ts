@@ -48,19 +48,30 @@ export class RequestService {
       throw new Error('Group has reached maximum capacity');
     }
 
-    const [, request] = await Promise.all([
-      result.requests.length > 0 ? this.cleanupPendingRequests(groupId, userId) : Promise.resolve(),
-      prisma.groupRequest.create({
-        data: {
+    // Use upsert to handle existing requests
+    const request = await prisma.groupRequest.upsert({
+      where: {
+        groupId_senderId_receiverId_type: {
           groupId,
           senderId: userId,
           receiverId: result.creatorId,
-          type: RequestType.JOIN_REQUEST,
-          status: RequestStatus.PENDING,
-          message: message || null,
-        },
-      }),
-    ]);
+          type: RequestType.JOIN_REQUEST
+        }
+      },
+      update: {
+        status: RequestStatus.PENDING,
+        message: message || null,
+        createdAt: new Date()
+      },
+      create: {
+        groupId,
+        senderId: userId,
+        receiverId: result.creatorId,
+        type: RequestType.JOIN_REQUEST,
+        status: RequestStatus.PENDING,
+        message: message || null,
+      },
+    });
 
     return request as JoinGroupResponse;
   }
@@ -270,15 +281,5 @@ export class RequestService {
     });
   }
 
-  private static async cleanupPendingRequests(groupId: string, userId: number) {
-    return prisma.groupRequest.deleteMany({
-      where: {
-        groupId,
-        OR: [
-          { senderId: userId, status: RequestStatus.PENDING },
-          { receiverId: userId, status: RequestStatus.PENDING }
-        ]
-      }
-    });
-  }
+
 }
