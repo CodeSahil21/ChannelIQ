@@ -201,10 +201,24 @@ export const updateUserProfile = async(id:number, data:UpdateUserProfile):Promis
                     userId: id,
                     email: user.email,
                     fullName: data.fullName!,
-                    profilePic: user.profilePic || ''
+                    profilePic: updated.profilePic || ''
                 });
             } catch (eventError) {
                 console.error(`Failed to publish fullName update event for user ${id}:`, eventError);
+            }
+        }
+        
+        // Publish general profile update event for other changes
+        if (!isFullNameUpdated && Object.keys(data).length > 0) {
+            try {
+                await eventPublisher.publishUserProfileUpdated({
+                    userId: id,
+                    email: user.email,
+                    fullName: updated.fullName || '',
+                    profilePic: updated.profilePic || ''
+                });
+            } catch (eventError) {
+                console.error(`Failed to publish profile update event for user ${id}:`, eventError);
             }
         }
         

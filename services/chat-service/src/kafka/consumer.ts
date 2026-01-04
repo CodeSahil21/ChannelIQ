@@ -42,7 +42,13 @@ export const startConsumer = async (): Promise<void> => {
           switch (topic) {
             case 'user-management-events':
               await heartbeat();
-              await handleUserManagementEvent(parsedMessage);
+              // Legacy topic - no longer used
+              await heartbeat();
+              break;
+              
+            case 'chat-events':
+              await heartbeat();
+              await handleChatEvent(parsedMessage);
               await heartbeat();
               break;
               
@@ -59,7 +65,7 @@ export const startConsumer = async (): Promise<void> => {
               break;
               
             default:
-              console.warn("");
+              console.warn(`⚠️ Unhandled topic: ${topic}`);
               await heartbeat();
           }
 
@@ -112,21 +118,20 @@ interface UserProfileDeletedEvent {
   timestamp: Date;
 }
 
-type UserManagementEvent = UserDeletedEvent | UserProfileCreatedEvent | UserFullNameUpdatedEvent | UserProfileDeletedEvent;
+interface UserProfileUpdatedEvent {
+  eventType: 'USER_PROFILE_UPDATED';
+  userId: number;
+  email: string;
+  fullName: string;
+  profilePic: string;
+  timestamp: Date;
+}
 
-const handleUserManagementEvent = async (event: UserManagementEvent): Promise<void> => {
+type UserManagementEvent = UserDeletedEvent | UserProfileCreatedEvent | UserFullNameUpdatedEvent | UserProfileDeletedEvent | UserProfileUpdatedEvent;
+
+const handleChatEvent = async (event: UserManagementEvent): Promise<void> => {
   try {
     switch (event.eventType) {
-      case 'USER_DELETED':
-        const deletedUserId = event.userId;
-        if (typeof deletedUserId === 'number') {
-          await deleteUserById(deletedUserId);
-          // console.log(`🗑️ User with ID ${deletedUserId} deleted successfully.`);
-        } else {
-          console.warn('⚠️ USER_DELETED event missing valid userId:');
-        }
-        break;
-        
       case 'USER_PROFILE_CREATED':
         const { userId, email, fullName, profilePic } = event;
         try {
@@ -136,9 +141,9 @@ const handleUserManagementEvent = async (event: UserManagementEvent): Promise<vo
             fullName,
             profilePic 
           });
-          // console.log(`👤 User profile created: ${userId} (${fullName})`);
+          console.log(`👤 User profile created in chat-service: ${userId} (${fullName})`);
         } catch (serviceError) {
-          console.error(`❌ Failed to create user from event:`, serviceError);
+          console.error(`❌ Failed to create user from chat event:`, serviceError);
           throw serviceError;
         }
         break;
@@ -146,9 +151,24 @@ const handleUserManagementEvent = async (event: UserManagementEvent): Promise<vo
       case 'USER_FULLNAME_UPDATED':
         try {
           await updateUserFullName(event.userId, event.fullName, event.email, event.profilePic);
-          // console.log(`📝 User fullName updated: ${event.userId} -> ${event.fullName}`);
+          console.log(`📝 User fullName updated in chat-service: ${event.userId} -> ${event.fullName}`);
         } catch (serviceError) {
-          console.error(`❌ Failed to update user fullName:`, serviceError);
+          console.error(`❌ Failed to update user fullName from chat event:`, serviceError);
+          throw serviceError;
+        }
+        break;
+        
+      case 'USER_PROFILE_UPDATED':
+        try {
+          await CreateUserService({
+            userId: event.userId,
+            email: event.email,
+            fullName: event.fullName,
+            profilePic: event.profilePic 
+          });
+          console.log(`🔄 User profile updated in chat-service: ${event.userId} (${event.fullName})`);
+        } catch (serviceError) {
+          console.error(`❌ Failed to update user profile from chat event:`, serviceError);
           throw serviceError;
         }
         break;
@@ -156,19 +176,19 @@ const handleUserManagementEvent = async (event: UserManagementEvent): Promise<vo
       case 'USER_PROFILE_DELETED':
         try {
           await deleteUserById(event.userId);
-          // console.log(`🗑️ User profile deleted: ${event.userId}`);
+          console.log(`🗑️ User profile deleted in chat-service: ${event.userId}`);
         } catch (serviceError) {
-          console.error(`❌ Failed to delete user profile:`, serviceError);
+          console.error(`❌ Failed to delete user profile from chat event:`, serviceError);
           throw serviceError;
         }
         break;
         
       default:
-        console.warn('');
+        console.warn(`⚠️ Unhandled chat event type: ${(event as any).eventType}`);
         break;
     }
   } catch (error) {
-    console.error(`❌ Error handling user management event:`, error);
+    console.error(`❌ Error handling chat event:`, error);
     throw error;
   }
 };

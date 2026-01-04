@@ -55,7 +55,7 @@ async publishUserProfileCreated(userData: {
             }]
         });
 
-        console.log(`Published USER_PROFILE_CREATED event for user  to chat service`);
+        console.log(`Published USER_PROFILE_CREATED event for user ${userData.userId} (${userData.fullName}) to chat service`);
     } catch (error) {
         console.error('Failed to publish user profile created event:', error);
         throw error;
@@ -84,9 +84,41 @@ async publishUserFullNameUpdated(userData: {
             }]
         });
 
-        console.log(`Published USER_FULLNAME_UPDATED event for user to chat service`);
+        console.log(`Published USER_FULLNAME_UPDATED event for user ${userData.userId} (${userData.fullName}) to chat service`);
     } catch (error) {
         console.error('Failed to publish user fullName updated event:', error);
+        throw error;
+    }
+}
+
+async publishUserProfileUpdated(userData: {
+    userId: number;
+    email: string;
+    fullName: string;
+    profilePic: string;
+}): Promise<void> {
+    try {
+        const event = createUserProfileCreatedEvent(userData); // Reuse same event structure
+        await kafkaProducer.send({
+            topic: this.CHAT_EVENTS_TOPIC,
+            messages: [{
+                key: userData.userId.toString(),
+                value: JSON.stringify({
+                    ...event,
+                    eventType: 'USER_PROFILE_UPDATED'
+                }),
+                headers: {
+                    eventType: 'USER_PROFILE_UPDATED',
+                    source: 'user-management-service',
+                    targetService: 'chat-service',
+                    version: '1.0'
+                }
+            }]
+        });
+
+        console.log(`Published USER_PROFILE_UPDATED event for user ${userData.userId} (${userData.fullName}) to chat service`);
+    } catch (error) {
+        console.error('Failed to publish user profile updated event:', error);
         throw error;
     }
 }
@@ -110,7 +142,7 @@ async publishUserProfileDeleted(userData: {
             }]
         });
 
-        console.log(`Published USER_PROFILE_DELETED event for user to chat service`);
+        console.log(`Published USER_PROFILE_DELETED event for user ${userData.userId} to chat service`);
     } catch (error) {
         console.error('Failed to publish user profile deleted event:', error);
         throw error;
