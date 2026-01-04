@@ -81,12 +81,12 @@ export const createKafkaTopics = async (): Promise<void> => {
     const topicsToCreate = [
       {
         topic: 'user-events',
-        numPartitions: parseInt(process.env.KAFKA_USER_EVENTS_PARTITIONS || "6"),
+        numPartitions: parseInt(process.env.KAFKA_USER_EVENTS_PARTITIONS || "2"),
         replicationFactor,
         configEntries: [
           { name: 'retention.ms', value: '604800000' },
           { name: 'cleanup.policy', value: 'delete' },
-          { name: 'compression.type', value: 'gzip' }, // Changed from snappy to gzip
+          { name: 'compression.type', value: 'gzip' },
           { name: 'segment.ms', value: '86400000' },
           { name: 'min.insync.replicas', value: '1' },
           { name: 'unclean.leader.election.enable', value: 'false' },
@@ -95,23 +95,23 @@ export const createKafkaTopics = async (): Promise<void> => {
         ]
       },
       {
-        topic: 'user-management-events',
-        numPartitions: parseInt(process.env.KAFKA_USER_MANAGEMENT_EVENTS_PARTITIONS || "4"),
-        replicationFactor,
-        configEntries: [
-          { name: 'retention.ms', value: '604800000' },
-          { name: 'cleanup.policy', value: 'delete' },
-          { name: 'compression.type', value: 'gzip' }, // Changed from snappy to gzip
-        ]
-      },
-      {
         topic: 'chat-events',
-        numPartitions: parseInt(process.env.KAFKA_CHAT_EVENTS_PARTITIONS || "4"),
+        numPartitions: parseInt(process.env.KAFKA_CHAT_EVENTS_PARTITIONS || "2"),
         replicationFactor,
         configEntries: [
           { name: 'retention.ms', value: '604800000' },
           { name: 'cleanup.policy', value: 'delete' },
           { name: 'compression.type', value: 'gzip' }, 
+        ]
+      },
+      {
+        topic: 'media-events',
+        numPartitions: parseInt(process.env.KAFKA_MEDIA_EVENTS_PARTITIONS || "2"),
+        replicationFactor,
+        configEntries: [
+          { name: 'retention.ms', value: '604800000' },
+          { name: 'cleanup.policy', value: 'delete' },
+          { name: 'compression.type', value: 'gzip' }
         ]
       }
     ];

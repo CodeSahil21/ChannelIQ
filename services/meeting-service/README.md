@@ -381,25 +381,65 @@ npm run dev
 - Auth-service maintains JWT blacklist and session state
 - Frontend handles LiveKit WebRTC client integration
 
-## Recent Enhancements
+## Event-Driven Architecture
 
-### Advanced Participant Management
-- **Automatic Host Succession** - When host leaves, oldest co-host is promoted automatically
-- **Role Change Events** - Real-time notifications for role promotions/demotions
-- **Enhanced Join Flow** - Support for both invite tokens and password authentication
-- **Meeting Search** - Public meeting discovery with password status indication
+### Kafka Integration (Aiven Free Tier Compatible)
 
-### Performance Optimizations
-- **Smart Caching** - Redis caching for meeting data and participant lists
-- **Database Transactions** - Atomic operations for role changes and participant limits
-- **Optimized Queries** - Efficient database queries with proper indexing
-- **Event Publishing** - Kafka events for cross-service meeting state synchronization
+#### Published Events
+```typescript
+interface MeetingCreatedEvent {
+  type: 'MEETING_CREATED';
+  meetingId: string;
+  userId?: number;
+  data?: any;
+  timestamp: string;
+}
 
-### Security Improvements
-- **Invite Token Expiration** - Time-limited meeting access tokens
-- **Password Validation** - Secure password hashing with bcrypt
-- **Access Control** - Granular permissions based on participant roles
-- **Session Management** - Redis-based session validation and blacklisting
+interface MeetingStartedEvent {
+  type: 'MEETING_STARTED';
+  meetingId: string;
+  userId?: number;
+  data?: any;
+  timestamp: string;
+}
+
+interface MeetingEndedEvent {
+  type: 'MEETING_ENDED';
+  meetingId: string;
+  userId?: number;
+  data?: any;
+  timestamp: string;
+}
+
+interface ParticipantJoinedEvent {
+  type: 'PARTICIPANT_JOINED';
+  meetingId: string;
+  userId?: number;
+  data?: any;
+  timestamp: string;
+}
+
+interface ParticipantLeftEvent {
+  type: 'PARTICIPANT_LEFT';
+  meetingId: string;
+  userId?: number;
+  data?: any;
+  timestamp: string;
+}
+```
+
+### Kafka Configuration
+- **Topics Used**: `media-events` (2 partitions) - Meeting events consolidated with media events
+- **Publisher**: Publishes meeting lifecycle events to media-events topic
+- **Consumer**: No consumer implemented (meeting events are internal)
+- **Total Topics**: 3/5 (user-events, chat-events, media-events)
+- **Total Partitions**: 6/10 across all topics
+
+### Event Processing
+- **Meeting Lifecycle**: Track meeting creation, start, end events
+- **Participant Tracking**: Monitor join/leave events for analytics
+- **Cross-Service Integration**: Enable other services to react to meeting events
+- **Audit Trail**: Complete meeting activity logging
 
 ## Future Improvements
 

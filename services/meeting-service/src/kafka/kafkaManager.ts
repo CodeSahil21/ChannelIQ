@@ -78,8 +78,8 @@ export const createKafkaTopics = async (): Promise<void> => {
 
     const topicsToCreate = [
       {
-        topic: 'meeting-events',
-        numPartitions: parseInt(process.env.KAFKA_MEETING_EVENTS_PARTITIONS || "4"),
+        topic: 'media-events',
+        numPartitions: parseInt(process.env.KAFKA_MEDIA_EVENTS_PARTITIONS || "2"),
         replicationFactor,
         configEntries: [
           { name: 'retention.ms', value: '604800000' },

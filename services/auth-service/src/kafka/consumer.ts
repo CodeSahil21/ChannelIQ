@@ -5,7 +5,7 @@ export const startConsumer = async (): Promise<void> => {
     console.log('🔄 Starting Kafka consumer...');
 
     await kafkaConsumer.subscribe({
-      topic: 'user-management-events',
+      topics: ['user-events'],
       fromBeginning: false
     });
 
@@ -29,7 +29,7 @@ export const startConsumer = async (): Promise<void> => {
           //   userId: parsedMessage.data?.userId
           // });
 
-          if (topic === 'user-management-events') {
+          if (topic === 'user-events') {
             // Add heartbeat before processing
             await heartbeat();
             await handleUserManagementEvent(parsedMessage);

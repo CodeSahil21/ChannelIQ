@@ -3,7 +3,7 @@ import {createUserDeletedEvent,createUserProfileCreatedEvent, createUserFullName
 
 class EventPublisher {
     //Topic name for all user-related events
-    private readonly  USER_MANAGEMENT_EVENTS_TOPIC = 'user-management-events';
+    private readonly  USER_EVENTS_TOPIC = 'user-events';
     private readonly  CHAT_EVENTS_TOPIC = 'chat-events';
 
      async publishUserDeleted( userData: {
@@ -14,7 +14,7 @@ class EventPublisher {
             const event = createUserDeletedEvent(userData);
             
             await kafkaProducer.send({
-                topic: this.USER_MANAGEMENT_EVENTS_TOPIC,
+                topic: this.USER_EVENTS_TOPIC,
                 messages: [{
                     key:userData.userId.toString(),
                     value: JSON.stringify(event),

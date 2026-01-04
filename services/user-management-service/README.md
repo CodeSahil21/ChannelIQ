@@ -422,38 +422,32 @@ interface UpdatePreferencesResponse {
 
 ## Event-Driven Architecture
 
-### Kafka Integration
+### Kafka Integration (Aiven Free Tier Compatible)
 
 #### Published Events
 ```typescript
 interface UserProfileCreatedEvent {
   eventType: 'USER_PROFILE_CREATED';
   userId: number;
-  profileId: number;
-  username: string;
+  email: string;
+  fullName: string;
+  profilePic: string;
   timestamp: Date;
 }
 
-interface UserProfileUpdatedEvent {
-  eventType: 'USER_PROFILE_UPDATED';
+interface UserFullNameUpdatedEvent {
+  eventType: 'USER_FULLNAME_UPDATED';
   userId: number;
-  profileId: number;
-  changes: Partial<UserProfile>;
+  email: string;
+  fullName: string;
+  profilePic: string;
   timestamp: Date;
 }
 
-interface ConnectionEstablishedEvent {
-  eventType: 'CONNECTION_ESTABLISHED';
-  connectionId: number;
-  userId1: number;
-  userId2: number;
-  timestamp: Date;
-}
-
-interface UserPreferencesUpdatedEvent {
-  eventType: 'USER_PREFERENCES_UPDATED';
+interface UserDeletedEvent {
+  eventType: 'USER_DELETED';
   userId: number;
-  preferences: UserPreferences;
+  email: string;
   timestamp: Date;
 }
 ```
@@ -467,22 +461,28 @@ interface UserRegisteredEvent {
   timestamp: Date;
 }
 
-interface UserDeletedEvent {
-  eventType: 'USER_DELETED';
-  userId: number;
-  timestamp: Date;
+interface ProfileImageUploadedEvent {
+  eventType: 'PROFILE_IMAGE_UPLOADED';
+  userId: string;
+  imageUrl: string;
+  timestamp: string;
 }
 ```
 
+### Kafka Configuration
+- **Topics Used**: 
+  - `user-events` (2 partitions): User lifecycle and profile events
+  - `media-events` (2 partitions): Profile image updates
+- **Publisher**: Publishes to user-events and chat-events topics
+- **Consumer**: Subscribes to user-events and media-events
+- **Total Topics**: 3/5 (user-events, chat-events, media-events)
+- **Total Partitions**: 6/10 across all topics
+
 ### Event Processing
 - **Profile Creation**: Triggered by USER_REGISTERED events from auth-service
-- **Cross-Service Sync**: Real-time user data synchronization
+- **Cross-Service Sync**: Real-time user data synchronization with chat-service
 - **Cache Invalidation**: Event-driven cache management
-- **Analytics**: User behavior tracking for insights
-
-### Topic Configuration
-- **user-management-events**: User profile and connection events (8 partitions)
-- **user-events**: Cross-service user lifecycle events (6 partitions)
+- **Image Updates**: Profile image synchronization via media-events
 
 ## Security Model
 

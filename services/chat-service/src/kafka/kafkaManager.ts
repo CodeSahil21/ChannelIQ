@@ -79,7 +79,7 @@ export const createKafkaTopics = async (): Promise<void> => {
     const topicsToCreate = [
       {
         topic: 'user-events',
-        numPartitions: parseInt(process.env.KAFKA_USER_EVENTS_PARTITIONS || "6"),
+        numPartitions: parseInt(process.env.KAFKA_USER_EVENTS_PARTITIONS || "2"),
         replicationFactor,
         configEntries: [
           { name: 'retention.ms', value: '604800000' },
@@ -93,31 +93,21 @@ export const createKafkaTopics = async (): Promise<void> => {
         ]
       },
       {
-        topic: 'user-management-events',
-        numPartitions: parseInt(process.env.KAFKA_USER_MANAGEMENT_EVENTS_PARTITIONS || "4"),
-        replicationFactor,
-        configEntries: [
-          { name: 'retention.ms', value: '604800000' },
-          { name: 'cleanup.policy', value: 'delete' },
-          { name: 'compression.type', value: 'gzip' }, 
-        ]
-      },      
-      {
         topic: 'chat-events',
-        numPartitions: parseInt(process.env.KAFKA_CHAT_EVENTS_PARTITIONS || "4"),
-        replicationFactor,
-        configEntries: [
-          { name: 'retention.ms', value: '604800000' },
-          { name: 'cleanup.policy', value: 'delete' },
-          { name: 'compression.type', value: 'gzip' }, 
-        ]
-      },
-      {
-        topic: 'message-events',
-        numPartitions: parseInt(process.env.KAFKA_MESSAGE_EVENTS_PARTITIONS || "4"),
+        numPartitions: parseInt(process.env.KAFKA_CHAT_EVENTS_PARTITIONS || "2"),
         replicationFactor,
         configEntries: [
           { name: 'retention.ms', value: '86400000' },
+          { name: 'cleanup.policy', value: 'delete' },
+          { name: 'compression.type', value: 'gzip' }
+        ]
+      },
+      {
+        topic: 'media-events',
+        numPartitions: parseInt(process.env.KAFKA_MEDIA_EVENTS_PARTITIONS || "2"),
+        replicationFactor,
+        configEntries: [
+          { name: 'retention.ms', value: '604800000' },
           { name: 'cleanup.policy', value: 'delete' },
           { name: 'compression.type', value: 'gzip' }
         ]

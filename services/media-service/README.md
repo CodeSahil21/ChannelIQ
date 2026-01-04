@@ -401,72 +401,90 @@ uploads/
 
 ## Event-Driven Architecture
 
-### Kafka Integration
+### Kafka Integration (Aiven Free Tier Compatible)
 
 #### Published Events
 ```typescript
-interface FileUploadedEvent {
-  eventType: 'FILE_UPLOADED';
-  fileId: string;
-  userId: number;
-  filename: string;
-  category: FileCategory;
-  size: number;
-  mimetype: string;
-  timestamp: Date;
+interface ProfileImageUploadedEvent {
+  eventType: 'PROFILE_IMAGE_UPLOADED';
+  userId: string;
+  imageUrl: string;
+  timestamp: string;
+  metadata?: {
+    fileName: string;
+    fileSize: number;
+    mimeType: string;
+  }
 }
 
-interface FileDeletedEvent {
-  eventType: 'FILE_DELETED';
-  fileId: string;
-  userId: number;
-  filename: string;
-  category: FileCategory;
-  timestamp: Date;
+interface ProfileImageDeletedEvent {
+  eventType: 'PROFILE_IMAGE_DELETED';
+  userId: string;
+  timestamp: string;
+  metadata?: {
+    fileName: string;
+  }
 }
 
-interface FileAccessedEvent {
-  eventType: 'FILE_ACCESSED';
-  fileId: string;
-  userId: number;
-  accessType: 'download' | 'view';
-  timestamp: Date;
+interface GroupProfileImageUploadedEvent {
+  eventType: 'GROUP_PROFILE_IMAGE_UPLOADED';
+  userId: string;
+  imageUrl: string;
+  timestamp: string;
+  metadata?: {
+    groupId: string;
+    fileName: string;
+    fileSize: number;
+    mimeType: string;
+  }
 }
 
-interface StorageQuotaExceededEvent {
-  eventType: 'STORAGE_QUOTA_EXCEEDED';
-  userId: number;
-  currentUsage: number;
-  quotaLimit: number;
-  timestamp: Date;
+interface MessageFileUploadedEvent {
+  eventType: 'MESSAGE_FILE_UPLOADED';
+  userId: string;
+  imageUrl: string;
+  timestamp: string;
+  metadata?: {
+    groupId: string;
+    messageType: 'IMAGE' | 'VIDEO' | 'FILE';
+    originalName: string;
+    fileName: string;
+    fileSize: number;
+    mimeType: string;
+  }
 }
 ```
 
 #### Consumed Events
 ```typescript
+interface UserRegisteredEvent {
+  eventType: 'USER_REGISTERED';
+  userId: number;
+  email: string;
+  timestamp: Date;
+}
+
 interface UserDeletedEvent {
   eventType: 'USER_DELETED';
   userId: number;
   timestamp: Date;
 }
-
-interface GroupDeletedEvent {
-  eventType: 'GROUP_DELETED';
-  groupId: number;
-  timestamp: Date;
-}
 ```
+
+### Kafka Configuration
+- **Topics Used**: 
+  - `media-events` (2 partitions): Media lifecycle events
+  - `user-events` (2 partitions): User cleanup events
+- **Publisher**: Publishes all media events to media-events topic
+- **Consumer**: Subscribes to user-events for cleanup operations
+- **Total Topics**: 3/5 (user-events, chat-events, media-events)
+- **Total Partitions**: 6/10 across all topics
 
 ### Event Processing
 - **File Lifecycle**: Track file operations for analytics and auditing
-- **Quota Management**: Monitor user storage usage and enforce limits
-- **Cleanup Operations**: Remove files when users/groups are deleted
-- **Analytics**: File usage patterns and storage optimization
-
-### Topic Configuration
-- **media-events**: File lifecycle events (4 partitions)
-- **user-events**: Cross-service user operations (6 partitions)
-- **group-events**: Group-related file operations (4 partitions)
+- **Cross-Service Sync**: Notify other services of media changes
+- **Cleanup Operations**: Remove files when users are deleted
+- **Real-time Updates**: Immediate notification of media changes
 
 ## Security Model
 

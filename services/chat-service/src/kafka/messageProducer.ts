@@ -23,11 +23,11 @@ export class MessageProducer {
       };
 
       await kafkaProducer.send({
-        topic: 'message-events',
+        topic: 'chat-events',
         messages: [{
           key: messageData.groupId,
           value: JSON.stringify(event),
-          partition: Math.abs(messageData.groupId.split('').reduce((a, b) => a + b.charCodeAt(0), 0)) % 4
+          partition: Math.abs(messageData.groupId.split('').reduce((a, b) => a + b.charCodeAt(0), 0)) % 2
         }]
       });
     } catch (error) {

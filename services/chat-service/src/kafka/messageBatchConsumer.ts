@@ -8,7 +8,7 @@ export const startMessageConsumer = async (): Promise<void> => {
     console.log('🔄 Starting message batch consumer...');
 
     await kafkaConsumer.subscribe({
-      topics: ['message-events'],
+      topics: ['chat-events'],
       fromBeginning: false
     });
 

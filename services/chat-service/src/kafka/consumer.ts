@@ -14,7 +14,7 @@ export const startConsumer = async (): Promise<void> => {
     console.log('🔄 Starting Kafka consumer...');
 
     await kafkaConsumer.subscribe({
-      topics: ['user-management-events', 'chat-events', 'media-events', 'message-events'],
+      topics: ['user-events', 'chat-events', 'media-events'],
       fromBeginning: false
     });
 
@@ -40,27 +40,25 @@ export const startConsumer = async (): Promise<void> => {
           // }
 
           switch (topic) {
-            case 'user-management-events':
+            case 'user-events':
               await heartbeat();
-              // Legacy topic - no longer used
+              await handleChatEvent(parsedMessage);
               await heartbeat();
               break;
               
             case 'chat-events':
               await heartbeat();
-              await handleChatEvent(parsedMessage);
+              if (parsedMessage.eventType === 'MESSAGE_CREATED') {
+                await handleMessageEvent(parsedMessage);
+              } else {
+                await handleChatEvent(parsedMessage);
+              }
               await heartbeat();
               break;
               
             case 'media-events':
               await heartbeat();
               await handleMediaEvent(parsedMessage);
-              await heartbeat();
-              break;
-              
-            case 'message-events':
-              await heartbeat();
-              await handleMessageEvent(parsedMessage);
               await heartbeat();
               break;
               

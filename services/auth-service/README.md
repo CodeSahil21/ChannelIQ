@@ -332,9 +332,12 @@ interface UserLoggedOutEvent {
 ### Consumer Events
 - **USER_DELETED**: Removes user from auth database when deleted from user-management service
 
-### Topic Configuration
-- **user-events**: User lifecycle events (6 partitions)
-- **user-management-events**: Cross-service user operations (4 partitions)
+### Kafka Configuration (Aiven Free Tier Compatible)
+- **Topics Used**: `user-events` (2 partitions)
+- **Publisher**: Publishes USER_REGISTERED, USER_LOGGED_IN, USER_LOGGED_OUT events
+- **Consumer**: Subscribes to `user-events` for USER_DELETED events
+- **Total Topics**: 3/5 (user-events, chat-events, media-events)
+- **Total Partitions**: 6/10 across all topics
 
 ## Environment Variables
 

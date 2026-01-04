@@ -933,28 +933,62 @@ if (useBulkProcessing) {
 - Database failures don't block real-time delivery
 - Message IDs prevent duplicates on retry
 
-## Recent Enhancements
+## Event-Driven Architecture
 
-### Kafka Integration
+### Kafka Integration (Aiven Free Tier Compatible)
+The service consumes user lifecycle and media events to maintain data consistency:
 
-**Event-Driven Architecture:**
-- User management events (create, update, delete)
-- Media upload/delete events with file handling
-- Bulk message processing for performance
-- Cross-service data synchronization
+**Topics Consumed:**
+- `user-events` (2 partitions): User lifecycle events
+- `chat-events` (2 partitions): Messages and profile updates  
+- `media-events` (2 partitions): File uploads and media handling
 
-**Consumer Implementation:**
+**Published Events:**
+- Messages published to `chat-events` topic (consolidated from message-events)
+
+**Consumer Events:**
 ```typescript
-// Handle user management events
-switch (event.eventType) {
-  case 'USER_PROFILE_CREATED':
-    await CreateUserService(event);
-    break;
-  case 'USER_FULLNAME_UPDATED':
-    await updateUserFullName(event.userId, event.fullName);
-    break;
+// user-events
+interface UserRegisteredEvent {
+  eventType: 'USER_REGISTERED';
+  userId: number;
+  email: string;
+  timestamp: Date;
+}
+
+// chat-events (consolidated)
+interface MessageCreatedEvent {
+  eventType: 'MESSAGE_CREATED';
+  messageId: string;
+  groupId: string;
+  senderId: number;
+  timestamp: Date;
+}
+
+interface UserProfileCreatedEvent {
+  eventType: 'USER_PROFILE_CREATED';
+  userId: number;
+  email: string;
+  fullName: string;
+  profilePic: string;
+  timestamp: Date;
+}
+
+// media-events
+interface ProfileImageUploadedEvent {
+  eventType: 'PROFILE_IMAGE_UPLOADED';
+  userId: string;
+  imageUrl: string;
+  timestamp: string;
 }
 ```
+
+**Kafka Configuration:**
+- **Total Topics**: 3/5 (user-events, chat-events, media-events)
+- **Total Partitions**: 6/10 across all topics
+- **Publisher**: Messages use chat-events (was message-events)
+- **Consumer**: Subscribes to user-events, chat-events, media-events
+- **Bulk Processing**: Configurable via ENABLE_BULK_MESSAGES
 
 ### Enhanced Message Features
 

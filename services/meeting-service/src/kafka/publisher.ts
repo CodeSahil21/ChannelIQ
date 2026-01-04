@@ -11,7 +11,7 @@ export interface MeetingEvent {
 export const publishMeetingEvent = async (event: MeetingEvent): Promise<void> => {
   try {
     await kafkaProducer.send({
-      topic: 'meeting-events',
+      topic: 'media-events',
       messages: [{
         key: event.meetingId,
         value: JSON.stringify(event),
