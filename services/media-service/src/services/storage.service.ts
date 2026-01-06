@@ -1,48 +1,31 @@
-import * as Minio from 'minio';
+import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 
 class StorageService {
-  private minioClient: Minio.Client;
+  private supabase: any;
   private bucketName: string;
 
   constructor() {
-    this.minioClient = new Minio.Client({
-      endPoint: process.env.MINIO_ENDPOINT || 'localhost',
-      port: parseInt(process.env.MINIO_PORT || '9000'),
-      useSSL: process.env.MINIO_USE_SSL === 'true',
-      accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
-      secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin',
-    });
-
-    this.bucketName = process.env.MINIO_BUCKET_NAME || 'profile-images';
+    this.supabase = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+    this.bucketName = process.env.SUPABASE_BUCKET_NAME || 'profile-images';
   }
 
   async initializeBucket(): Promise<void> {
     try {
-      const bucketExists = await this.minioClient.bucketExists(this.bucketName);
+      // Check if bucket exists, create if not
+      const { data: buckets } = await this.supabase.storage.listBuckets();
+      const bucketExists = buckets?.some((bucket: any) => bucket.name === this.bucketName);
       
       if (!bucketExists) {
-        await this.minioClient.makeBucket(this.bucketName, 'us-east-1');
-        // console.log(`✅ Bucket '${this.bucketName}' created successfully`);
-      } else {
-        // console.log(`📋 Bucket '${this.bucketName}' already exists`);
+        await this.supabase.storage.createBucket(this.bucketName, {
+          public: true,
+          allowedMimeTypes: ['image/*', 'video/*', 'application/pdf', 'application/msword', 'application/vnd.*', 'text/plain']
+        });
       }
-      
-      // Set bucket policy to public read
-      const policy = {
-        Version: '2012-10-17',
-        Statement: [{
-          Effect: 'Allow',
-          Principal: { AWS: ['*'] },
-          Action: ['s3:GetObject'],
-          Resource: [`arn:aws:s3:::${this.bucketName}/*`]
-        }]
-      };
-      
-      await this.minioClient.setBucketPolicy(this.bucketName, JSON.stringify(policy));
-      // console.log(`✅ Bucket '${this.bucketName}' set to public read`);
-      
     } catch (error) {
       console.error('❌ Failed to initialize bucket:', error);
       throw error;
@@ -57,23 +40,20 @@ class StorageService {
       const fileExtension = path.extname(file.originalname);
       const fileName = `${userId}_${uuidv4()}${fileExtension}`;
       
-      await this.minioClient.putObject(
-        this.bucketName,
-        fileName,
-        file.buffer,
-        file.size,
-        {
-          'Content-Type': file.mimetype,
-          'X-Amz-Meta-Original-Name': file.originalname,
-          'X-Amz-Meta-User-Id': userId,
-        }
-      );
+      const { data, error } = await this.supabase.storage
+        .from(this.bucketName)
+        .upload(fileName, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        });
 
-      const publicUrl = process.env.MINIO_PUBLIC_URL || 'http://localhost:9000';
-      const fileUrl = `${publicUrl}/${this.bucketName}/${fileName}`;
+      if (error) throw error;
+
+      const { data: { publicUrl } } = this.supabase.storage
+        .from(this.bucketName)
+        .getPublicUrl(fileName);
       
-      // console.log(`✅ File uploaded successfully: ${fileName}`);
-      return { fileName, fileUrl };
+      return { fileName, fileUrl: publicUrl };
       
     } catch (error) {
       console.error('❌ Failed to upload file:', error);
@@ -89,17 +69,16 @@ class StorageService {
         actualFileName = fileName.split('/').pop() || fileName;
       }
       
-      await this.minioClient.removeObject(this.bucketName, actualFileName);
-      // console.log(`✅ File deleted successfully: ${actualFileName}`);
+      const { error } = await this.supabase.storage
+        .from(this.bucketName)
+        .remove([actualFileName]);
+        
+      if (error) throw error;
     } catch (error) {
       console.error('❌ Failed to delete file:', error);
       throw error;
     }
   }
-
-
-
-
 }
 
 export default new StorageService();
