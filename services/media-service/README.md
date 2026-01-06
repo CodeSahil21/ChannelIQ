@@ -2,17 +2,17 @@
 
 ## Service Overview
 
-The Media Service is a specialized microservice in the CorporateChat platform responsible for file upload, storage, processing, and delivery of media content. It handles profile images, group images, chat attachments, and provides secure file access with presigned URLs and optimized delivery mechanisms.
+The Media Service is a specialized microservice in the CorporateChat platform responsible for file upload, storage, processing, and delivery of media content. It handles profile images, group images, chat attachments, and provides secure file access with Supabase Storage integration and optimized delivery mechanisms.
 
 This service solves critical media management challenges:
 - Centralized file upload and storage across all platform features
-- Secure file access with presigned URLs and access control
+- Secure file access with Supabase public URLs and access control
 - File type validation and security scanning
 - Optimized file delivery with compression and caching
 - Cross-service media synchronization via event-driven architecture
-- Scalable storage architecture supporting multiple storage backends
+- Scalable cloud storage architecture with Supabase Storage
 
-**Service Port:** 3004  
+**Service Port:** 3003  
 **API Gateway Endpoint:** `http://localhost:4000/api/media`
 
 ## Tech Stack
@@ -23,10 +23,10 @@ This service solves critical media management challenges:
 - **TypeScript (Strict Mode)**: Type-safe development with strict configuration for file handling
 - **Express**: Web framework with comprehensive middleware for file operations
 - **Multer**: Advanced file upload middleware with validation and processing
+- **Supabase Storage**: Cloud storage backend for scalable file management
 - **Redis**: File metadata caching and temporary storage for processing queues
 - **Kafka**: Event streaming for media lifecycle events and cross-service notifications
 - **Sharp** (Future): Image processing and optimization library
-- **File System**: Local storage with migration path to cloud storage
 
 ### Security & Validation
 
@@ -40,8 +40,8 @@ This service solves critical media management challenges:
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   API Gateway   │────│  Media Service  │────│  File Storage   │
-│   (Port 4000)   │    │   (Port 3004)   │    │   (Local/S3)    │
+│   API Gateway   │────│  Media Service  │────│ Supabase Storage│
+│   (Port 4000)   │    │   (Port 3003)   │    │   (Cloud)       │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
                                 │
                                 │
@@ -49,12 +49,6 @@ This service solves critical media management challenges:
                        │      Redis      │    │      Kafka      │
                        │   (Metadata)    │    │    (Events)     │
                        └─────────────────┘    └─────────────────┘
-                                │
-                                │
-                       ┌─────────────────┐
-                       │   Processing    │
-                       │     Queue       │
-                       └─────────────────┘
 ```
 
 ### Request Flow
@@ -62,7 +56,7 @@ This service solves critical media management challenges:
 1. **Client** → API Gateway (with JWT authentication)
 2. **API Gateway** → Media Service (file upload/download requests)
 3. **Media Service** → File Validation (type, size, security checks)
-4. **Media Service** → File Storage (local filesystem or cloud)
+4. **Media Service** → Supabase Storage (cloud file storage)
 5. **Media Service** → Redis (metadata caching)
 6. **Media Service** → Kafka (media lifecycle events)
 
@@ -149,9 +143,9 @@ interface UploadResponse {
 ```
 
 **File Validation**:
-- **Images**: JPEG, PNG, WebP, GIF (max 10MB)
-- **Documents**: PDF, DOC, DOCX, TXT (max 25MB)
-- **Media**: MP4, MP3, WAV (max 100MB)
+- **Images**: JPEG, PNG, WebP, GIF (max 50MB)
+- **Videos**: MP4, WebM (max 50MB)
+- **Documents**: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT (max 50MB)
 
 #### POST /api/v1/media/upload-multiple
 **Purpose**: Upload multiple files in batch  
@@ -544,20 +538,14 @@ interface ErrorResponse {
 
 ```env
 # Server Configuration
-PORT=3004
-NODE_ENV=development
+PORT=3003
+JWT_SECRET=your_jwt_secret
 
-# Storage Configuration
-STORAGE_TYPE=local
-UPLOAD_DIR=./uploads
-MAX_FILE_SIZE=104857600
-TEMP_DIR=./uploads/temp
-
-# AWS S3 Configuration (Production)
-AWS_REGION=us-east-1
-AWS_S3_BUCKET=corporatechat-media
-AWS_ACCESS_KEY_ID=your-access-key
-AWS_SECRET_ACCESS_KEY=your-secret-key
+# Supabase Configuration
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SUPABASE_BUCKET_NAME=chapters
 
 # Redis Configuration
 REDIS_HOST=localhost
@@ -571,18 +559,12 @@ KAFKA_CLIENT_ID=media-service
 KAFKA_CONSUMER_GROUP_ID=media-service-group
 
 # File Validation
-ALLOWED_IMAGE_TYPES=image/jpeg,image/png,image/webp,image/gif
-ALLOWED_DOCUMENT_TYPES=application/pdf,text/plain
-ALLOWED_MEDIA_TYPES=video/mp4,audio/mpeg,audio/wav
-
-# Security Configuration
-ENABLE_VIRUS_SCAN=false
-VIRUS_SCAN_ENDPOINT=http://localhost:3310
-PRESIGNED_URL_EXPIRY=3600
+MAX_FILE_SIZE=52428800
+ALLOWED_MIME_TYPES=image/jpeg,image/png,image/webp,video/mp4,video/webm,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain
 
 # Rate Limiting
 UPLOAD_RATE_LIMIT=10
-UPLOAD_RATE_WINDOW=3600
+UPLOAD_RATE_WINDOW=900
 USER_STORAGE_QUOTA=1073741824
 
 # CORS Configuration
@@ -595,7 +577,7 @@ FRONTEND_URLS=http://localhost:3000,http://localhost:5173
 - Node.js 20+
 - Redis 6+
 - Kafka 2.8+
-- ClamAV (optional, for virus scanning)
+- Supabase Account with Storage enabled
 
 ### Setup Steps
 
@@ -605,10 +587,13 @@ cd services/media-service
 npm install
 ```
 
-2. **Create Upload Directories**
+2. **Supabase Setup**
 ```bash
-mkdir -p uploads/{profiles,groups,attachments,documents,temp}
-chmod 755 uploads
+# Create Supabase project at https://supabase.com
+# Enable Storage in your Supabase dashboard
+# Create a bucket named 'chapters' (or update SUPABASE_BUCKET_NAME)
+# Set bucket to public access
+# Copy your project URL and service role key to .env
 ```
 
 3. **Redis Setup**
@@ -631,19 +616,10 @@ bin/kafka-server-start.sh config/server.properties
 5. **Environment Configuration**
 ```bash
 cp .env.example .env
-# Edit .env with your configuration
+# Edit .env with your Supabase credentials
 ```
 
-6. **Optional: Virus Scanning Setup**
-```bash
-# Install ClamAV (Ubuntu/Debian)
-sudo apt-get install clamav clamav-daemon
-
-# Start ClamAV daemon
-sudo systemctl start clamav-daemon
-```
-
-7. **Start Service**
+6. **Start Service**
 ```bash
 # Development mode
 npm run dev
@@ -653,18 +629,17 @@ npm run build
 npm start
 ```
 
-8. **Health Check**
+7. **Health Check**
 ```bash
-curl http://localhost:3004/api/v1/media/health
+curl http://localhost:3003/api/v1/media/health
 ```
 
-9. **Test File Upload**
+8. **Test File Upload**
 ```bash
 curl -X POST \
   -H "Content-Type: multipart/form-data" \
-  -F "file=@test-image.jpg" \
-  -F "category=profile_image" \
-  http://localhost:3004/api/v1/media/upload
+  -F "profileImage=@test-image.jpg" \
+  http://localhost:4000/api/media/upload-profile-image
 ```
 
 ## Production Considerations
