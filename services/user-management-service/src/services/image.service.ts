@@ -1,17 +1,15 @@
-
-
 const MINIO_PUBLIC_URL = process.env.MINIO_PUBLIC_URL || 'http://localhost:9000';
 const MINIO_BUCKET = process.env.MINIO_BUCKET_NAME || 'profile-images';
 
 export const getPublicImageUrl = (fileName: string): string | null => {
   if (!fileName) return null;
   
-  // Skip external URLs - return them as-is
-  if (fileName.startsWith('http://') || fileName.startsWith('https://')) {
+  // Return Supabase URLs and other external URLs as-is
+  if (fileName.includes('supabase.co') || fileName.startsWith('http://') || fileName.startsWith('https://')) {
     return fileName;
   }
   
-  // Return direct MinIO public URL
+  // Legacy MinIO URLs - construct full URL for old filenames
   return `${MINIO_PUBLIC_URL}/${MINIO_BUCKET}/${fileName}`;
 };
 

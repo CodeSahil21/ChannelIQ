@@ -363,6 +363,7 @@ export const updateUserProfileImage = async (userId: number, fileName: string | 
         // Invalidate caches - profile, search, and connections
         await deleteMultipleCache([
             `user:profile:${userId}`,
+            `user:profile:completion:${userId}`,
             `search:users:*`, // Invalidate all search caches
             `user:connections:${userId}`,
             `user:pending-requests:${userId}`,

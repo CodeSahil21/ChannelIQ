@@ -128,8 +128,9 @@ const handleProfileImageUploadedEvent = async (event: any): Promise<void> => {
     try {
         console.log(`🖼️ Processing PROFILE_IMAGE_UPLOADED event for user `);
 
-        const fileName = event.metadata?.fileName || event.imageUrl?.split('/').pop()?.split('?')[0];
-        await updateUserProfileImage(parseInt(event.userId), fileName);
+        // Use full URL from media service instead of just filename
+        const imageUrl = event.imageUrl || event.metadata?.fileName;
+        await updateUserProfileImage(parseInt(event.userId), imageUrl);
         console.log(`✅ Profile image updated for user `);
     } catch (error) {
         console.error(`❌ Failed to handle PROFILE_IMAGE_UPLOADED event for user :`, error);
