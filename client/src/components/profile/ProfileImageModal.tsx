@@ -56,7 +56,8 @@ export const ProfileImageModal: React.FC<ProfileImageModalProps> = ({
       const response = await mediaApi.uploadProfileImage(file);
       
       if (response.data.success && response.data.data) {
-        onImageUpdate(response.data.data.fileName);
+        const newImageUrl = `${response.data.data.fileUrl}?t=${Date.now()}`; // Cache busting
+        onImageUpdate(newImageUrl);
         setPreviewUrl(null);
         toast.success('Profile image updated successfully');
         onClose();
