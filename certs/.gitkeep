@@ -1,0 +1,5 @@
+# This file keeps the certs directory in git
+# Add your Aiven Kafka certificates here:
+# - service.key (Access key)
+# - service.cert (Access certificate) 
+# - ca-pem (CA certificate)

@@ -8,7 +8,6 @@ import { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import compression from 'compression';
 import authRouter from './routes/auth.routes'; 
-import { isKafkaHealthy } from './kafka/kafkaManager';
 import prisma from './db/db';
 import { connectRedis } from './redis';
 
@@ -42,8 +41,6 @@ connectRedis().catch(err => console.error('Failed to connect to Redis:', err));
 
 app.get('/health', async (_req, res) => {
   try {
-    const kafkaStatus = await isKafkaHealthy();
-    
     // Add database health check
     let dbStatus = false;
     try {
@@ -53,12 +50,9 @@ app.get('/health', async (_req, res) => {
       console.error('Database health check failed:', dbError);
     }
     
-    const overallStatus = kafkaStatus && dbStatus;
-    
-    res.status(overallStatus ? 200 : 503).json({ 
-      status: overallStatus ? 'healthy' : 'degraded',
+    res.status(dbStatus ? 200 : 503).json({ 
+      status: dbStatus ? 'healthy' : 'degraded',
       services: {
-        kafka: kafkaStatus ? 'connected' : 'disconnected',
         database: dbStatus ? 'connected' : 'disconnected'
       },
       timestamp: new Date().toISOString()

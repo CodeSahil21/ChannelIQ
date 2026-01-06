@@ -7,7 +7,6 @@ import morgan from 'morgan';
 import { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import compression from 'compression';
-import { isKafkaHealthy } from './kafka/kafkaManager';
 import prisma from './db';
 import userManagementRouter from './routes/profile.routes';
 import connectionrouter from './routes/connection.routes';
@@ -45,7 +44,7 @@ connectRedis().catch(err => console.error('Failed to connect to Redis:', err));
 
 app.get('/health', async (_req, res) => {
   try {
-    const kafkaStatus = await isKafkaHealthy();
+
     
     // Add database health check
     let dbStatus = false;
@@ -56,12 +55,11 @@ app.get('/health', async (_req, res) => {
       console.error('Database health check failed:', dbError);
     }
     
-    const overallStatus = kafkaStatus && dbStatus;
+    const overallStatus =  dbStatus;
     
     res.status(overallStatus ? 200 : 503).json({ 
       status: overallStatus ? 'healthy' : 'degraded',
       services: {
-        kafka: kafkaStatus ? 'connected' : 'disconnected',
         database: dbStatus ? 'connected' : 'disconnected'
       },
       timestamp: new Date().toISOString()
