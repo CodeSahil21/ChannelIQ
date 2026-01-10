@@ -177,7 +177,7 @@ export const getGroupDetails = async (groupId: string, userId: number): Promise<
 
   if (!group) throw new NotFoundError('Group not found');
 
-  const membership = group.members.find(m => m.userId === userId);
+  const membership = (group as any).members?.find((m: any) => m.userId === userId);
   if (!membership && group.isPrivate) {
     throw new ForbiddenError('You do not have access to this private group');
   }
@@ -526,10 +526,11 @@ export const getPinnedMessages = async (
     }
   }
 
-  const result = pinnedMessages.map(pm => ({
+  const result = pinnedMessages.map((pm: any) => ({
     ...pm,
     pinnedById: pm.pinnedBy,
     pinnedBy: pm.user,
+    message: pm.message,
   }));
   
   await CacheService.set(cacheKey, result, config.CACHE_TTL.MEDIUM);
@@ -616,13 +617,7 @@ export const getAnnouncements = async (
         }
       }
     },
-    select: {
-      id: true,
-      groupId: true,
-      senderId: true,
-      type: true,
-      content: true,
-      createdAt: true,
+    include: {
       sender: {
         select: {
           id: true,
@@ -641,7 +636,7 @@ export const getAnnouncements = async (
       title: announcement.content?.split(': ')[0] || 'Announcement',
       isAnnouncement: true,
     },
-  })) as GetAnnouncementsListResponse;
+  })) as unknown as GetAnnouncementsListResponse;
 
   await CacheService.set(cacheKey, result, config.CACHE_TTL.MEDIUM);
   return result;

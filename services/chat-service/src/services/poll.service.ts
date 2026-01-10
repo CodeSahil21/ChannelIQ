@@ -193,14 +193,14 @@ export class PollService {
     });
 
     return polls.map(message => ({
-      id: message.poll!.id,
+      id: (message as any).poll!.id,
       messageId: message.id,
-      question: message.poll!.question,
-      allowMultiple: message.poll!.allowMultiple,
-      expiresAt: message.poll!.expiresAt,
+      question: (message as any).poll!.question,
+      allowMultiple: (message as any).poll!.allowMultiple,
+      expiresAt: (message as any).poll!.expiresAt,
       createdAt: message.createdAt,
-      createdBy: message.sender,
-      options: message.poll!.options.map(option => ({
+      createdBy: (message as any).sender,
+      options: (message as any).poll!.options.map((option: any) => ({
         id: option.id,
         text: option.text,
         votes: option._count.votes,

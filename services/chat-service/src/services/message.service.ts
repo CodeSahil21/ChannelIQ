@@ -76,5 +76,5 @@ export const getGroupMessages = async (
     if (!membership) throw new Error('Not authorized to view messages');
   }
 
-  return messages.reverse();
+  return messages.reverse() as unknown as MessageWithDetails[];
 };
