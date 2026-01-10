@@ -574,14 +574,7 @@ export const getPendingRequests = async (userId: number): Promise<ConnectionResp
                 status: ConnectionStatus.PENDING,
                 isDeleted: false
             },
-            select: {
-                id: true,
-                senderId: true,
-                receiverId: true,
-                status: true,
-                message: true,
-                createdAt: true,
-                updatedAt: true,
+            include: {
                 sender: {
                     select: {
                         id: true,
@@ -595,7 +588,7 @@ export const getPendingRequests = async (userId: number): Promise<ConnectionResp
             orderBy: { createdAt: 'desc' }
         });
 
-        const responses: ConnectionResponse[] = connections.map(connection => ({
+        const responses: ConnectionResponse[] = connections.map((connection: any) => ({
             id: connection.id,
             senderId: connection.senderId,
             receiverId: connection.receiverId,
@@ -642,14 +635,7 @@ export const getSentRequests = async (userId: number): Promise<ConnectionRespons
                 status: ConnectionStatus.PENDING,
                 isDeleted: false
             },
-            select: {
-                id: true,
-                senderId: true,
-                receiverId: true,
-                status: true,
-                message: true,
-                createdAt: true,
-                updatedAt: true,
+            include: {
                 receiver: {
                     select: {
                         id: true,
@@ -663,7 +649,7 @@ export const getSentRequests = async (userId: number): Promise<ConnectionRespons
             orderBy: { createdAt: 'desc' }
         });
 
-        const responses: ConnectionResponse[] = connections.map(connection => ({
+        const responses: ConnectionResponse[] = connections.map((connection: any) => ({
             id: connection.id,
             senderId: connection.senderId,
             receiverId: connection.receiverId,
@@ -716,14 +702,7 @@ export const getConnections = async (userId: number): Promise<ConnectionResponse
                     { receiverId: userId }
                 ]
             },
-            select: {
-                id: true,
-                senderId: true,
-                receiverId: true,
-                status: true,
-                message: true,
-                createdAt: true,
-                updatedAt: true,
+            include: {
                 sender: {
                     select: {
                         id: true,
@@ -881,7 +860,7 @@ export const getBlockedUsers = async (userId: number): Promise<ConnectionRespons
         orderBy: { createdAt: 'desc' }
     });
 
-    const results = connections.map(connection => ({
+    const results = connections.map((connection: any) => ({
         id: connection.id,
         senderId: connection.senderId,
         receiverId: connection.receiverId,
