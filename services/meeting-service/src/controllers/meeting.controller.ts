@@ -85,7 +85,7 @@ export const searchMeetingController = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { meetingId } = req.params;
+    const meetingId = Array.isArray(req.params.meetingId) ? req.params.meetingId[0] : req.params.meetingId;
     const meeting = await searchMeeting(meetingId);
     
     if (!meeting) {
@@ -145,7 +145,7 @@ export const getMeetingController = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const meeting = await getMeetingById(id, req.user!.id);
     
     if (!meeting) {
@@ -190,7 +190,7 @@ export const updateMeetingController = async (
       return;
     }
 
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const meeting = await updateMeeting(id, req.user!.id, validationResult.data);
     
     res.json({
@@ -212,7 +212,7 @@ export const cancelMeetingController = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     await cancelMeeting(id, req.user!.id);
     
     res.json({
@@ -233,7 +233,7 @@ export const startMeetingController = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     await startMeeting(id, req.user!.id);
     
     await publishMeetingEvent({
@@ -268,7 +268,7 @@ export const endMeetingController = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     await endMeeting(id, req.user!.id);
     
     await publishMeetingEvent({
@@ -319,7 +319,7 @@ export const joinMeetingController = async (
       return;
     }
 
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const result = await joinMeeting(id, req.user!.id, validationResult.data);
     
     await publishMeetingEvent({
@@ -359,7 +359,7 @@ export const getLiveKitTokenController = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const meeting = await getMeetingById(id, req.user!.id);
     
     if (!meeting) {
@@ -419,7 +419,7 @@ export const setPasswordController = async (
       return;
     }
 
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const { password } = validationResult.data;
     await setPassword(id, req.user!.id, password);
     
@@ -441,7 +441,7 @@ export const removePasswordController = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     await removePassword(id, req.user!.id);
     
     res.json({
@@ -462,7 +462,7 @@ export const getPasswordStatusController = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const meeting = await searchMeeting(id);
     
     if (!meeting) {
@@ -507,7 +507,7 @@ export const promoteToCoHostController = async (
       return;
     }
 
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const { userId } = validationResult.data;
     const result = await promoteToCoHost(id, req.user!.id, userId);
     
@@ -540,7 +540,7 @@ export const leaveMeetingController = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const result = await leaveMeeting(id, req.user!.id);
     
     // Emit real-time event
@@ -587,7 +587,7 @@ export const demoteCoHostController = async (
       return;
     }
 
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const { userId } = validationResult.data;
     const result = await demoteCoHost(id, req.user!.id, userId);
     
