@@ -37,8 +37,8 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 
-app.use('/api/v1/user-management', userManagementRouter);
-app.use('/api/v1/connections', connectionrouter);
+app.use('/api/users', userManagementRouter);
+app.use('/api/connections', connectionrouter);
 // Initialize Redis on startup
 connectRedis().catch(err => console.error('Failed to connect to Redis:', err));
 
@@ -49,7 +49,7 @@ app.get('/health', async (_req, res) => {
     // Add database health check
     let dbStatus = false;
     try {
-      await prisma.$queryRaw`SELECT 1`;
+      await prisma.$connect();
       dbStatus = true;
     } catch (dbError) {
       console.error('Database health check failed:', dbError);
