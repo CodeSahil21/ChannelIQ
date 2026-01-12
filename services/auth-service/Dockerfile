@@ -1,5 +1,5 @@
 # -------------------- Stage 1: Builder --------------------
-FROM node:22-alpine AS builder
+FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Copy dependency manifests
@@ -45,4 +45,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
   CMD curl -f http://localhost:3001/health || exit 1
 
 EXPOSE 3001
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/server.js"]

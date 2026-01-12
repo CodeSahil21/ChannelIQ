@@ -44,7 +44,7 @@ app.get('/health', async (_req, res) => {
     // Add database health check
     let dbStatus = false;
     try {
-      await prisma.$queryRaw`SELECT 1`;
+      await prisma.$connect();
       dbStatus = true;
     } catch (dbError) {
       console.error('Database health check failed:', dbError);
