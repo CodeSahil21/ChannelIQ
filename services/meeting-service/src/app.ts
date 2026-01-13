@@ -7,6 +7,9 @@ import { env } from './config/env';
 
 const app = express();
 
+// Trust proxy for rate limiting with ingress
+app.set('trust proxy', true);
+
 // Security middleware
 app.use(helmet());
 app.use(cors({

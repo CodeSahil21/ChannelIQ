@@ -67,7 +67,7 @@ app.get('/health', async (_req, res) => {
 });
 
 
-app.use('/api/auth', authRouter);
+app.use('/api/v1/auth', authRouter);
 
 // Global error handler
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {

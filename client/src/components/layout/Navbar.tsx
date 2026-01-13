@@ -6,6 +6,7 @@ import { clearUser } from '../../store/userSlice';
 import type { RootState } from '../../store';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { API_CONFIG, DEFAULT_AXIOS_CONFIG } from '../../config/api';
 
 interface NavbarProps {
   onMenuClick: () => void;
@@ -19,9 +20,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onMenuClick, theme = 'light' }) 
 
   const handleLogout = async () => {
     try {
-      await axios.post('http://localhost:4000/api/auth/logout', {}, {
-        withCredentials: true
-      });
+      await axios.post(`${API_CONFIG.BASE_URL}/api/auth/logout`, {}, DEFAULT_AXIOS_CONFIG);
       dispatch(clearUser());
       toast.success('Logged out successfully');
       navigate('/login');

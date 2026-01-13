@@ -6,6 +6,7 @@ import { CreateProfile } from '../components/profile/CreateProfile';
 import { ProfileView } from '../components/profile/ProfileView';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { API_CONFIG, DEFAULT_AXIOS_CONFIG } from '../config/api';
 
 const Profile: React.FC = () => {
   const [profileData, setProfileData] = useState<any>(null);
@@ -15,8 +16,8 @@ const Profile: React.FC = () => {
     setIsLoading(true);
     try {
       const response = await axios.get(
-        'http://localhost:4000/api/users/get-profile',
-        { withCredentials: true }
+        `${API_CONFIG.BASE_URL}/api/users/get-profile`,
+        DEFAULT_AXIOS_CONFIG
       );
       const data = response.data.data;
       if (data && data.profileCreated !== false) {

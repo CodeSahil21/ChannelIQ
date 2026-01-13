@@ -35,3 +35,5 @@ certs/*.key
 certs/*.cert
 certs/*.pem
 certs/ca-pem
+certs
+kubernates

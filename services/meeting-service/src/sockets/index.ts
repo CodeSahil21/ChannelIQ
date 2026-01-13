@@ -31,15 +31,11 @@ export const initMeetingSocket = (server: http.Server): TypedServer => {
   const initializeRedis = async () => {
     try {
       await connectPubSub();
-      
-      // Set up Socket.io Redis adapter for cross-instance room management
-      // This automatically handles cross-instance communication without duplicates
       io.adapter(createAdapter(pubClient, subClient));
       
       console.log('Meeting Redis adapter initialized successfully');
     } catch (error) {
       console.error('Failed to initialize Meeting Redis:', error);
-      // Continue without Redis adapter - single instance mode
     }
   };
 

@@ -6,6 +6,7 @@ import { HiKey, HiShieldCheck, HiMail, HiLockClosed } from 'react-icons/hi';
 import type { ForgotPasswordFormData } from '../../types';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { API_CONFIG } from '../../config/api';
 
 export const ForgotPasswordForm: React.FC = () => {
   const [formData, setFormData] = useState<ForgotPasswordFormData>({
@@ -20,7 +21,7 @@ export const ForgotPasswordForm: React.FC = () => {
 
     try {
       const response = await axios.post(
-        "http://localhost:4000/api/auth/forgot-password",
+        `${API_CONFIG.BASE_URL}/api/auth/forgot-password`,
         { email: formData.email },
         {
           withCredentials: true,

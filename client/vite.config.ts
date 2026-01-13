@@ -5,7 +5,12 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 3000
+    host: "api.corporate.local",
+    port: 3000,
+    https: {
+      cert: "./api.corporate.local.pem",
+      key: "./api.corporate.local-key.pem"
+    }
   },
   build: {
     rollupOptions: {

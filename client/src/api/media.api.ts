@@ -1,11 +1,12 @@
 import axios from 'axios';
+import { API_CONFIG } from '../config/api';
 
-const BASE_URL = 'http://localhost:4000/api/media';
+const BASE_URL = `${API_CONFIG.BASE_URL}/api/media`;
 
 const mediaApiClient = axios.create({
   baseURL: BASE_URL,
   withCredentials: true,
-  timeout: 30000 // Longer timeout for file uploads
+  timeout: API_CONFIG.TIMEOUT.MEDIA_UPLOAD
 });
 
 export interface MediaUploadResponse {

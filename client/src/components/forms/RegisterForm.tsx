@@ -10,6 +10,7 @@ import type { RegisterFormData } from '../../types';
 import { setUser } from '../../store/userSlice';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { API_CONFIG } from '../../config/api';
 
 export const RegisterForm: React.FC = () => {
   const [formData, setFormData] = useState<RegisterFormData>({
@@ -25,7 +26,7 @@ export const RegisterForm: React.FC = () => {
     const checkAuthStatus = async () => {
       try {
         const response = await axios.get(
-          'http://localhost:4000/api/auth/get-profile',
+          `${API_CONFIG.BASE_URL}/api/auth/get-profile`,
           { withCredentials: true }
         );
         
@@ -53,7 +54,7 @@ export const RegisterForm: React.FC = () => {
 
     try {
       const response = await axios.post(
-        "http://localhost:4000/api/auth/register",
+        `${API_CONFIG.BASE_URL}/api/auth/register`,
         { email: formData.email, password: formData.password },
         {
           withCredentials: true,

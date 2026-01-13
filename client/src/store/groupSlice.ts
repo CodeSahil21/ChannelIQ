@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { API_CONFIG, DEFAULT_AXIOS_CONFIG } from '../config/api';
 import type { 
   GroupState, 
   CreateGroupRequest, 
@@ -27,9 +28,9 @@ export const createGroup = createAsyncThunk(
   async (groupData: CreateGroupRequest, { rejectWithValue }) => {
     try {
       const response = await axios.post<ApiResponse<Group>>(
-        'http://localhost:4000/api/groups/create',
+        `${API_CONFIG.BASE_URL}/api/groups/create`,
         groupData,
-        { withCredentials: true }
+        { ...DEFAULT_AXIOS_CONFIG }
       );
       toast.success(response.data.message);
       return response.data.data;
@@ -47,8 +48,8 @@ export const getMyGroups = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await axios.get<ApiResponse<UserGroup[]>>(
-        'http://localhost:4000/api/groups/my-groups',
-        { withCredentials: true }
+        `${API_CONFIG.BASE_URL}/api/groups/my-groups`,
+        { ...DEFAULT_AXIOS_CONFIG }
       );
       return response.data.data;
     } catch (error: any) {
@@ -64,8 +65,8 @@ export const searchGroups = createAsyncThunk(
   async (searchTerm: string, { rejectWithValue }) => {
     try {
       const response = await axios.get<ApiResponse<SearchGroupsResponse>>(
-        `http://localhost:4000/api/groups/search?search=${encodeURIComponent(searchTerm)}`,
-        { withCredentials: true }
+        `${API_CONFIG.BASE_URL}/api/groups/search?search=${encodeURIComponent(searchTerm)}`,
+        { ...DEFAULT_AXIOS_CONFIG }
       );
       return response.data.data.groups;
     } catch (error: any) {
@@ -81,8 +82,8 @@ export const getPendingRequests = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await axios.get<ApiResponse<PendingRequestsResponse>>(
-        'http://localhost:4000/api/groups/requests/pending',
-        { withCredentials: true }
+        `${API_CONFIG.BASE_URL}/api/groups/requests/pending`,
+        { ...DEFAULT_AXIOS_CONFIG }
       );
       return response.data.data;
     } catch (error: any) {
@@ -98,9 +99,9 @@ export const joinGroup = createAsyncThunk(
   async ({ groupId, message }: { groupId: string; message?: string }, { rejectWithValue }) => {
     try {
       const response = await axios.post(
-        `http://localhost:4000/api/groups/${groupId}/join`,
+        `${API_CONFIG.BASE_URL}/api/groups/${groupId}/join`,
         { message },
-        { withCredentials: true }
+        { ...DEFAULT_AXIOS_CONFIG }
       );
       toast.success(response.data.message);
       return response.data.data;
@@ -118,9 +119,9 @@ export const respondToRequest = createAsyncThunk(
   async ({ requestId, status }: { requestId: string; status: 'ACCEPTED' | 'REJECTED' }, { rejectWithValue }) => {
     try {
       const response = await axios.put(
-        `http://localhost:4000/api/groups/requests/${requestId}`,
+        `${API_CONFIG.BASE_URL}/api/groups/requests/${requestId}`,
         { status },
-        { withCredentials: true }
+        { ...DEFAULT_AXIOS_CONFIG }
       );
       toast.success(response.data.message);
       return { requestId, status };
@@ -138,9 +139,9 @@ export const updateGroup = createAsyncThunk(
   async ({ groupId, data }: { groupId: string; data: UpdateGroupRequest }, { rejectWithValue }) => {
     try {
       const response = await axios.put<ApiResponse<Group>>(
-        `http://localhost:4000/api/groups/${groupId}`,
+        `${API_CONFIG.BASE_URL}/api/groups/${groupId}`,
         data,
-        { withCredentials: true }
+        { ...DEFAULT_AXIOS_CONFIG }
       );
       toast.success(response.data.message);
       return response.data.data;
@@ -158,8 +159,8 @@ export const deleteGroup = createAsyncThunk(
   async (groupId: string, { rejectWithValue }) => {
     try {
       const response = await axios.delete(
-        `http://localhost:4000/api/groups/${groupId}`,
-        { withCredentials: true }
+        `${API_CONFIG.BASE_URL}/api/groups/${groupId}`,
+        { ...DEFAULT_AXIOS_CONFIG }
       );
       toast.success(response.data.message);
       return groupId;
@@ -177,9 +178,9 @@ export const inviteUser = createAsyncThunk(
   async ({ groupId, targetUserId, message }: { groupId: string; targetUserId: number; message?: string }, { rejectWithValue }) => {
     try {
       const response = await axios.post(
-        `http://localhost:4000/api/groups/${groupId}/invite`,
+        `${API_CONFIG.BASE_URL}/api/groups/${groupId}/invite`,
         { targetUserId, message },
-        { withCredentials: true }
+        { ...DEFAULT_AXIOS_CONFIG }
       );
       toast.success(response.data.message);
       return response.data.data;
@@ -197,8 +198,8 @@ export const removeMember = createAsyncThunk(
   async ({ groupId, userId }: { groupId: string; userId: number }, { rejectWithValue }) => {
     try {
       const response = await axios.delete(
-        `http://localhost:4000/api/groups/${groupId}/members/${userId}`,
-        { withCredentials: true }
+        `${API_CONFIG.BASE_URL}/api/groups/${groupId}/members/${userId}`,
+        { ...DEFAULT_AXIOS_CONFIG }
       );
       toast.success(response.data.message);
       return { groupId, userId };
@@ -216,8 +217,8 @@ export const leaveGroup = createAsyncThunk(
   async ({ groupId, userId }: { groupId: string; userId: number }, { rejectWithValue }) => {
     try {
       const response = await axios.delete(
-        `http://localhost:4000/api/groups/${groupId}/members/${userId}`,
-        { withCredentials: true }
+        `${API_CONFIG.BASE_URL}/api/groups/${groupId}/members/${userId}`,
+        { ...DEFAULT_AXIOS_CONFIG }
       );
       toast.success(response.data.message);
       return groupId;
@@ -235,8 +236,8 @@ export const getGroupDetails = createAsyncThunk(
   async (groupId: string, { rejectWithValue }) => {
     try {
       const response = await axios.get<ApiResponse<Group>>(
-        `http://localhost:4000/api/groups/${groupId}`,
-        { withCredentials: true }
+        `${API_CONFIG.BASE_URL}/api/groups/${groupId}`,
+        { ...DEFAULT_AXIOS_CONFIG }
       );
       return response.data.data;
     } catch (error: any) {
@@ -254,9 +255,9 @@ export const updateMemberRole = createAsyncThunk(
   async ({ groupId, userId, role }: { groupId: string; userId: number; role: 'ADMIN' | 'CO_ADMIN' | 'MEMBER' }, { rejectWithValue }) => {
     try {
       const response = await axios.put(
-        `http://localhost:4000/api/groups/${groupId}/members/${userId}/role`,
+        `${API_CONFIG.BASE_URL}/api/groups/${groupId}/members/${userId}/role`,
         { role },
-        { withCredentials: true }
+        { ...DEFAULT_AXIOS_CONFIG }
       );
       toast.success(response.data.message);
       return response.data.data;
@@ -274,9 +275,9 @@ export const updateMemberSettings = createAsyncThunk(
   async ({ groupId, isMuted, muteUntil }: { groupId: string; isMuted?: boolean; muteUntil?: string | null }, { rejectWithValue }) => {
     try {
       const response = await axios.put(
-        `http://localhost:4000/api/groups/${groupId}/settings`,
+        `${API_CONFIG.BASE_URL}/api/groups/${groupId}/settings`,
         { isMuted, muteUntil },
-        { withCredentials: true }
+        { ...DEFAULT_AXIOS_CONFIG }
       );
       toast.success(response.data.message);
       return response.data.data;

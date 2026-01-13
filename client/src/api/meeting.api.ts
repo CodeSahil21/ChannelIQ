@@ -1,4 +1,5 @@
 import axios, { type AxiosInstance, type AxiosError } from 'axios';
+import { API_CONFIG, DEFAULT_AXIOS_CONFIG } from '../config/api';
 import type {
   Meeting,
   MeetingParticipant,
@@ -16,12 +17,9 @@ class MeetingApiClient {
 
   constructor() {
     this.api = axios.create({
-      baseURL: `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000'}/api/meetings`,
-      withCredentials: true,
-      timeout: 10000,
-      headers: {
-        'Content-Type': 'application/json'
-      }
+      baseURL: `${API_CONFIG.BASE_URL}/api/meetings`,
+      ...DEFAULT_AXIOS_CONFIG,
+      timeout: API_CONFIG.TIMEOUT.DEFAULT
     });
 
     this.setupInterceptors();

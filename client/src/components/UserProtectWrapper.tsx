@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { setUser, clearUser } from '../store/userSlice';
 import type { RootState } from '../store';
 import { Loader } from './ui/Loader';
+import { API_CONFIG } from '../config/api';
 
 interface UserProtectWrapperProps {
   children: React.ReactNode;
@@ -20,7 +21,7 @@ const UserProtectWrapper: React.FC<UserProtectWrapperProps> = memo(({ children }
   const fetchUserProfile = useCallback(async () => {
     try {
       const response = await axios.get(
-        'http://localhost:4000/api/auth/get-profile',
+        `${API_CONFIG.BASE_URL}/api/auth/get-profile`,
         { withCredentials: true }
       );
       

@@ -8,6 +8,7 @@ import type { UserPreference, UpdatePreferencesData } from '../../types';
 import type { RootState } from '../../store';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { API_CONFIG, DEFAULT_AXIOS_CONFIG } from '../../config/api';
 
 export const PreferencesView: React.FC = () => {
   const dispatch = useDispatch();
@@ -37,8 +38,8 @@ export const PreferencesView: React.FC = () => {
   const fetchPreferences = async () => {
     try {
       const response = await axios.get(
-        'http://localhost:4000/api/users/preferences',
-        { withCredentials: true }
+        `${API_CONFIG.BASE_URL}/api/users/preferences`,
+        DEFAULT_AXIOS_CONFIG
       );
       
       if (response.data.success) {
@@ -84,9 +85,9 @@ export const PreferencesView: React.FC = () => {
       };
       
       const response = await axios.put(
-        'http://localhost:4000/api/users/preferences',
+        `${API_CONFIG.BASE_URL}/api/users/preferences`,
         dataToSend,
-        { withCredentials: true }
+        DEFAULT_AXIOS_CONFIG
       );
       
       toast.success(response.data.message);

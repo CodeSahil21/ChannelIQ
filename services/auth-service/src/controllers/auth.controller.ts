@@ -46,11 +46,11 @@ export const createUserController = async(req: Request, res: Response): Promise<
 
         // Set the token as a secure cookie
         res.cookie("token", token, {
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+            maxAge: 7 * 24 * 60 * 60 * 1000,
             httpOnly: true,
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
-            secure: process.env.NODE_ENV === 'production',
-            path: '/'
+            sameSite: "none",
+            secure: true,
+            path: "/"
         });
 
         res.status(201).json({
@@ -201,9 +201,9 @@ export const loginuserController = async(req: Request, res: Response): Promise<v
         res.cookie("token", token, {
             maxAge: 7 * 24 * 60 * 60 * 1000,
             httpOnly: true,
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
-            secure: process.env.NODE_ENV === 'production',
-            path: '/'
+            sameSite: "none",
+            secure: true,
+            path: "/"
         });
         
         // Publish login event
@@ -314,9 +314,9 @@ export const logoutUserController = async(_req:AuthenticatedRequest,res:Response
         // Clear the authentication cookie
         res.clearCookie("token", {
             httpOnly: true,
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
-            secure: process.env.NODE_ENV === 'production',
-            path: '/'
+            sameSite: "none",
+            secure: true,
+            path: "/"
         });
 
         // Revoke session in Redis

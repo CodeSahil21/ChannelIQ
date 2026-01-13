@@ -1,13 +1,14 @@
 import axios from 'axios';
 import { apiCache } from '../utils/apiCache';
+import { API_CONFIG, DEFAULT_AXIOS_CONFIG } from '../config/api';
 import type { ApiResponse, UserSearchResult, UserProfileResponse } from '../types';
 
-const BASE_URL = 'http://localhost:4000/api/users';
+const BASE_URL = `${API_CONFIG.BASE_URL}/api/users`;
 
 const userApiClient = axios.create({
   baseURL: BASE_URL,
-  withCredentials: true,
-  timeout: 8000
+  ...DEFAULT_AXIOS_CONFIG,
+  timeout: API_CONFIG.TIMEOUT.USER_API
 });
 
 // Add caching for GET requests

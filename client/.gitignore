@@ -22,3 +22,5 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+api.corporate.local.pem
+api.corporate.local-key.pem

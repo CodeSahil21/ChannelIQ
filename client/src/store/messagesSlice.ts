@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { API_CONFIG } from '../config/api';
 
 interface Message {
   id: string;
@@ -39,7 +40,7 @@ const initialState: MessagesState = {
 export const fetchMessages = createAsyncThunk(
   'messages/fetchMessages',
   async (groupId: string) => {
-    const response = await fetch(`http://localhost:4000/api/groups/${groupId}/messages`, {
+    const response = await fetch(`${API_CONFIG.BASE_URL}/api/groups/${groupId}/messages`, {
       credentials: 'include',
     });
     

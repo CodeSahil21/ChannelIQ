@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { apiCache } from '../utils/apiCache';
+import { API_CONFIG, DEFAULT_AXIOS_CONFIG } from '../config/api';
 import type {
   SendConnectionRequestRequest,
   SendConnectionApiResponse,
@@ -17,12 +18,12 @@ import type {
   ConnectedUsersApiResponse,
 } from '../types/connection.types';
 
-const API_BASE = 'http://localhost:4000/api/connections';
+const API_BASE = `${API_CONFIG.BASE_URL}/api/connections`;
 
 const api = axios.create({
   baseURL: API_BASE,
-  withCredentials: true,
-  timeout: 10000, // 10 second timeout
+  ...DEFAULT_AXIOS_CONFIG,
+  timeout: API_CONFIG.TIMEOUT.DEFAULT,
 });
 
 // Request interceptor for caching

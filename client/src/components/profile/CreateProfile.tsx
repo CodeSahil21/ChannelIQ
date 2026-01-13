@@ -6,6 +6,7 @@ import { Button } from '../ui/Button';
 import type { CreateProfileFormData } from '../../types';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { API_CONFIG, DEFAULT_AXIOS_CONFIG } from '../../config/api';
 
 interface CreateProfileProps {
   onProfileCreated: () => void;
@@ -72,9 +73,9 @@ export const CreateProfile: React.FC<CreateProfileProps> = ({ onProfileCreated }
       if (formData.twitterUrl?.trim()) cleanedData.twitterUrl = formData.twitterUrl.trim();
 
       const response = await axios.post(
-        'http://localhost:4000/api/users/create-profile',
+        `${API_CONFIG.BASE_URL}/api/users/create-profile`,
         cleanedData,
-        { withCredentials: true }
+        DEFAULT_AXIOS_CONFIG
       );
       
       toast.success(response.data.message);

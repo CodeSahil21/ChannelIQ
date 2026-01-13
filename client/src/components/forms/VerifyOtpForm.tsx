@@ -6,6 +6,7 @@ import { HiShieldCheck, HiMail, HiKey, HiClock } from 'react-icons/hi';
 import type { VerifyOtpFormData } from '../../types';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { API_CONFIG } from '../../config/api';
 
 export const VerifyOtpForm: React.FC = () => {
   const [formData, setFormData] = useState<VerifyOtpFormData>({
@@ -29,7 +30,7 @@ export const VerifyOtpForm: React.FC = () => {
 
     try {
       const response = await axios.post(
-        "http://localhost:4000/api/auth/verify-otp",
+        `${API_CONFIG.BASE_URL}/api/auth/verify-otp`,
         { email: formData.email, otp: formData.otp },
         {
           withCredentials: true,

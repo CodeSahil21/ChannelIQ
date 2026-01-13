@@ -4,6 +4,7 @@ import { HiExclamationCircle, HiX } from 'react-icons/hi';
 import { Button } from '../ui/Button';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { API_CONFIG, DEFAULT_AXIOS_CONFIG } from '../../config/api';
 
 interface DeleteProfileModalProps {
   isOpen: boolean;
@@ -21,8 +22,8 @@ export const DeleteProfileModal: React.FC<DeleteProfileModalProps> = ({ isOpen, 
 
     try {
       const response = await axios.delete(
-        'http://localhost:4000/api/users/delete-profile',
-        { withCredentials: true }
+        `${API_CONFIG.BASE_URL}/api/users/delete-profile`,
+        DEFAULT_AXIOS_CONFIG
       );
       
       toast.success(response.data.message);

@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../store';
 import { setPreferences } from '../store/themeSlice';
 import axios from 'axios';
+import { API_CONFIG } from '../config/api';
 
 interface ThemeProviderProps {
   children: React.ReactNode;
@@ -16,7 +17,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = memo(({ children }) =
   const loadUserPreferences = useCallback(async () => {
     try {
       const response = await axios.get(
-        'http://localhost:4000/api/users/preferences',
+        `${API_CONFIG.BASE_URL}/api/users/preferences`,
         { withCredentials: true }
       );
       

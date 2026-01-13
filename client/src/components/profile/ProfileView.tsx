@@ -9,6 +9,7 @@ import { ProfileImageModal } from './ProfileImageModal';
 import type { UserProfileResponse } from '../../types';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { API_CONFIG, DEFAULT_AXIOS_CONFIG } from '../../config/api';
 
 interface ProfileViewProps {
   onProfileDeleted: () => void;
@@ -28,8 +29,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ onProfileDeleted }) =>
   const fetchProfile = async () => {
     try {
       const response = await axios.get(
-        'http://localhost:4000/api/users/get-profile',
-        { withCredentials: true }
+        `${API_CONFIG.BASE_URL}/api/users/get-profile`,
+        DEFAULT_AXIOS_CONFIG
       );
       
       if (response.data.success) {

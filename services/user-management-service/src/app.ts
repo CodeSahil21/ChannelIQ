@@ -37,8 +37,8 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 
-app.use('/api/users', userManagementRouter);
-app.use('/api/connections', connectionrouter);
+app.use('/api/v1/users', userManagementRouter);
+app.use('/api/v1/connections', connectionrouter);
 // Initialize Redis on startup
 connectRedis().catch(err => console.error('Failed to connect to Redis:', err));
 

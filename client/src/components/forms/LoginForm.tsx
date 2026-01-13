@@ -11,6 +11,7 @@ import type { RootState } from '../../store';
 import { setUser } from '../../store/userSlice';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { API_CONFIG } from '../../config/api';
 
 export const LoginForm: React.FC = () => {
   const [formData, setFormData] = useState<LoginFormData>({
@@ -27,7 +28,7 @@ export const LoginForm: React.FC = () => {
     const checkAuthStatus = async () => {
       try {
         const response = await axios.get(
-          'http://localhost:4000/api/auth/get-profile',
+          `${API_CONFIG.BASE_URL}/api/auth/get-profile`,
           { withCredentials: true }
         );
         
@@ -55,7 +56,7 @@ export const LoginForm: React.FC = () => {
 
     try {
       const response = await axios.post(
-        "http://localhost:4000/api/auth/login",
+        `${API_CONFIG.BASE_URL}/api/auth/login`,
         { email: formData.email, password: formData.password },
         {
           withCredentials: true,

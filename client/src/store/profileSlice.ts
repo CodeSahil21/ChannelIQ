@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { userApi } from '../api/user.api';
 import axios from 'axios';
+import { API_CONFIG, DEFAULT_AXIOS_CONFIG } from '../config/api';
 import type { 
   UserProfileResponse, 
   CreateProfileFormData, 
@@ -31,9 +32,9 @@ const initialState: ProfileState = {
 
 // Create axios instance for profile operations
 const profileApi = axios.create({
-  baseURL: 'http://localhost:4000/api/users',
-  withCredentials: true,
-  timeout: 8000
+  baseURL: `${API_CONFIG.BASE_URL}/api/users`,
+  ...DEFAULT_AXIOS_CONFIG,
+  timeout: API_CONFIG.TIMEOUT.USER_API
 });
 
 // Async thunks

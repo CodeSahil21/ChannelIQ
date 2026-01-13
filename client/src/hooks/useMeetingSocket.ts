@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useSelector } from 'react-redux';
 import { useAppDispatch } from './useAppDispatch';
+import { API_CONFIG } from '../config/api';
 import { updateParticipant, removeParticipant, updateMeetingStatus, socketParticipantJoined, socketParticipantLeft, socketParticipantRoleChanged, socketMeetingStatusChanged, participantMuted, participantUnmuted, addUnmuteRequest, participantCameraDisabled, participantCameraEnabled, participantScreenShareStarted, participantScreenShareStopped } from '../store/meetingSlice';
 import type { ParticipantRole } from '../types/meeting.types';
 import type { RootState } from '../store';
@@ -16,23 +17,26 @@ export const useMeetingSocket = (meetingId: string | null) => {
     if (!currentUser?.id || !meetingId) {
       return;
     }
-    const newSocket = io('http://localhost:4000', {
+
+    const newSocket = io(import.meta.env.VITE_MEETING_SOCKET_BASE_URL || API_CONFIG.SOCKET_URL, {
       withCredentials: true,
       transports: ['websocket', 'polling'],
-      timeout: 10000,
-      path: '/meeting-socket/',
-      forceNew: true // Force new connection to avoid cache
+      timeout: API_CONFIG.TIMEOUT.DEFAULT,
+      path: '/meeting-socket/'
     });
 
     newSocket.on('connect', () => {
+      console.log('Meeting socket connected successfully');
       setIsConnected(true);
     });
 
     newSocket.on('connect_error', (error) => {
+      console.error('Meeting socket connection error:', error);
       setIsConnected(false);
     });
 
     newSocket.on('disconnect', (reason) => {
+      console.log('Meeting socket disconnected:', reason);
       setIsConnected(false);
     });
 

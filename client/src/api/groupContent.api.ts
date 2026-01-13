@@ -1,12 +1,13 @@
 import axios from 'axios';
+import { API_CONFIG, DEFAULT_AXIOS_CONFIG } from '../config/api';
 import type { ApiResponse, CreatePollRequest, CreateAnnouncementRequest, Poll, Announcement } from '../types';
 
-const BASE_URL = 'http://localhost:4000/api/groups';
+const BASE_URL = `${API_CONFIG.BASE_URL}/api/groups`;
 
 const groupContentApiClient = axios.create({
   baseURL: BASE_URL,
-  withCredentials: true,
-  timeout: 8000
+  ...DEFAULT_AXIOS_CONFIG,
+  timeout: API_CONFIG.TIMEOUT.USER_API
 });
 
 export const groupContentApi = {

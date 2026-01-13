@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useSelector } from 'react-redux';
+import { API_CONFIG } from '../config/api';
 import type { RootState } from '../store';
 
 interface MessageData {
@@ -53,10 +54,10 @@ export const useSocket = () => {
       return;
     }
 
-    const newSocket = io('http://localhost:3004', {
+    const newSocket = io(API_CONFIG.SOCKET_URL, {
       withCredentials: true,
       transports: ['websocket', 'polling'],
-      timeout: 10000,
+      timeout: API_CONFIG.TIMEOUT.DEFAULT,
       path: '/socket.io/'
     });
 

@@ -6,6 +6,7 @@ import { Button } from '../ui/Button';
 import type { CreateProfileFormData, UserProfileResponse } from '../../types';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { API_CONFIG, DEFAULT_AXIOS_CONFIG } from '../../config/api';
 
 interface EditProfileProps {
   profile: UserProfileResponse;
@@ -69,9 +70,9 @@ export const EditProfile: React.FC<EditProfileProps> = ({ profile, onCancel, onU
       if (formData.twitterUrl?.trim()) cleanedData.twitterUrl = formData.twitterUrl.trim();
 
       const response = await axios.put(
-        'http://localhost:4000/api/users/update-profile',
+        `${API_CONFIG.BASE_URL}/api/users/update-profile`,
         cleanedData,
-        { withCredentials: true }
+        DEFAULT_AXIOS_CONFIG
       );
       
       toast.success(response.data.message);
