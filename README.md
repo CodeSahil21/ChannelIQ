@@ -4,13 +4,19 @@
 
 ## 📺 Demo Video
 
-<div align="center">
-  <video src="https://github.com/CodeSahil21/ChannelIQ/blob/Main/docs/videos/channellQ.mp4" width="100%" controls>
-    Your browser does not support the video tag.
-  </video>
-</div>
+**[▶️ Watch Demo Video](https://github.com/CodeSahil21/ChannelIQ/blob/Main/docs/videos/channellQ.mp4)**
 
-> **To embed the video:** Edit this README on GitHub, delete the placeholder above, and drag-drop your video file directly into the editor. GitHub will auto-generate the proper embed code.
+<details>
+<summary>📹 How to embed video (click to expand)</summary>
+
+1. Go to https://github.com/CodeSahil21/ChannelIQ
+2. Click "Edit" on README.md
+3. Delete this section
+4. Drag-drop `channellQ.mp4` directly into the editor
+5. GitHub will auto-generate: `https://github.com/user-attachments/assets/xxxxx/channellQ.mp4`
+6. Commit - video will play inline!
+
+</details>
 
 ## 🚀 Overview
 
