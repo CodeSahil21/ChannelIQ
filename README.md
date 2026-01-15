@@ -4,7 +4,13 @@
 
 ## 📺 Demo Video
 
-https://github.com/CodeSahil21/ChannelIQ/assets/docs/videos/channellQ.mp4
+<div align="center">
+  <video src="https://github.com/CodeSahil21/ChannelIQ/blob/Main/docs/videos/channellQ.mp4" width="100%" controls>
+    Your browser does not support the video tag.
+  </video>
+</div>
+
+> **To embed the video:** Edit this README on GitHub, delete the placeholder above, and drag-drop your video file directly into the editor. GitHub will auto-generate the proper embed code.
 
 ## 🚀 Overview
 
