@@ -1,5 +1,4 @@
 import express from 'express';
-import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import compression from 'compression';
@@ -13,16 +12,7 @@ import { config } from './utils/config';
 
 const app = express();
 
-const corsOptions = {
-  origin: config.NODE_ENV === 'production' 
-    ? config.FRONTEND_URLS || ['http://localhost:3000']
-    : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:4000'],
-  credentials: true,
-  optionsSuccessStatus: 200,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
-};
-
+app.set('trust proxy', true);
 app.use(helmet());
 app.use(compression());
 app.disable('x-powered-by');
@@ -30,7 +20,6 @@ app.disable('x-powered-by');
 if (config.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
 }
-app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));

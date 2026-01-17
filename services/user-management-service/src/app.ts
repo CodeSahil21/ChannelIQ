@@ -1,7 +1,6 @@
 import dotenv from 'dotenv';
 dotenv.config();
 import express from 'express';
-import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import { Request, Response, NextFunction } from 'express';
@@ -14,16 +13,7 @@ import { connectRedis } from './redis';
 
 const app = express();
 
-const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
-    ? process.env.FRONTEND_URLS?.split(',') || ['http://localhost:3000']
-    : ['http://localhost:3000', 'http://localhost:5173'],
-  credentials: true,
-  optionsSuccessStatus: 200,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
-};
-
+app.set('trust proxy', true);
 app.disable('x-powered-by');
 app.use(helmet());
 app.use(compression());
@@ -31,8 +21,6 @@ app.use(compression());
 if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
 }
-
-app.use(cors(corsOptions));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());

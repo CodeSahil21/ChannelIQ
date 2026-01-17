@@ -12,10 +12,6 @@ app.set('trust proxy', true);
 
 // Security middleware
 app.use(helmet());
-app.use(cors({
-  origin: env.FRONTEND_URLS,
-  credentials: true,
-}));
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));

@@ -483,8 +483,11 @@ metadata:
     nginx.ingress.kubernetes.io/use-regex: "true"
     nginx.ingress.kubernetes.io/rewrite-target: /api/v1/auth/$2
     nginx.ingress.kubernetes.io/enable-cors: "true"
-    nginx.ingress.kubernetes.io/cors-allow-origin: "https://your-domain.com"
     nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://your-domain.com,https://app.your-domain.com"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET,POST,PUT,DELETE,OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Content-Type,Authorization,Cookie,X-Requested-With"
+    nginx.ingress.kubernetes.io/cors-max-age: "86400"
 spec:
   ingressClassName: nginx
   tls:
@@ -504,6 +507,109 @@ spec:
                   number: 3001
 
 ---
+# User Management Service Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: user-management-ingress
+  namespace: corporatechat
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /api/v1/$2
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://your-domain.com,https://app.your-domain.com"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET,POST,PUT,DELETE,OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Content-Type,Authorization,Cookie,X-Requested-With"
+    nginx.ingress.kubernetes.io/cors-max-age: "86400"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - your-domain.com
+      secretName: corporatechat-tls
+  rules:
+    - host: your-domain.com
+      http:
+        paths:
+          - path: /api/(users|connections)(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: user-management-service
+                port:
+                  number: 3002
+
+---
+# Media Service Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: media-ingress
+  namespace: corporatechat
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /api/v1/media/$2
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://your-domain.com,https://app.your-domain.com"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET,POST,PUT,DELETE,OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Content-Type,Authorization,Cookie,X-Requested-With"
+    nginx.ingress.kubernetes.io/cors-max-age: "86400"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - your-domain.com
+      secretName: corporatechat-tls
+  rules:
+    - host: your-domain.com
+      http:
+        paths:
+          - path: /api/media(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: media-service
+                port:
+                  number: 3003
+
+---
+# Meeting Service REST API
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: meeting-ingress
+  namespace: corporatechat
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /api/meetings/$2
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://your-domain.com,https://app.your-domain.com"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET,POST,PUT,DELETE,OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Content-Type,Authorization,Cookie,X-Requested-With"
+    nginx.ingress.kubernetes.io/cors-max-age: "86400"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - your-domain.com
+      secretName: corporatechat-tls
+  rules:
+    - host: your-domain.com
+      http:
+        paths:
+          - path: /api/meetings(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: meeting-service
+                port:
+                  number: 3005
+
+---
 # Chat Service REST API
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -515,6 +621,10 @@ metadata:
     nginx.ingress.kubernetes.io/rewrite-target: /api/groups/$2
     nginx.ingress.kubernetes.io/enable-cors: "true"
     nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://your-domain.com,https://app.your-domain.com"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET,POST,PUT,DELETE,OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Content-Type,Authorization,Cookie,X-Requested-With"
+    nginx.ingress.kubernetes.io/cors-max-age: "86400"
 spec:
   ingressClassName: nginx
   tls:
@@ -542,11 +652,15 @@ metadata:
   namespace: corporatechat
   annotations:
     nginx.ingress.kubernetes.io/use-regex: "true"
-    nginx.ingress.kubernetes.io/websocket-services: chat-service
+    nginx.ingress.kubernetes.io/websocket-services: "chat-service"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
     nginx.ingress.kubernetes.io/enable-cors: "true"
     nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://your-domain.com,https://app.your-domain.com"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET,POST,PUT,DELETE,OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Content-Type,Authorization,Cookie,X-Requested-With"
+    nginx.ingress.kubernetes.io/cors-max-age: "86400"
 spec:
   ingressClassName: nginx
   tls:
@@ -574,11 +688,15 @@ metadata:
   namespace: corporatechat
   annotations:
     nginx.ingress.kubernetes.io/use-regex: "true"
-    nginx.ingress.kubernetes.io/websocket-services: meeting-service
+    nginx.ingress.kubernetes.io/websocket-services: "meeting-service"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
     nginx.ingress.kubernetes.io/enable-cors: "true"
     nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://your-domain.com,https://app.your-domain.com"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET,POST,PUT,DELETE,OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Content-Type,Authorization,Cookie,X-Requested-With"
+    nginx.ingress.kubernetes.io/cors-max-age: "86400"
 spec:
   ingressClassName: nginx
   tls:

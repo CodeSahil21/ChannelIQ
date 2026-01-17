@@ -21,7 +21,7 @@ export const verifySocketAuth = async (
     if (!rawCookie) return next(new Error("No cookies"));
 
     const parsed = cookie.parse(rawCookie);
-    const token = parsed.token ?? parsed.accessToken;
+    const token = parsed.token ?? parsed.accessToken ?? parsed.authToken;
     if (!token) return next(new Error("No token"));
 
     const payload = jwt.verify(token, process.env.JWT_SECRET!) as { id: number };

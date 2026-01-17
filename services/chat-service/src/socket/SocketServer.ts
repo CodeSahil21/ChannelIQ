@@ -12,23 +12,13 @@ import { createAdapter } from '@socket.io/redis-adapter';
 import { pubClient, subClient, connectPubSub } from '../redis';
 
 export const initSocket = (server: http.Server): TypedServer => {
-  // Use same CORS configuration as REST API
-  const corsOrigins = process.env.NODE_ENV === 'production' 
-    ? process.env.FRONTEND_URLS?.split(',').filter(origin => origin.trim()) || []
-    : ["http://localhost:3000", "http://localhost:5173", "http://localhost:4000"];
-  
-  if (corsOrigins.length === 0) {
-    throw new Error('FRONTEND_URLS must be configured for production');
-  }
-  
   const io: TypedServer = new Server(server, {
-    cors: {
-      origin: corsOrigins,
-      credentials: true,
-      methods: ["GET", "POST"]
-    },
     allowEIO3: true,
-    transports: ['websocket', 'polling']
+    transports: ['websocket', 'polling'],
+    cors: {
+      origin: true, // Allow all origins since ingress handles CORS
+      credentials: true
+    }
   });
 
   // Initialize Redis pub/sub connections and adapter

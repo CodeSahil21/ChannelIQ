@@ -5,26 +5,17 @@ import { verifySocketAuth } from './middleware';
 import { registerMeetingHandlers } from './meetingHandlers';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { pubClient, subClient, connectPubSub } from '../redis';
-import { env } from '../config/env';
+
 
 export const initMeetingSocket = (server: http.Server): TypedServer => {
-  const corsOrigins = process.env.NODE_ENV === 'production' 
-    ? env.FRONTEND_URLS
-    : ["http://localhost:3000", "http://localhost:5173", "http://localhost:4000"];
-  
-  if (corsOrigins.length === 0) {
-    throw new Error('FRONTEND_URLS must be configured for production');
-  }
-  
   const io: TypedServer = new Server(server, {
-    cors: {
-      origin: corsOrigins,
-      credentials: true,
-      methods: ["GET", "POST"]
-    },
     allowEIO3: true,
     transports: ['websocket', 'polling'],
-    path: '/meeting-socket/'
+    path: '/meeting-socket/',
+    cors: {
+      origin: true,
+      credentials: true
+    }
   });
 
   // Initialize Redis pub/sub connections and adapter
