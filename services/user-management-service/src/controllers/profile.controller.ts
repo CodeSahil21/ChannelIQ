@@ -1,10 +1,12 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import { CreateUserProfileSchema, UpdateUserProfileSchema, searchUsersSchema } from '../utils/schema';
 import { createProfile, updateUserProfile, getUserProfile, deleteUserProfile, restoreUser, searchUsers } from '../services/profile.service';
 import { processSingleProfileImage, processProfileImages } from '../services/image.service';
 import { AuthenticatedRequest, CreateUserProfile } from '../utils/types';
+import { ApiError } from '../utils/apiError';
+import { ApiResponse } from '../utils/apiResponse';
 
-export const createProfileController = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const createProfileController = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
         const validationResult = CreateUserProfileSchema.safeParse(req.body);
         
@@ -13,13 +15,7 @@ export const createProfileController = async (req: AuthenticatedRequest, res: Re
                 field: error.path.join('.'),
                 message: error.message
             }));
-
-            res.status(400).json({
-                success: false,
-                message: "Validation failed",
-                errors: fieldErrors
-            });
-            return;
+            throw new ApiError(400, "Validation failed", fieldErrors);
         }
 
         const profileData = validationResult.data;
@@ -49,40 +45,25 @@ export const createProfileController = async (req: AuthenticatedRequest, res: Re
       
         const newProfile = await createProfile(userId, sanitizedProfileData);
         
-        res.status(201).json({
-            success: true,
-            message: "Profile created successfully",
-            data: newProfile
-        });
+        const response = new ApiResponse(201, newProfile, "Profile created successfully");
+        res.status(response.statusCode).json(response);
        
     } catch (error: unknown) {
         const err = error as { message?: string };
-        console.error('Error creating profile:', error);
         
         if (err.message === "User does not exist") {
-            res.status(404).json({
-                success: false,
-                message: "User not found"
-            });
-            return;
+            return next(new ApiError(404, "User not found"));
         }
 
         if (err.message === "Profile already completed") {
-            res.status(400).json({
-                success: false,
-                message: "Profile has already been created"
-            });
-            return;
+            return next(new ApiError(400, "Profile has already been created"));
         }
 
-        res.status(500).json({
-            success: false,
-            message: "Internal server error"
-        });
+        next(error);
     }
 }
 
-export const updateProfileController = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const updateProfileController = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
    try{
     const validationResult = UpdateUserProfileSchema.safeParse(req.body);
 
@@ -91,13 +72,7 @@ export const updateProfileController = async (req: AuthenticatedRequest, res: Re
                 field: error.path.join('.'),
                 message: error.message
             }));
-
-            res.status(400).json({
-                success: false,
-                message: "Validation failed",
-                errors: fieldErrors
-            });
-            return;
+            throw new ApiError(400, "Validation failed", fieldErrors);
         }
      
         const profileData = validationResult.data;
@@ -127,159 +102,103 @@ export const updateProfileController = async (req: AuthenticatedRequest, res: Re
 
         // Check if there's actually data to update
         if (Object.keys(sanitizedUpdateData).length === 0) {
-            res.status(400).json({
-                success: false,
-                message: "No valid fields provided for update"
-            });
-            return;
+            throw new ApiError(400, "No valid fields provided for update");
         }
 
         const updatedProfile = await updateUserProfile(userId, sanitizedUpdateData);
 
-        res.status(200).json({
-        success: true,
-        message: "Profile updated successfully",
-        data: updatedProfile
-        });
+        const response = new ApiResponse(200, updatedProfile, "Profile updated successfully");
+        res.status(response.statusCode).json(response);
 
    }catch(error:unknown){
     const err = error as { message?: string };
-    console.error('Error creating profile:', error);
 
-            if (err.message === "User does not exist") {
-            res.status(404).json({
-                success: false,
-                message: "User not found"
-            });
-            return;
+        if (err.message === "User does not exist") {
+            return next(new ApiError(404, "User not found"));
         }
 
         if (err.message === "Profile not created yet") {
-            res.status(400).json({
-                success: false,
-                message: "Profile not created yet"
-            });
-            return;
+            return next(new ApiError(400, "Profile not created yet"));
         }
-        res.status(500).json({
-        success: false,
-        message: "Internal server error"
-        });
         
+        next(error);
    }
 }
 
 
-export const getProfileController = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const getProfileController = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
         const userId = req.user!.id;
         const profile = await getUserProfile(userId);
         const processedProfile = processSingleProfileImage(profile);
-        res.status(200).json({
-            success: true,
-            data: processedProfile
-        });
+        
+        const response = new ApiResponse(200, processedProfile, "Profile retrieved successfully");
+        res.status(response.statusCode).json(response);
     } catch (error: unknown) {
-        console.error('Error fetching profile:', error);
-        res.status(500).json({
-            success: false,
-            message: "Internal server error"
-        });
+        next(error);
     }
 }
 
-export const fetchUserProfileController = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const fetchUserProfileController = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
         const userId = parseInt(req.params.userId || "");
         
-        // ✅ ADD VALIDATION
         if (isNaN(userId) || userId <= 0) {
-            res.status(400).json({
-                success: false,
-                message: "Invalid user ID"
-            });
-            return;
+            throw new ApiError(400, "Invalid user ID");
         }
 
         const profile = await getUserProfile(userId);
         if (!profile) {
-            res.status(404).json({
-                success: false,
-                message: "User not found",
-            });
-            return;
+            throw new ApiError(404, "User not found");
         }
 
         const processedProfile = processSingleProfileImage(profile);
-        res.status(200).json({
-            success: true,
-            data: processedProfile
-        });
+        const response = new ApiResponse(200, processedProfile, "Profile retrieved successfully");
+        res.status(response.statusCode).json(response);
     }catch (error: unknown) {
-        console.error('Error fetching profile:', error);
-        res.status(500).json({
-            success: false,
-            message: "Internal server error"
-        });
+        next(error);
     }
 }   
-export const deleteProfileController = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const deleteProfileController = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
         const userId = req.user!.id;
         
         await deleteUserProfile(userId, userId);
         
-        res.status(200).json({
-            success: true,
-            message: "Profile deleted successfully"
-        });
+        const response = new ApiResponse(200, null, "Profile deleted successfully");
+        res.status(response.statusCode).json(response);
     } catch (error: unknown) {
         const err = error as { message?: string };
-        console.error('Error deleting profile:', error);
+        
         if (err.message === "User does not exist") {
-            res.status(404).json({
-                success: false,
-                message: "User not found"
-            });
-            return;
+            return next(new ApiError(404, "User not found"));
         }
         if (err.message === "Profile not created yet") {
-            res.status(400).json({
-                success: false,
-                message: "Profile not created yet"
-            });
-            return;
+            return next(new ApiError(400, "Profile not created yet"));
         }
-        res.status(500).json({
-            success: false,
-            message: "Internal server error"
-        });
+        
+        next(error);
     }
 }
 
-export const restoreUserController = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const restoreUserController = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
         const userId = parseInt(req.params.userId || '0');
         
         if (isNaN(userId) || userId <= 0) {
-            res.status(400).json({
-                success: false,
-                message: "Invalid user ID"
-            });
-            return;
+            throw new ApiError(400, "Invalid user ID");
         }
         
         await restoreUser(userId);
         
-        res.status(200).json({ success: true, message: "User restored successfully" });
+        const response = new ApiResponse(200, null, "User restored successfully");
+        res.status(response.statusCode).json(response);
     } catch (error: unknown) {
-        const err = error as { message?: string };
-        console.error('Error restoring user:', error);
-        res.status(500).json({ success: false, message: err.message || 'Internal server error' });
+        next(error);
     }
 };
 
-export const searchUsersController = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const searchUsersController = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
         const validationResult = searchUsersSchema.safeParse(req.query);
         
@@ -288,13 +207,7 @@ export const searchUsersController = async (req: AuthenticatedRequest, res: Resp
                 field: error.path.join('.'),
                 message: error.message
             }));
-
-            res.status(400).json({
-                success: false,
-                message: "Validation failed",
-                errors: fieldErrors
-            });
-            return;
+            throw new ApiError(400, "Validation failed", fieldErrors);
         }
 
         const { query, limit = 10 } = validationResult.data;
@@ -303,16 +216,10 @@ export const searchUsersController = async (req: AuthenticatedRequest, res: Resp
         const users = await searchUsers(query, currentUserId, limit);
         const processedUsers = processProfileImages(users);
         
-        res.status(200).json({
-            success: true,
-            data: processedUsers
-        });
+        const response = new ApiResponse(200, processedUsers, "Users retrieved successfully");
+        res.status(response.statusCode).json(response);
     } catch (error: unknown) {
-        console.error('Error searching users:', error);
-        res.status(500).json({
-            success: false,
-            message: "Internal server error"
-        });
+        next(error);
     }
 };
 

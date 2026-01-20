@@ -1,48 +1,33 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../utils/types';
 import { getUserPreference, updateUserPreference } from '../services/preference.service';
+import { ApiError } from '../utils/apiError';
+import { ApiResponse } from '../utils/apiResponse';
 
-export const getUserPreferenceController = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const getUserPreferenceController = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
         const userId = req.user!.id;
         const preferences = await getUserPreference(userId);
 
         if (!preferences) {
-            res.status(404).json({
-                success: false,
-                message: "User preferences not found"
-            });
-            return;
+            throw new ApiError(404, "User preferences not found");
         }
 
-        res.status(200).json({
-            success: true,
-            data: preferences
-        });
+        const response = new ApiResponse(200, preferences, "Preferences retrieved successfully");
+        res.status(response.statusCode).json(response);
     } catch (error: unknown) {
-        console.error('Error fetching user preferences:', error);
-        res.status(500).json({
-            success: false,
-            message: "Internal server error"
-        });
+        next(error);
     }
 };
 
-export const updateUserPreferenceController = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const updateUserPreferenceController = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
         const userId = req.user!.id;
         const updatedPreferences = await updateUserPreference(userId, req.body);
 
-        res.status(200).json({
-            success: true,
-            message: "Preferences updated successfully",
-            data: updatedPreferences
-        });
+        const response = new ApiResponse(200, updatedPreferences, "Preferences updated successfully");
+        res.status(response.statusCode).json(response);
     } catch (error: unknown) {
-        console.error('Error updating user preferences:', error);
-        res.status(500).json({
-            success: false,
-            message: "Internal server error"
-        });
+        next(error);
     }
 };

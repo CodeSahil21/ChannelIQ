@@ -204,7 +204,7 @@ export const updateUserProfile = async(id:number, data:UpdateUserProfile):Promis
                     profilePic: updated.profilePic || ''
                 });
             } catch (eventError) {
-                console.error(`Failed to publish fullName update event for user ${id}:`, eventError);
+                console.error(`Failed to publish fullName update event for user :`, eventError);
             }
         }
         
@@ -218,7 +218,7 @@ export const updateUserProfile = async(id:number, data:UpdateUserProfile):Promis
                     profilePic: updated.profilePic || ''
                 });
             } catch (eventError) {
-                console.error(`Failed to publish profile update event for user ${id}:`, eventError);
+                console.error(`Failed to publish profile update event for user :`, eventError);
             }
         }
         

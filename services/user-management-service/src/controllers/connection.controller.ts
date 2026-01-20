@@ -13,12 +13,14 @@ import {
     getConnectionStats,
     removeConnection,
 } from '../services/connection.service';
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../utils/types';
 import {sendConnectionRequestSchema,connectionIdParamSchema,userIdParamSchema} from "../utils/schema"
+import { ApiError } from '../utils/apiError';
+import { ApiResponse } from '../utils/apiResponse';
 
 // Send connection request
-export const sendConnectionRequestController = async (req: AuthenticatedRequest, res: Response):Promise<void> => {
+export const sendConnectionRequestController = async (req: AuthenticatedRequest, res: Response, next: NextFunction):Promise<void> => {
     try {
         const validationResult = sendConnectionRequestSchema.safeParse(req.body);
 
@@ -27,25 +29,18 @@ export const sendConnectionRequestController = async (req: AuthenticatedRequest,
                 field: error.path.join('.'),
                 message: error.message
             }));
-
-            res.status(400).json({
-                success: false,
-                message: "Validation failed",
-                errors: fieldErrors
-            });
-            return;
+            throw new ApiError(400, "Validation failed", fieldErrors);
         }
+        
         const { receiverId, message } = validationResult.data;
         const senderId = req.user?.id;
 
         if (!senderId) {
-          res.status(401).json({ error: 'Unauthorized' });
-          return;
+            throw new ApiError(401, 'Unauthorized');
         }
 
         if (!receiverId) {
-          res.status(400).json({ error: 'Receiver ID is required' });
-          return;
+            throw new ApiError(400, 'Receiver ID is required');
         }
 
         const connection = await sendConnectionRequest({
@@ -54,57 +49,31 @@ export const sendConnectionRequestController = async (req: AuthenticatedRequest,
             message: message ?? ""
         });
 
-        res.status(201).json({
-            success: true,
-            message: 'Connection request sent successfully',
-            data: connection
-        });
+        const response = new ApiResponse(201, connection, 'Connection request sent successfully');
+        res.status(response.statusCode).json(response);
     } catch (error: unknown) {
         const err = error as { message?: string; code?: string };
-// Handle specific business logic errors
+
         if (err.message?.includes('Cannot send connection request to yourself')) {
-            res.status(400).json({
-                success: false,
-                message: err.message
-            });
-            return;
+            return next(new ApiError(400, err.message));
         }
         
         if (err.message?.includes('already pending') || 
             err.message?.includes('already connected') ||
             err.message?.includes('blocked user')) {
-            res.status(409).json({
-                success: false,
-                message: err.message
-            });
-            return;
-        }
-
-        // Handle database errors
-        if (err.code?.startsWith('P') || err.message?.includes('Database error')) {
-            res.status(503).json({
-                success: false,
-                message: "Database service temporarily unavailable"
-            });
-            return;
+            return next(new ApiError(409, err.message));
         }
         
         if (err.message === "One or both users not found") {
-            res.status(404).json({
-                success: false,
-                message: err.message
-            });
-            return;
+            return next(new ApiError(404, err.message));
         }
-        res.status(500).json({
-            success: false,
-            message: "Internal server error"
-        });
+
+        next(error);
     }
 };
 
 // Accept connection request
-export const acceptConnectionRequestController = async (req: AuthenticatedRequest, res: Response):Promise<void> => {
+export const acceptConnectionRequestController = async (req: AuthenticatedRequest, res: Response, next: NextFunction):Promise<void> => {
     try {
         const validationResult = connectionIdParamSchema.safeParse(req.params);
         const userId = req.user?.id;
@@ -114,58 +83,35 @@ export const acceptConnectionRequestController = async (req: AuthenticatedReques
                 field: error.path.join('.'),
                 message: error.message
             }));
-
-            res.status(400).json({
-                success: false,
-                message: "Validation failed",
-                errors: fieldErrors
-            });
-            return;
+            throw new ApiError(400, "Validation failed", fieldErrors);
         }
 
         if (!userId) {
-           res.status(401).json({ error: 'Unauthorized' });
-           return;
+            throw new ApiError(401, 'Unauthorized');
         }
 
         const { connectionId } = validationResult.data;
-
         const connection = await acceptConnectionRequest(connectionId, userId);
 
-        res.status(200).json({
-            success: true,
-            message: 'Connection request accepted successfully',
-            data: connection
-        });
+        const response = new ApiResponse(200, connection, 'Connection request accepted successfully');
+        res.status(response.statusCode).json(response);
     } catch (error: unknown) {
         const err = error as { message?: string };
-        console.error('Error accepting connection:', error);
         
         if (err.message === "Connection request not found") {
-            res.status(404).json({
-                success: false,
-                message: err.message
-            });
-            return;
+            return next(new ApiError(404, err.message));
         }
         
         if (err.message?.includes('not authorized') || err.message?.includes('not pending')) {
-            res.status(403).json({
-                success: false,
-                message: err.message
-            });
-            return;
+            return next(new ApiError(403, err.message));
         }
         
-        res.status(500).json({
-            success: false,
-            message: "Internal server error"
-        });
+        next(error);
     }
 };
 
 // Decline connection request
-export const declineConnectionRequestController = async (req: AuthenticatedRequest, res: Response):Promise<void> => {
+export const declineConnectionRequestController = async (req: AuthenticatedRequest, res: Response, next: NextFunction):Promise<void> => {
     try {
         const validationResult = connectionIdParamSchema.safeParse(req.params);
         const userId = req.user?.id;
@@ -175,57 +121,35 @@ export const declineConnectionRequestController = async (req: AuthenticatedReque
                 field: error.path.join('.'),
                 message: error.message
             }));
-
-            res.status(400).json({
-                success: false,
-                message: "Validation failed",
-                errors: fieldErrors
-            });
-            return;
+            throw new ApiError(400, "Validation failed", fieldErrors);
         }
 
         if (!userId) {
-          res.status(401).json({ error: 'Unauthorized' });
-          return;
+            throw new ApiError(401, 'Unauthorized');
         }
+        
         const { connectionId } = validationResult.data;
-
         const connection = await declineConnectionRequest(connectionId, userId);
 
-        res.status(200).json({
-            success: true,
-            message: 'Connection request declined successfully',
-            data: connection
-        });
+        const response = new ApiResponse(200, connection, 'Connection request declined successfully');
+        res.status(response.statusCode).json(response);
     } catch (error: unknown) {
         const err = error as { message?: string };
-        console.error('Error declining connection:', error);
         
         if (err.message === "Connection request not found") {
-            res.status(404).json({
-                success: false,
-                message: err.message
-            });
-            return;
+            return next(new ApiError(404, err.message));
         }
         
         if (err.message?.includes('not authorized') || err.message?.includes('not pending')) {
-            res.status(403).json({
-                success: false,
-                message: err.message
-            });
-            return;
+            return next(new ApiError(403, err.message));
         }
         
-        res.status(500).json({
-            success: false,
-            message: "Internal server error"
-        });
+        next(error);
     }
 };
 
 // Block user
-export const blockUserController = async (req: AuthenticatedRequest, res: Response):Promise<void> => {
+export const blockUserController = async (req: AuthenticatedRequest, res: Response, next: NextFunction):Promise<void> => {
     try {
         const validationResult = userIdParamSchema.safeParse(req.params);
         const senderId = req.user?.id;
@@ -235,57 +159,35 @@ export const blockUserController = async (req: AuthenticatedRequest, res: Respon
                 field: error.path.join('.'),
                 message: error.message
             }));
-
-            res.status(400).json({
-                success: false,
-                message: "Validation failed",
-                errors: fieldErrors
-            });
-            return;
+            throw new ApiError(400, "Validation failed", fieldErrors);
         }
 
         if (!senderId) {
-           res.status(401).json({ error: 'Unauthorized' });
-           return;
+            throw new ApiError(401, 'Unauthorized');
         }
 
         const { userId } = validationResult.data;
-        
         await blockUser(senderId, userId);
 
-        res.status(200).json({
-            success: true,
-            message: 'User blocked successfully'
-        });
+        const response = new ApiResponse(200, null, 'User blocked successfully');
+        res.status(response.statusCode).json(response);
     } catch (error: unknown) {
         const err = error as { message?: string };
-        console.error('Error blocking user:', error);
         
         if (err.message === 'User not found') {
-            res.status(404).json({
-                success: false,
-                message: err.message
-            });
-            return;
+            return next(new ApiError(404, err.message));
         }
         
         if (err.message?.includes('Cannot block yourself')) {
-            res.status(400).json({
-                success: false,
-                message: err.message
-            });
-            return;
+            return next(new ApiError(400, err.message));
         }
         
-        res.status(500).json({
-            success: false,
-            message: "Internal server error"
-        });
+        next(error);
     }
 };
 
 // Unblock user
-export const unblockUserController = async (req: AuthenticatedRequest, res: Response):Promise<void> => {
+export const unblockUserController = async (req: AuthenticatedRequest, res: Response, next: NextFunction):Promise<void> => {
     try {
         const validationResult = userIdParamSchema.safeParse(req.params);
         const senderId = req.user?.id;
@@ -295,57 +197,35 @@ export const unblockUserController = async (req: AuthenticatedRequest, res: Resp
                 field: error.path.join('.'),
                 message: error.message
             }));
-
-            res.status(400).json({
-                success: false,
-                message: "Validation failed",
-                errors: fieldErrors
-            });
-            return;
+            throw new ApiError(400, "Validation failed", fieldErrors);
         }
 
         if (!senderId) {
-           res.status(401).json({ error: 'Unauthorized' });
-           return;
+            throw new ApiError(401, 'Unauthorized');
         }
 
         const { userId } = validationResult.data;
-        
         await unblockUser(senderId, userId);
 
-        res.status(200).json({
-            success: true,
-            message: 'User unblocked successfully'
-        });
+        const response = new ApiResponse(200, null, 'User unblocked successfully');
+        res.status(response.statusCode).json(response);
     } catch (error: unknown) {
         const err = error as { message?: string };
-        console.error('Error unblocking user:', error);
         
         if (err.message === 'No blocked connection found') {
-            res.status(404).json({
-                success: false,
-                message: err.message
-            });
-            return;
+            return next(new ApiError(404, err.message));
         }
         
         if (err.message?.includes('Cannot unblock yourself')) {
-            res.status(400).json({
-                success: false,
-                message: err.message
-            });
-            return;
+            return next(new ApiError(400, err.message));
         }
         
-        res.status(500).json({
-            success: false,
-            message: "Internal server error"
-        });
+        next(error);
     }
 };
 
 // Remove connection
-export const removeConnectionController = async (req: AuthenticatedRequest, res: Response):Promise<void> => {
+export const removeConnectionController = async (req: AuthenticatedRequest, res: Response, next: NextFunction):Promise<void> => {
     try {
         const validationResult = userIdParamSchema.safeParse(req.params);
         const senderId = req.user?.id;
@@ -355,153 +235,103 @@ export const removeConnectionController = async (req: AuthenticatedRequest, res:
                 field: error.path.join('.'),
                 message: error.message
             }));
-
-            res.status(400).json({
-                success: false,
-                message: "Validation failed",
-                errors: fieldErrors
-            });
-            return;
+            throw new ApiError(400, "Validation failed", fieldErrors);
         }
 
         if (!senderId) {
-           res.status(401).json({ error: 'Unauthorized' });
-           return;
+            throw new ApiError(401, 'Unauthorized');
         }
 
         const { userId:targetUserId } = validationResult.data;
-        
         await removeConnection(senderId, targetUserId);
 
-        res.status(200).json({
-            success: true,
-            message: 'Connection removed successfully'
-        });
+        const response = new ApiResponse(200, null, 'Connection removed successfully');
+        res.status(response.statusCode).json(response);
     } catch (error: unknown) {
         const err = error as { message?: string };
-        console.error('Error removing connection:', error);
         
         if (err.message?.includes('Cannot remove connection with yourself')) {
-            res.status(400).json({
-                success: false,
-                message: err.message
-            });
-            return;
+            return next(new ApiError(400, err.message));
         }
         
-        res.status(500).json({
-            success: false,
-            message: "Internal server error"
-        });
+        next(error);
     }
 };
 
 // Get pending requests (received by user)
-export const getPendingRequestsController = async (req: AuthenticatedRequest, res: Response):Promise<void> => {
+export const getPendingRequestsController = async (req: AuthenticatedRequest, res: Response, next: NextFunction):Promise<void> => {
     try {
         const userId = req.user?.id;
 
         if (!userId) {
-         res.status(401).json({ error: 'Unauthorized' });
-         return;
+            throw new ApiError(401, 'Unauthorized');
         }
 
         const pendingRequests = await getPendingRequests(userId);
 
-        res.status(200).json({
-            success: true,
-            message: 'Pending requests retrieved successfully',
-            data: pendingRequests
-        });
+        const response = new ApiResponse(200, pendingRequests, 'Pending requests retrieved successfully');
+        res.status(response.statusCode).json(response);
     } catch (error: unknown) {
-        const err = error as { message?: string };
-        res.status(500).json({
-            success: false,
-            error: err.message || 'Internal server error'
-        });
+        next(error);
     }
 };
 
 // Get sent requests (sent by user)
-export const getSentRequestsController = async (req: AuthenticatedRequest, res: Response):Promise<void> => {
+export const getSentRequestsController = async (req: AuthenticatedRequest, res: Response, next: NextFunction):Promise<void> => {
     try {
         const userId = req.user?.id;
 
         if (!userId) {
-          res.status(401).json({ error: 'Unauthorized' });
-          return;
+            throw new ApiError(401, 'Unauthorized');
         }
 
         const sentRequests = await getSentRequests(userId);
 
-        res.status(200).json({
-            success: true,
-            message: 'Sent requests retrieved successfully',
-            data: sentRequests
-        });
+        const response = new ApiResponse(200, sentRequests, 'Sent requests retrieved successfully');
+        res.status(response.statusCode).json(response);
     } catch (error: unknown) {
-        const err = error as { message?: string };
-        res.status(500).json({
-            success: false,
-            error: err.message || 'Internal server error'
-        });
+        next(error);
     }
 };
 
 // Get all connections
-export const getConnectionsController = async (req: AuthenticatedRequest, res: Response):Promise<void> => {
+export const getConnectionsController = async (req: AuthenticatedRequest, res: Response, next: NextFunction):Promise<void> => {
     try {
         const userId = req.user?.id;
 
         if (!userId) {
-         res.status(401).json({ error: 'Unauthorized' });
-         return;
+            throw new ApiError(401, 'Unauthorized');
         }
 
         const connections = await getConnections(userId);
 
-        res.status(200).json({
-            success: true,
-            message: 'Connections retrieved successfully',
-            data: connections
-        });
+        const response = new ApiResponse(200, connections, 'Connections retrieved successfully');
+        res.status(response.statusCode).json(response);
     } catch (error: unknown) {
-        const err = error as { message?: string };
-        res.status(500).json({
-            success: false,
-            error: err.message || 'Internal server error'
-        });
+        next(error);
     }
 };
 
 // Get blocked users
-export const getBlockedUsersController = async (req: AuthenticatedRequest, res: Response):Promise<void> => {
+export const getBlockedUsersController = async (req: AuthenticatedRequest, res: Response, next: NextFunction):Promise<void> => {
     try {
         const userId = req.user?.id;
 
         if (!userId) {
-         res.status(401).json({ error: 'Unauthorized' });
-         return;
+            throw new ApiError(401, 'Unauthorized');
         }
 
         const blockedUsers = await getBlockedUsers(userId);
 
-        res.status(200).json({
-            success: true,
-            message: 'Blocked users retrieved successfully',
-            data: blockedUsers
-        });
+        const response = new ApiResponse(200, blockedUsers, 'Blocked users retrieved successfully');
+        res.status(response.statusCode).json(response);
     } catch (error: unknown) {
-        const err = error as { message?: string };
-        res.status(500).json({
-            success: false,
-            error: err.message || 'Internal server error'
-        });
+        next(error);
     }
 };
 
 // Get connection status between two users
-export const getConnectionStatusController = async (req: AuthenticatedRequest, res: Response):Promise<void> => {
+export const getConnectionStatusController = async (req: AuthenticatedRequest, res: Response, next: NextFunction):Promise<void> => {
     try {
         const validationResult = userIdParamSchema.safeParse(req.params);
         const senderId = req.user?.id;
@@ -511,84 +341,55 @@ export const getConnectionStatusController = async (req: AuthenticatedRequest, r
                 field: error.path.join('.'),
                 message: error.message
             }));
-
-            res.status(400).json({
-                success: false,
-                message: "Validation failed",
-                errors: fieldErrors
-            });
-            return;
+            throw new ApiError(400, "Validation failed", fieldErrors);
         }
 
         if (!senderId) {
-          res.status(401).json({ error: 'Unauthorized' });
-          return;
+            throw new ApiError(401, 'Unauthorized');
         }
+        
         const {userId:targetUserId} = validationResult.data;
         const status = await getConnectionStatus(senderId, targetUserId);
 
-        res.status(200).json({
-            success: true,
-            message: 'Connection status retrieved successfully',
-            data: { status }
-        });
+        const response = new ApiResponse(200, { status }, 'Connection status retrieved successfully');
+        res.status(response.statusCode).json(response);
     } catch (error: unknown) {
-        const err = error as { message?: string };
-        res.status(500).json({
-            success: false,
-            error: err.message || 'Internal server error'
-        });
+        next(error);
     }
 };
 
 // Get connection statistics
-export const getConnectionStatsController = async (req: AuthenticatedRequest, res: Response):Promise<void> => {
+export const getConnectionStatsController = async (req: AuthenticatedRequest, res: Response, next: NextFunction):Promise<void> => {
     try {
         const userId = req.user?.id;
 
         if (!userId) {
-          res.status(401).json({ error: 'Unauthorized' });
-          return;
+            throw new ApiError(401, 'Unauthorized');
         }
 
         const stats = await getConnectionStats(userId);
 
-        res.status(200).json({
-            success: true,
-            message: 'Connection statistics retrieved successfully',
-            data: stats
-        });
+        const response = new ApiResponse(200, stats, 'Connection statistics retrieved successfully');
+        res.status(response.statusCode).json(response);
     } catch (error: unknown) {
-        const err = error as { message?: string };
-        res.status(500).json({
-            success: false,
-            error: err.message || 'Internal server error'
-        });
+        next(error);
     }
 };
 
 // Get connected users (simplified list)
-export const getConnectedUsersController = async (req: AuthenticatedRequest, res: Response):Promise<void> => {
+export const getConnectedUsersController = async (req: AuthenticatedRequest, res: Response, next: NextFunction):Promise<void> => {
     try {
         const userId = req.user?.id;
 
         if (!userId) {
-         res.status(401).json({ error: 'Unauthorized' });
-         return;
+            throw new ApiError(401, 'Unauthorized');
         }
 
         const connectedUsers = await getConnectedUsers(userId);
 
-        res.status(200).json({
-            success: true,
-            message: 'Connected users retrieved successfully',
-            data: connectedUsers
-        });
+        const response = new ApiResponse(200, connectedUsers, 'Connected users retrieved successfully');
+        res.status(response.statusCode).json(response);
     } catch (error: unknown) {
-        const err = error as { message?: string };
-        res.status(500).json({
-            success: false,
-            error: err.message || 'Internal server error'
-        });
+        next(error);
     }
 };
