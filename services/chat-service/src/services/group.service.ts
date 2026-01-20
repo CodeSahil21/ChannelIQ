@@ -19,7 +19,6 @@ import {
 } from '../utils/types';
 import { NotFoundError, UnauthorizedError, ConflictError, ForbiddenError } from '../utils/errors';
 import { CacheService, CacheKeys } from '../utils/cache';
-import { config } from '../utils/config';
 import { MemberService } from './member.service';
 import { RequestService } from './request.service';
 import { PollService } from './poll.service';
@@ -125,7 +124,7 @@ export const getMyGroups = async (userId: number): Promise<MyGroupsResponse> => 
   });
   
   const result = memberships as MyGroupsResponse;
-  await CacheService.set(cacheKey, result, config.CACHE_TTL.LONG); 
+  await CacheService.set(cacheKey, result, 1800); // 30 minutes
   return result;
 };
 
@@ -183,7 +182,7 @@ export const getGroupDetails = async (groupId: string, userId: number): Promise<
   }
 
   const result = group as GroupDetailResponse;
-  await CacheService.set(cacheKey, result, config.CACHE_TTL.LONG);
+  await CacheService.set(cacheKey, result, 1800); // 30 minutes
   return result;
 };
 
@@ -242,7 +241,7 @@ export const searchGroups = async (
     },
   };
   
-  await CacheService.set(cacheKey, result, config.CACHE_TTL.SEARCH);
+  await CacheService.set(cacheKey, result, 300); // 5 minutes
   return result;
 };
 
@@ -533,7 +532,7 @@ export const getPinnedMessages = async (
     message: pm.message,
   }));
   
-  await CacheService.set(cacheKey, result, config.CACHE_TTL.MEDIUM);
+  await CacheService.set(cacheKey, result, 600); // 10 minutes
   return result;
 };  
 
@@ -638,7 +637,7 @@ export const getAnnouncements = async (
     },
   })) as unknown as GetAnnouncementsListResponse;
 
-  await CacheService.set(cacheKey, result, config.CACHE_TTL.MEDIUM);
+  await CacheService.set(cacheKey, result, 600); // 10 minutes
   return result;
 };
 

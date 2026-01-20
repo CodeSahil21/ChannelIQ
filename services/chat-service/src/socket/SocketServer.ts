@@ -6,7 +6,6 @@ import { registerChatHandlers } from "./chatHandlers";
 import prisma from "../db/index";
 import { SessionManager } from "./sessionManager";
 import { CacheService, CacheKeys } from '../utils/cache';
-import { config } from '../utils/config';
 import { setSocketServer } from './emitters';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { pubClient, subClient, connectPubSub } from '../redis';
@@ -75,7 +74,7 @@ export const initSocket = (server: http.Server): TypedServer => {
         groupIds = memberships.map(m => m.groupId);
 
         try {
-          await CacheService.set(CacheKeys.socketUserGroups(socket.user.id), groupIds, config.CACHE_TTL.SOCKET_GROUPS);
+          await CacheService.set(CacheKeys.socketUserGroups(socket.user.id), groupIds, 60); // 1 minute
         } catch {
           // ignore
         }

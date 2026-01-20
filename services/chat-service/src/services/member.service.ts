@@ -16,7 +16,6 @@ import {
 } from '../utils/types';
 import { ValidationError, NotFoundError, UnauthorizedError, ConflictError, ForbiddenError } from '../utils/errors';
 import { CacheService, CacheKeys } from '../utils/cache';
-import { config } from '../utils/config';
 
 export class MemberService {
   static async getGroupMembers(groupId: string, userId: number): Promise<GroupMembersResponse> {
@@ -60,7 +59,7 @@ export class MemberService {
     }
 
     const result = members as GroupMembersResponse;
-    await CacheService.set(cacheKey, result, config.CACHE_TTL.MEDIUM);
+    await CacheService.set(cacheKey, result, 600); // 10 minutes
     return result;
   }
 

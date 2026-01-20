@@ -3,7 +3,6 @@ import jwt from "jsonwebtoken";
 import cookie from "cookie";
 import prisma from "../db/index";
 import { CacheService, CacheKeys } from '../utils/cache';
-import { config } from '../utils/config';
 import { SocketUser } from "../socket/types";
 
 declare module "socket.io" {
@@ -42,7 +41,7 @@ export const verifySocketAuth = async (
     if (!user) return next(new Error("User not found"));
 
     socket.user = user;
-    await CacheService.set(cacheKey, user, config.CACHE_TTL.SHORT);
+    await CacheService.set(cacheKey, user, 120); // 2 minutes
 
     next();
   } catch {

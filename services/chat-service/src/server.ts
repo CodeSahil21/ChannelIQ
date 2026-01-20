@@ -32,7 +32,7 @@ const startServer = async() => {
     server.listen(PORT, () => {
       console.log(`🚀 Chat Service with Socket.IO running on port ${PORT}`);
       console.log(`🔌 Socket server initialized: ${io.sockets.sockets.size} users connected`);
-      console.log(`📦 Bulk processing: ${process.env.ENABLE_BULK_MESSAGES === 'true' ? 'ENABLED' : 'DISABLED'}`);
+      console.log(`📦 Bulk processing: ${config.ENABLE_BULK_MESSAGES ? 'ENABLED' : 'DISABLED'}`);
     });
 
     // Setup graceful shutdown for message buffer

@@ -5,47 +5,40 @@ import { AuthenticatedRequest } from '../utils/types';
 import { getAuthState } from '../redis';
 import { CacheService, CacheKeys } from '../utils/cache';
 import { config } from '../utils/config';
+import { ApiError } from '../utils/apiError';
 
-// Combined middleware with SMART CACHING - eliminates most DB calls
-export const authenticateAndRequireChatUser = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+export const authenticateAndRequireChatUser = async (req: AuthenticatedRequest, _res: Response, next: NextFunction): Promise<void> => {
     try {
         const token = req.cookies.token;
 
         if (!token) {
-            res.status(401).json({ success: false, message: "Unauthorized - No token provided" });
-            return;
+            throw new ApiError(401, "Unauthorized - No token provided");
         }
 
         const decoded = jwt.verify(token, config.JWT_SECRET) as JwtPayload & { id?: number; jti?: string };
 
         if (!decoded || !decoded.id || !decoded.jti) {
-            res.status(401).json({ success: false, message: "Unauthorized - Invalid token" });
-            return;
+            throw new ApiError(401, "Unauthorized - Invalid token");
         }
 
         const userCacheKey = CacheKeys.chatUser(decoded.id);
         
-        // Try to get user from cache first
         const cachedUser = await CacheService.get<{ id: number; email: string; fullName: string; profileUrl: string | null }>(userCacheKey);
         
         if (cachedUser) {
-            // ✅ Cached-user path: auth checks in 1 Redis RTT
             const { blacklisted, session } = await getAuthState<{ id: number }>(decoded.jti);
 
             if (blacklisted) {
-                res.status(401).json({ success: false, message: "Unauthorized - Token revoked" });
-                return;
+                throw new ApiError(401, "Unauthorized - Token revoked");
             }
             if (!session || session.id !== decoded.id) {
-                res.status(401).json({ success: false, message: "Unauthorized - Session expired" });
-                return;
+                throw new ApiError(401, "Unauthorized - Session expired");
             }
 
             req.user = cachedUser;
             return next();
         }
 
-        // ✅ Miss path: run auth state + DB in parallel
         const [{ blacklisted, session }, chatUser] = await Promise.all([
             getAuthState<{ id: number }>(decoded.jti),
             prisma.user.findUnique({
@@ -55,52 +48,24 @@ export const authenticateAndRequireChatUser = async (req: AuthenticatedRequest, 
         ]);
 
         if (blacklisted) {
-            res.status(401).json({ success: false, message: "Unauthorized - Token revoked" });
-            return;
+            throw new ApiError(401, "Unauthorized - Token revoked");
         }
 
         if (!session || session.id !== decoded.id) {
-            res.status(401).json({ success: false, message: "Unauthorized - Session expired" });
-            return;
+            throw new ApiError(401, "Unauthorized - Session expired");
         }
 
         if (!chatUser) {
-            res.status(404).json({
-                success: false,
-                message: "User not found in chat service - Please sync your profile"
-            });
-            return;
+            throw new ApiError(404, "User not found in chat service - Please sync your profile");
         }
 
-        // Cache user for future requests
-        await CacheService.set(userCacheKey, chatUser, config.CACHE_TTL.LONG);
+        await CacheService.set(userCacheKey, chatUser, 1800);
         
         req.user = chatUser;
         next();
     } catch (error: any) {
-        console.error("Error in authenticateAndRequireChatUser middleware:", error);
-        handleAuthError(error, res);
+        next(error);
     }
-};
-
-// Helper function for consistent error handling
-const handleAuthError = (error: any, res: Response): void => {
-    if (error.name === 'JsonWebTokenError') {
-        res.status(401).json({ success: false, message: "Unauthorized - Invalid token" });
-        return;
-    }
-
-    if (error.name === 'TokenExpiredError') {
-        res.status(401).json({ success: false, message: "Unauthorized - Token expired" });
-        return;
-    }
-
-    if (error.code?.startsWith('P')) {
-        res.status(503).json({ success: false, message: "Service temporarily unavailable" });
-        return;
-    }
-
-    res.status(500).json({ success: false, message: "Internal server error" });
 };
 
 

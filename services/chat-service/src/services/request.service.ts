@@ -11,7 +11,6 @@ import {
   PendingRequestWithDetails
 } from '../utils/types';
 import { CacheService, CacheKeys } from '../utils/cache';
-import { config } from '../utils/config';
 
 export class RequestService {
   static async joinGroup(
@@ -168,7 +167,7 @@ export class RequestService {
       joinRequests: joinRequests as PendingRequestWithDetails[],
     };
     
-    await CacheService.set(cacheKey, result, config.CACHE_TTL.SHORT);
+    await CacheService.set(cacheKey, result, 120); // 2 minutes
     return result;
   }
 

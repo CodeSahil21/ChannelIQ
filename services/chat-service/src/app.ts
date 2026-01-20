@@ -2,13 +2,14 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import compression from 'compression';
-import { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import prisma from './db';
 import { connectRedis, redis } from './redis';
 import groupRouter from './routes/group.route';
 import messageRouter from './routes/message.route';
 import { config } from './utils/config';
+import { errorHandler, notFoundHandler } from './middleware/error.middleware';
+import { ApiResponse } from './utils/apiResponse';
 
 const app = express();
 
@@ -27,7 +28,6 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.get('/health', async (_req, res) => {
   try {
-    // Add database health check
     let dbStatus = false;
     try {
       await prisma.$connect();
@@ -36,7 +36,6 @@ app.get('/health', async (_req, res) => {
       console.error('Database health check failed:', dbError);
     }
     
-    // Add Redis health check
     let redisStatus = false;
     try {
       await connectRedis();
@@ -47,21 +46,25 @@ app.get('/health', async (_req, res) => {
     }
     
     const overallStatus = dbStatus && redisStatus;
-    
-    res.status(overallStatus ? 200 : 503).json({ 
+    const healthData = {
       status: overallStatus ? 'healthy' : 'degraded',
       services: {
         database: dbStatus ? 'connected' : 'disconnected',
         redis: redisStatus ? 'connected' : 'disconnected'
       },
       timestamp: new Date().toISOString()
-    });
+    };
+    
+    const response = new ApiResponse(overallStatus ? 200 : 503, healthData, overallStatus ? 'Service healthy' : 'Service degraded');
+    res.status(response.statusCode).json(response);
     
   } catch (error) {
-    res.status(503).json({
+    const errorData = {
       status: 'error',
       message: 'Health check failed'
-    });
+    };
+    const response = new ApiResponse(503, errorData, 'Health check failed');
+    res.status(response.statusCode).json(response);
   }
 });
 
@@ -69,11 +72,10 @@ app.get('/health', async (_req, res) => {
 app.use('/api/groups', groupRouter);
 app.use('/api/groups', messageRouter);
 
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  console.error(err.stack);
-  res.status(500).json({ 
-    success:false,
-    msg: 'Internal Server Error' });
-});
+// 404 handler for undefined routes
+app.use(notFoundHandler);
+
+// Global error handler
+app.use(errorHandler);
 
 export default app;

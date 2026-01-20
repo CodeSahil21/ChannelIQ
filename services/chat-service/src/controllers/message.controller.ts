@@ -1,7 +1,9 @@
-import { Response } from 'express';
+import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../utils/types';
 import { getGroupMessages } from '../services/message.service';
 import { z } from 'zod';
+import { ApiError } from '../utils/apiError';
+import { ApiResponse } from '../utils/apiResponse';
 
 const getMessagesSchema = z.object({
   params: z.object({
@@ -15,7 +17,8 @@ const getMessagesSchema = z.object({
 
 export const getMessagesController = async (
   req: AuthenticatedRequest,
-  res: Response
+  res: Response,
+  next: NextFunction
 ): Promise<void> => {
   try {
     const validationResult = getMessagesSchema.safeParse({
@@ -28,13 +31,7 @@ export const getMessagesController = async (
         field: error.path.join('.'),
         message: error.message,
       }));
-
-      res.status(400).json({
-        success: false,
-        message: 'Validation failed',
-        errors: fieldErrors,
-      });
-      return;
+      throw new ApiError(400, 'Validation failed', fieldErrors);
     }
 
     const userId = req.user!.id;
@@ -43,29 +40,21 @@ export const getMessagesController = async (
 
     const messages = await getGroupMessages(groupId, userId, limit, cursor);
 
-    res.status(200).json({
-      success: true,
-      data: messages,
+    const responseData = {
+      messages,
       pagination: {
         hasMore: messages.length === limit,
         cursor: messages.length > 0 ? messages[messages.length - 1]?.id : null
       }
-    });
+    };
+
+    const response = new ApiResponse(200, responseData, 'Messages retrieved successfully');
+    res.status(response.statusCode).json(response);
 
   } catch (error: any) {
-    console.error('Error fetching messages:', error);
-
     if (error.message === 'Not authorized to view messages') {
-      res.status(403).json({
-        success: false,
-        message: error.message,
-      });
-      return;
+      return next(new ApiError(403, error.message));
     }
-
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
+    next(error);
   }
 };
