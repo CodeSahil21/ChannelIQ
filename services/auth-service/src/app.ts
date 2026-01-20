@@ -3,12 +3,13 @@ dotenv.config();
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
-import { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import compression from 'compression';
 import authRouter from './routes/auth.routes'; 
 import prisma from './db/db';
 import { connectRedis } from './redis';
+import { errorHandler, notFoundHandler } from './middleware/error.middleware';
+import { ApiResponse } from './utils/apiResponse';
 
 const app = express();
 
@@ -29,7 +30,6 @@ connectRedis().catch(err => console.error('Failed to connect to Redis:', err));
 
 app.get('/health', async (_req, res) => {
   try {
-    // Add database health check
     let dbStatus = false;
     try {
       await prisma.$connect();
@@ -38,31 +38,34 @@ app.get('/health', async (_req, res) => {
       console.error('Database health check failed:', dbError);
     }
     
-    res.status(dbStatus ? 200 : 503).json({ 
+    const healthData = {
       status: dbStatus ? 'healthy' : 'degraded',
       services: {
         database: dbStatus ? 'connected' : 'disconnected'
       },
       timestamp: new Date().toISOString()
-    });
+    };
+    
+    const response = new ApiResponse(dbStatus ? 200 : 503, healthData, dbStatus ? 'Service healthy' : 'Service degraded');
+    res.status(response.statusCode).json(response);
     
   } catch (error) {
-    res.status(503).json({
+    const errorData = {
       status: 'error',
       message: 'Health check failed'
-    });
+    };
+    const response = new ApiResponse(503, errorData, 'Health check failed');
+    res.status(response.statusCode).json(response);
   }
 });
 
 
 app.use('/api/v1/auth', authRouter);
 
+// 404 handler for undefined routes
+app.use(notFoundHandler);
+
 // Global error handler
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  console.error(err.stack);
-  res.status(500).json({ 
-    success:false,
-    msg: 'Internal Server Error' });
-});
+app.use(errorHandler);
 
 export default app;

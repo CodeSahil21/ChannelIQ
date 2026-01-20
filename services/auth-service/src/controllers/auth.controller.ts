@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { CreateUserSchema, LoginUserSchema,ForgotPasswordSchema,VerifyOTPSchema,ResetPasswordSchema } from '../utils/schema';
 import { generateToken, comparePassword,isOTPExpired,generateOTP,getOTPExpirationTime,hashPassword } from '../utils/auth';
 import { CreateUserService,sendOTPEmail } from '../services/auth.service';
@@ -8,10 +8,11 @@ import { eventPublisher } from '../kafka/publisher';
 import { setSession, delSession, blacklist } from '../redis';
 import { decodeJwtUnsafe } from '../utils/auth';
 import { getCache, setCache, deleteCache, incrementCache } from '../utils/cache';
+import { ApiError } from '../utils/apiError';
+import { ApiResponse } from '../utils/apiResponse';
 
-export const createUserController = async(req: Request, res: Response): Promise<void> => {
+export const createUserController = async(req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        // Validate the request body
         const validationResult = CreateUserSchema.safeParse(req.body);
 
         if (!validationResult.success) {
@@ -19,32 +20,21 @@ export const createUserController = async(req: Request, res: Response): Promise<
                 field: error.path.join('.'),
                 message: error.message
             }));
-
-            res.status(400).json({
-                success: false,
-                message: "Validation failed",
-                errors: fieldErrors
-            });
-            return;
+            throw new ApiError(400, "Validation failed", fieldErrors);
         }
 
-        // Extract and sanitize validated data
         const { email, password } = validationResult.data;
         
-        // Call the service to create user
         const user = await CreateUserService({ 
             email: email.toLowerCase().trim(), 
             password
         });
 
-        // Generate a token for the user
         const token = generateToken(user.id);
         const { exp, jti } = decodeJwtUnsafe(token);
         const ttl = exp ? exp - Math.floor(Date.now() / 1000) : 7 * 24 * 60 * 60;
         await setSession(jti!, { id: user.id, email: user.email }, ttl);
 
-
-        // Set the token as a secure cookie
         res.cookie("token", token, {
             maxAge: 7 * 24 * 60 * 60 * 1000,
             httpOnly: true,
@@ -53,73 +43,19 @@ export const createUserController = async(req: Request, res: Response): Promise<
             path: "/"
         });
 
-        res.status(201).json({
-            success: true,
-            message: "User created successfully",
-            data: {
-                user
-            }
-        });
+        const response = new ApiResponse(201, { user }, "User created successfully");
+        res.status(response.statusCode).json(response);
 
     } catch (error: any) {
-        console.error("Error in createUserController:", error);
-
-        // Handle specific business logic errors
         if (error.message === "User already exists with this email") {
-            res.status(409).json({ 
-                success: false,
-                message: "Email already registered"
-            });
-            return;
+            return next(new ApiError(409, "Email already registered"));
         }
-
-        // Handle Prisma database constraint errors
-        if (error.code === 'P2002') {
-            res.status(409).json({ 
-                success: false,
-                message: "Email already registered"
-            });
-            return;
-        }
-
-        // Handle validation errors from service
-        if (error.name === 'ValidationError') {
-            res.status(400).json({ 
-                success: false,
-                message: "Invalid input data"
-            });
-            return;
-        }
-
-        // Handle JWT token generation errors
-        if (error.name === 'JsonWebTokenError') {
-            res.status(500).json({ 
-                success: false,
-                message: "Service temporarily unavailable"
-            });
-            return;
-        }
-
-        // Handle database connection errors
-        if (error.code?.startsWith('P')) {
-            res.status(503).json({
-                success: false,
-                message: "Service temporarily unavailable"
-            });
-            return;
-        }
-
-        // Generic server error (don't expose internal details)
-        res.status(500).json({ 
-            success: false,
-            message: "Internal server error"
-        });
+        next(error);
     }
 }
 
-export const loginuserController = async(req: Request, res: Response): Promise<void> => {
+export const loginuserController = async(req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        // Validate the request body
         const validationResult = LoginUserSchema.safeParse(req.body);
 
         if (!validationResult.success) {
@@ -127,33 +63,19 @@ export const loginuserController = async(req: Request, res: Response): Promise<v
                 field: error.path.join('.'),
                 message: error.message
             }));
-
-            res.status(400).json({
-                success: false,
-                message: "Validation failed",
-                errors: fieldErrors
-            });
-            return;
+            throw new ApiError(400, "Validation failed", fieldErrors);
         }
 
         const { email, password } = validationResult.data;
-
-        // Sanitize email input
         const sanitizedEmail = email.toLowerCase().trim();
 
-        // Check failed login attempts
         const failedKey = `auth:failed:${sanitizedEmail}`;
         const failedAttempts = await getCache<number>(failedKey) || 0;
 
         if (failedAttempts >= 5) {
-            res.status(429).json({
-                success: false,
-                message: "Too many failed attempts. Please try again after 15 minutes"
-            });
-            return;
+            throw new ApiError(429, "Too many failed attempts. Please try again after 15 minutes");
         }
 
-        // Find user by email
         const user = await prisma.user.findUnique({
             where: { email: sanitizedEmail },
             select: {
@@ -163,41 +85,25 @@ export const loginuserController = async(req: Request, res: Response): Promise<v
             }
         });
 
-        // Security: Always compare password even if user doesn't exist
-        // This prevents timing attacks
         if (!user) {
             await comparePassword(password, "$2a$12$dummyhashtopreventtimingattacks.dummy.hash");
-            res.status(401).json({
-                success: false,
-                message: "Invalid credentials"
-            });
-            return;
+            throw new ApiError(401, "Invalid credentials");
         }
 
-        // Compare password
         const isPasswordValid = await comparePassword(password, user.password);
 
         if (!isPasswordValid) {
-            // Increment failed attempts
-            await incrementCache(failedKey, 900); // 15 minutes
-            
-            res.status(401).json({
-                success: false,
-                message: "Invalid credentials"
-            });
-            return;
+            await incrementCache(failedKey, 900);
+            throw new ApiError(401, "Invalid credentials");
         }
 
-        // Clear failed attempts on successful login
         await deleteCache(failedKey);
 
-        // Generate token
         const token = generateToken(user.id);
         const { exp, jti } = decodeJwtUnsafe(token);
         const ttl = exp ? exp - Math.floor(Date.now() / 1000) : 7 * 24 * 60 * 60;
         await setSession(jti!, { id: user.id, email: user.email }, ttl);
        
-        // Set secure cookie
         res.cookie("token", token, {
             maxAge: 7 * 24 * 60 * 60 * 1000,
             httpOnly: true,
@@ -206,7 +112,6 @@ export const loginuserController = async(req: Request, res: Response): Promise<v
             path: "/"
         });
         
-        // Publish login event
         try {
             await eventPublisher.publishUserLoggedIn({
                 userId: user.id,
@@ -214,104 +119,36 @@ export const loginuserController = async(req: Request, res: Response): Promise<v
             });
         } catch (eventError) {
             console.error('❌ Failed to publish login event:', eventError);
-            // Don't fail the login if event publishing fails
         }
 
-        // Return user data without password
         const { password: _, ...userWithoutPassword } = user;
 
-        res.status(200).json({
-            success: true,
-            message: "Login successful",
-            data: {
-                user: userWithoutPassword
-            }
-        });
+        const response = new ApiResponse(200, { user: userWithoutPassword }, "Login successful");
+        res.status(response.statusCode).json(response);
 
     } catch (error: any) {
-        console.error("Error in loginuserController:", error);
-
-        // Handle Prisma database errors
-        if (error.code?.startsWith('P')) {
-            res.status(503).json({
-                success: false,
-                message: "Service temporarily unavailable"
-            });
-            return;
-        }
-
-        // Handle JWT token generation errors
-        if (error.name === 'JsonWebTokenError') {
-            res.status(500).json({
-                success: false,
-                message: "Service temporarily unavailable"
-            });
-            return;
-        }
-
-        // Handle bcrypt errors
-        if (error.name === 'Error' && error.message.includes('bcrypt')) {
-            res.status(500).json({
-                success: false,
-                message: "Service temporarily unavailable"
-            });
-            return;
-        }
-
-        // Generic server error
-        res.status(500).json({
-            success: false,
-            message: "Internal server error"
-        });
+        next(error);
     }
 }
 
-
-
-export const getUserProfileController = async(req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const getUserProfileController = async(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-        // The user is already attached by the protectRoute middleware
         const user = req.user;
         
         if (!user) {
-            res.status(401).json({ 
-                success: false,
-                message: "Unauthorized - User not found" 
-            });
-            return;
+            throw new ApiError(401, "Unauthorized - User not found");
         }
 
-        res.status(200).json({
-            success: true,
-            message: "Profile retrieved successfully",
-            data: {
-                user
-            }
-        });
+        const response = new ApiResponse(200, { user }, "Profile retrieved successfully");
+        res.status(response.statusCode).json(response);
 
     } catch (error: any) {
-        console.error("Error in getUserProfileController:", error);
-
-        // Handle Prisma database errors
-        if (error.code?.startsWith('P')) {
-            res.status(503).json({
-                success: false,
-                message: "Service temporarily unavailable"
-            });
-            return;
-        }
-
-        // Generic server error
-        res.status(500).json({
-            success: false,
-            message: "Internal server error"
-        });
+        next(error);
     }
 }
 
-export const logoutUserController = async(_req:AuthenticatedRequest,res:Response):Promise<void> =>{
+export const logoutUserController = async(_req:AuthenticatedRequest,res:Response, next: NextFunction):Promise<void> =>{
     try {
-        // Clear the authentication cookie
         res.clearCookie("token", {
             httpOnly: true,
             sameSite: "none",
@@ -319,14 +156,12 @@ export const logoutUserController = async(_req:AuthenticatedRequest,res:Response
             path: "/"
         });
 
-        // Revoke session in Redis
         const jti: string | undefined = _req.sessionJti;
         if (jti) {
             await delSession(jti);
-            // Optional: also add to blacklist to cover race windows
             await blacklist(jti, 60 * 5);
         }
-        // Publish logout event
+
         try {
             if (_req.user) {
             await eventPublisher.publishUserLoggedOut({
@@ -336,28 +171,18 @@ export const logoutUserController = async(_req:AuthenticatedRequest,res:Response
             }
         } catch (eventError) {
             console.error('❌ Failed to publish logout event:', eventError);
-            // Don't fail the logout if event publishing fails
         }
-        res.status(200).json({
-            success: true,
-            message: "Logged out successfully"
-        });
+
+        const response = new ApiResponse(200, null, "Logged out successfully");
+        res.status(response.statusCode).json(response);
 
     } catch (error: any) {
-        console.error("Error in logoutController:", error);
-
-        // Generic server error
-        res.status(500).json({
-            success: false,
-            message: "Internal server error"
-        });
+        next(error);
     }
 }
 
-
-export const forgotPasswordController = async (req: Request, res: Response): Promise<void> => {
+export const forgotPasswordController = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        // Validate request body
         const validationResult = ForgotPasswordSchema.safeParse(req.body);
 
         if (!validationResult.success) {
@@ -365,80 +190,44 @@ export const forgotPasswordController = async (req: Request, res: Response): Pro
                 field: error.path.join('.'),
                 message: error.message
             }));
-
-            res.status(400).json({
-                success: false,
-                message: "Validation failed",
-                errors: fieldErrors
-            });
-            return;
+            throw new ApiError(400, "Validation failed", fieldErrors);
         }
 
         const { email } = validationResult.data;
         const sanitizedEmail = email.toLowerCase().trim();
 
-        // Check if user exists
         const user = await prisma.user.findUnique({
             where: { email: sanitizedEmail },
             select: { id: true, email: true }
         });
 
-        // Security: Don't reveal if email exists or not
         if (!user) {
-            res.status(200).json({
-                success: true,
-                message: "If an account with this email exists, you will receive an OTP"
-            });
+            const response = new ApiResponse(200, null, "If an account with this email exists, you will receive an OTP");
+            res.status(response.statusCode).json(response);
             return;
         }
 
-        // Generate OTP
         const otp = generateOTP();
         const otpExpiresAt = getOTPExpirationTime();
 
-        // Save OTP to Redis cache instead of database
         const otpKey = `auth:otp:${sanitizedEmail}`;
-        await setCache(otpKey, { otp, expiresAt: otpExpiresAt.toISOString() }, 600); // 10 minutes
+        await setCache(otpKey, { otp, expiresAt: otpExpiresAt.toISOString() }, 600);
 
-        // Send OTP email
         await sendOTPEmail(user.email, otp);
 
-        res.status(200).json({
-            success: true,
-            message: "OTP sent to your email address"
-        });
+        const response = new ApiResponse(200, null, "OTP sent to your email address");
+        res.status(response.statusCode).json(response);
 
     } catch (error: any) {
-        console.error("Error in forgotPasswordController:", error);
-
-        // Handle email service errors
         if (error.code === 'EAUTH' || error.code === 'ECONNECTION') {
-            res.status(503).json({
-                success: false,
-                message: "Email service temporarily unavailable"
-            });
-            return;
+            return next(new ApiError(503, "Email service temporarily unavailable"));
         }
-
-        // Handle Prisma database errors
-        if (error.code?.startsWith('P')) {
-            res.status(503).json({
-                success: false,
-                message: "Service temporarily unavailable"
-            });
-            return;
-        }
-
-        res.status(500).json({
-            success: false,
-            message: "Internal server error"
-        });
+        next(error);
     }
 };
 
-export const verifyOTPController = async (req: Request, res: Response): Promise<void> => {
+export const verifyOTPController = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        // Validate request body
         const validationResult = VerifyOTPSchema.safeParse(req.body);
 
         if (!validationResult.success) {
@@ -446,75 +235,38 @@ export const verifyOTPController = async (req: Request, res: Response): Promise<
                 field: error.path.join('.'),
                 message: error.message
             }));
-
-            res.status(400).json({
-                success: false,
-                message: "Validation failed",
-                errors: fieldErrors
-            });
-            return;
+            throw new ApiError(400, "Validation failed", fieldErrors);
         }
 
         const { email, otp } = validationResult.data;
         const sanitizedEmail = email.toLowerCase().trim();
 
-        // Get OTP from cache
         const otpKey = `auth:otp:${sanitizedEmail}`;
         const cachedOTP = await getCache<{ otp: string; expiresAt: string }>(otpKey);
 
         if (!cachedOTP) {
-            res.status(400).json({
-                success: false,
-                message: "Invalid or expired OTP"
-            });
-            return;
+            throw new ApiError(400, "Invalid or expired OTP");
         }
 
-        // Check if OTP is expired
         if (isOTPExpired(new Date(cachedOTP.expiresAt))) {
             await deleteCache(otpKey);
-            res.status(400).json({
-                success: false,
-                message: "OTP has expired"
-            });
-            return;
+            throw new ApiError(400, "OTP has expired");
         }
 
-        // Verify OTP
         if (cachedOTP.otp !== otp) {
-            res.status(400).json({
-                success: false,
-                message: "Invalid OTP"
-            });
-            return;
+            throw new ApiError(400, "Invalid OTP");
         }
 
-        res.status(200).json({
-            success: true,
-            message: "OTP verified successfully"
-        });
+        const response = new ApiResponse(200, null, "OTP verified successfully");
+        res.status(response.statusCode).json(response);
 
     } catch (error: any) {
-        console.error("Error in verifyOTPController:", error);
-
-        if (error.code?.startsWith('P')) {
-            res.status(503).json({
-                success: false,
-                message: "Service temporarily unavailable"
-            });
-            return;
-        }
-
-        res.status(500).json({
-            success: false,
-            message: "Internal server error"
-        });
+        next(error);
     }
 };
 
-export const resetPasswordController = async (req: Request, res: Response): Promise<void> => {
+export const resetPasswordController = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        // Validate request body
         const validationResult = ResetPasswordSchema.safeParse(req.body);
 
         if (!validationResult.success) {
@@ -522,94 +274,50 @@ export const resetPasswordController = async (req: Request, res: Response): Prom
                 field: error.path.join('.'),
                 message: error.message
             }));
-
-            res.status(400).json({
-                success: false,
-                message: "Validation failed",
-                errors: fieldErrors
-            });
-            return;
+            throw new ApiError(400, "Validation failed", fieldErrors);
         }
 
         const { email, otp, newPassword } = validationResult.data;
         const sanitizedEmail = email.toLowerCase().trim();
 
-        // Get OTP from cache
         const otpKey = `auth:otp:${sanitizedEmail}`;
         const cachedOTP = await getCache<{ otp: string; expiresAt: string }>(otpKey);
 
         if (!cachedOTP) {
-            res.status(400).json({
-                success: false,
-                message: "Invalid or expired OTP"
-            });
-            return;
+            throw new ApiError(400, "Invalid or expired OTP");
         }
 
-        // Check if OTP is expired
         if (isOTPExpired(new Date(cachedOTP.expiresAt))) {
             await deleteCache(otpKey);
-            res.status(400).json({
-                success: false,
-                message: "OTP has expired"
-            });
-            return;
+            throw new ApiError(400, "OTP has expired");
         }
 
-        // Verify OTP
         if (cachedOTP.otp !== otp) {
-            res.status(400).json({
-                success: false,
-                message: "Invalid OTP"
-            });
-            return;
+            throw new ApiError(400, "Invalid OTP");
         }
 
-        // Find user to update password
         const user = await prisma.user.findUnique({
             where: { email: sanitizedEmail },
             select: { id: true }
         });
 
         if (!user) {
-            res.status(404).json({
-                success: false,
-                message: "User not found"
-            });
-            return;
+            throw new ApiError(404, "User not found");
         }
 
-        // Hash new password
         const hashedPassword = await hashPassword(newPassword);
 
-        // Update password
         await prisma.user.update({
             where: { id: user.id },
             data: { password: hashedPassword }
         });
 
-        // Delete OTP from cache
         await deleteCache(otpKey);
 
-        res.status(200).json({
-            success: true,
-            message: "Password reset successfully"
-        });
+        const response = new ApiResponse(200, null, "Password reset successfully");
+        res.status(response.statusCode).json(response);
 
     } catch (error: any) {
-        console.error("Error in resetPasswordController:", error);
-
-        if (error.code?.startsWith('P')) {
-            res.status(503).json({
-                success: false,
-                message: "Service temporarily unavailable"
-            });
-            return;
-        }
-
-        res.status(500).json({
-            success: false,
-            message: "Internal server error"
-        });
+        next(error);
     }
 };

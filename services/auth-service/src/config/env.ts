@@ -25,6 +25,10 @@ const envSchema = z.object({
   KAFKA_CHAT_EVENTS_PARTITIONS: z.string().default('1').transform(val => parseInt(val)),
   KAFKA_MEDIA_EVENTS_PARTITIONS: z.string().default('1').transform(val => parseInt(val)),
   KAFKA_REPLICATION_FACTOR: z.string().default('3').transform(val => parseInt(val)),
+  EMAIL_HOST: z.string().default('smtp.gmail.com'),
+  EMAIL_PORT: z.string().default('587').transform(val => parseInt(val)),
+  EMAIL_USER: z.string().optional(),
+  EMAIL_PASS: z.string().optional(),
   FRONTEND_URLS: z.string().default('http://localhost:3000').transform(val => val.split(',')),
 });
 

@@ -1,9 +1,7 @@
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import dotenv from 'dotenv';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import crypto from 'crypto';
-
-dotenv.config();
+import { env } from '../config/env';
 //function to hash password :we always save hashed password in db so that db admin can't see the password
 export const hashPassword = async (password:string): Promise<string> =>{
       return await bcrypt.hash(password,10);
@@ -13,14 +11,9 @@ export const comparePassword = async (password:string,hashedPassword:string ): P
     return await bcrypt.compare(password,hashedPassword);
 }
 
-//to generate token
 export const generateToken  = (userId:number, expiresIn: string = '7d'): string => {
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
-        throw new Error('JWT_SECRET is not defined');
-    }
     const jti = crypto.randomUUID();
-    return jwt.sign({ id: userId, jti }, secret as jwt.Secret, { expiresIn } as jwt.SignOptions);
+    return jwt.sign({ id: userId, jti }, env.JWT_SECRET as string, { expiresIn } as SignOptions);
 };
 
 export const generateOTP = (): string => {

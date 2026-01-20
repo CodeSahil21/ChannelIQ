@@ -37,3 +37,6 @@ certs/*.pem
 certs/ca-pem
 certs
 kubernates
+Helm_kube.md  
+Helm_Complete_Guide.md
+channellQ-helm

@@ -3,14 +3,15 @@ import  prisma from '../db/db';
 import { CreateUser } from "../utils/types";
 import nodemailer from 'nodemailer';
 import {eventPublisher} from '../kafka/publisher'
+import { env } from '../config/env';
 
 const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.EMAIL_PORT || '587'),
-    secure: false, // true for 465, false for other ports
+    host: env.EMAIL_HOST,
+    port: env.EMAIL_PORT,
+    secure: false,
     auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
+        user: env.EMAIL_USER,
+        pass: env.EMAIL_PASS
     },
     tls: {
         rejectUnauthorized: false
@@ -58,15 +59,12 @@ export const CreateUserService = async ({email,password}: CreateUser): Promise<{
     });
 }
 
-
-// ...existing code...
-
 export const sendOTPEmail = async (email: string, otp: string): Promise<void> => {
     try {
         const mailOptions = {
             from: {
                 name: 'Corporate Chat',
-                address: process.env.EMAIL_USER || 'sahil.s39026@gmail.com'
+                address: env.EMAIL_USER || 'sahil.s39026@gmail.com'
             },
             to: email,
             subject: 'Password Reset OTP - Corporate Chat',
