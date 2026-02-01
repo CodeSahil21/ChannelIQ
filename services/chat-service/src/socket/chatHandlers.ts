@@ -3,6 +3,8 @@ import { SocketMessageService } from "../services/socket.service";
 import { SessionManager } from "./sessionManager";
 import { MessageProducer } from "../kafka/messageProducer";
 import { v4 as uuidv4 } from 'uuid';
+import { messagesSent } from '../utils/metrics';
+import logger from '../utils/logger';
 
 // Helper functions
 const handleError = (cb: SocketCallback | undefined, error: string) => cb?.({ success: false, error });
@@ -78,7 +80,7 @@ export const registerChatHandlers: SocketHandler = (io: TypedServer, socket: Typ
             ...(replyToId && { replyToId })
           };
           
-          console.log(`[BULK] Publishing message event to Kafka:`, {
+          logger.info('Publishing message event to Kafka', {
             messageId,
             groupId,
             senderId: socket.user.id,
@@ -113,10 +115,11 @@ export const registerChatHandlers: SocketHandler = (io: TypedServer, socket: Typ
           };
 
           io.to(`group:${groupId}`).emit("message:optimistic", optimisticMessage);
-          console.log(`[BULK] Emitted optimistic message for messageId: ${messageId}`);
+          logger.info('Emitted optimistic message', { messageId });
+          messagesSent.inc();
           handleSuccess(cb, { messageId });
         } catch (kafkaError) {
-          console.warn('Kafka publish failed, falling back to direct insert:', kafkaError);
+          logger.warn('Kafka publish failed, falling back to direct insert', { error: kafkaError });
           // Fallback to original method
           const messageData: MessageData = { 
             groupId, 
@@ -135,6 +138,7 @@ export const registerChatHandlers: SocketHandler = (io: TypedServer, socket: Typ
           };
           
           io.to(`group:${groupId}`).emit("message:persisted", messageWithRelations);
+          messagesSent.inc();
           handleSuccess(cb, { messageId: message.id });
         }
       } else {
@@ -159,6 +163,7 @@ export const registerChatHandlers: SocketHandler = (io: TypedServer, socket: Typ
         };
         
         io.to(`group:${groupId}`).emit("message:persisted", messageWithRelations);
+        messagesSent.inc();
         handleSuccess(cb, { messageId: message.id });
       }
     } catch (err: any) {
@@ -224,7 +229,7 @@ export const registerChatHandlers: SocketHandler = (io: TypedServer, socket: Typ
       
       // Complete DB update in background
       reactionPromise.catch(error => {
-        console.error('Reaction update failed:', error);
+        logger.error('Reaction update failed', { error, messageId, userId: socket.user.id });
         // Could emit a correction event here if needed
       });
       
@@ -305,7 +310,7 @@ export const registerChatHandlers: SocketHandler = (io: TypedServer, socket: Typ
       await SocketMessageService.updateMessageStatus(messageId, socket.user.id, "READ");
       io.to(`group:${groupId}`).emit("message:read", { messageId, userId: socket.user.id });
     } catch (err: any) {
-      console.error("Message read error:", err?.message || 'Unknown error');
+      logger.error('Message read error', { error: err?.message || 'Unknown error', messageId, userId: socket.user.id });
     }
   });
 
@@ -320,7 +325,7 @@ export const registerChatHandlers: SocketHandler = (io: TypedServer, socket: Typ
       await SocketMessageService.updateMessageStatus(messageId, socket.user.id, "DELIVERED");
       io.to(`group:${groupId}`).emit("message:delivered", { messageId, userId: socket.user.id });
     } catch (err: any) {
-      console.error("Message delivered error:", err?.message || 'Unknown error');
+      logger.error('Message delivered error', { error: err?.message || 'Unknown error', messageId, userId: socket.user.id });
     }
   });
 

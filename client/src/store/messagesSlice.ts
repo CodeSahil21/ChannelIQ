@@ -49,7 +49,8 @@ export const fetchMessages = createAsyncThunk(
     }
     
     const data = await response.json();
-    return data.data;
+    const messages = data.data?.messages || data.data || [];
+    return messages;
   }
 );
 

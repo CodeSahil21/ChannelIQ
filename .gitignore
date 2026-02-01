@@ -40,3 +40,6 @@ kubernates
 Helm_kube.md  
 Helm_Complete_Guide.md
 channellQ-helm
+monitoring
+MONITORING_SETUP.md
+MONITORING_IMPLEMENTATION.md

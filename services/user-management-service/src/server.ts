@@ -3,6 +3,7 @@ import app from './app';
 import { initializeKafka,disconnectKafka } from './kafka/kafkaManager';
 import { startConsumer } from './kafka/consumer';
 import { env } from './config/env';
+import logger from './utils/logger';
 
 const server = http.createServer(app);
 
@@ -10,17 +11,17 @@ const server = http.createServer(app);
 const startServer = async()=>{
   try{
     await initializeKafka();
-    console.log("Kafka initialized successfully");
+    logger.info('Kafka initialized successfully');
 
   await startConsumer();
-    console.log("Consumer initialized successfully");
+    logger.info('Consumer initialized successfully');
 
     server.listen(env.PORT, () => {
-      console.log(`🚀 Server running on port ${env.PORT}`);
+      logger.info(`Server running on port ${env.PORT}`);
     });
 
   }catch(error){
-    console.error("Failed to initialize Kafka", error);
+    logger.error('Failed to initialize Kafka', { error });
     process.exit(1);
   }
 }
@@ -28,9 +29,9 @@ const startServer = async()=>{
 
 //graceful shutdown
 process.on('SIGINT', async () => {
-  console.log("Gracefully shutting down...");
+  logger.info('Gracefully shutting down...');
   server.close(() => {
-    console.log("HTTP server closed");
+    logger.info('HTTP server closed');
   });
   await disconnectKafka();
   process.exit(0);

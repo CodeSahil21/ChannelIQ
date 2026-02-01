@@ -10,6 +10,8 @@ import { decodeJwtUnsafe } from '../utils/auth';
 import { getCache, setCache, deleteCache, incrementCache } from '../utils/cache';
 import { ApiError } from '../utils/apiError';
 import { ApiResponse } from '../utils/apiResponse';
+import { activeUsers } from '../utils/metrics';
+import logger from '../utils/logger';
 
 export const createUserController = async(req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -112,13 +114,16 @@ export const loginuserController = async(req: Request, res: Response, next: Next
             path: "/"
         });
         
+        // Update active users metric
+        activeUsers.inc();
+        
         try {
             await eventPublisher.publishUserLoggedIn({
                 userId: user.id,
                 email:user.email
             });
         } catch (eventError) {
-            console.error('❌ Failed to publish login event:', eventError);
+            logger.error('Failed to publish login event', { error: eventError, userId: user.id });
         }
 
         const { password: _, ...userWithoutPassword } = user;
@@ -162,6 +167,11 @@ export const logoutUserController = async(_req:AuthenticatedRequest,res:Response
             await blacklist(jti, 60 * 5);
         }
 
+        // Update active users metric
+        if (_req.user) {
+            activeUsers.dec();
+        }
+        
         try {
             if (_req.user) {
             await eventPublisher.publishUserLoggedOut({
@@ -170,7 +180,7 @@ export const logoutUserController = async(_req:AuthenticatedRequest,res:Response
             });
             }
         } catch (eventError) {
-            console.error('❌ Failed to publish logout event:', eventError);
+            logger.error('Failed to publish logout event', { error: eventError, userId: _req.user?.id });
         }
 
         const response = new ApiResponse(200, null, "Logged out successfully");

@@ -27,7 +27,7 @@ export const MessageList: React.FC<MessageListProps> = ({ groupId, userRole }) =
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const groupMessages = React.useMemo(() => 
-    messages.filter(msg => msg.groupId === groupId), 
+    Array.isArray(messages) ? messages.filter(msg => msg.groupId === groupId) : [], 
     [messages, groupId]
   );
 

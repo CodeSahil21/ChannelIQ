@@ -3,6 +3,8 @@ import { deleteProfileImageSchema, deleteGroupProfileImageSchema, deleteMessageF
 import storageService from '../services/storage.service';
 import { publishMediaEvent } from '../kafka/publisher';
 import { AuthenticatedRequest, MessageType } from '../utils/types';
+import { filesUploaded } from '../utils/metrics';
+import logger from '../utils/logger';
 
 const getMessageType = (mimeType: string): MessageType => {
   if (mimeType.startsWith('image/')) return 'IMAGE';
@@ -38,6 +40,10 @@ export const uploadProfileImage = async (req: AuthenticatedRequest, res: Respons
       }
     });
 
+    // Track file upload metric
+    filesUploaded.inc({ type: 'profile_image' });
+    logger.info('Profile image uploaded successfully', { userId, fileName });
+
     res.status(200).json({
       success: true,
       msg: 'Profile image uploaded successfully',
@@ -50,7 +56,7 @@ export const uploadProfileImage = async (req: AuthenticatedRequest, res: Respons
     });
 
   } catch (error: any) {
-    console.error('❌ Upload error:', error);
+    logger.error('Upload error', { error, userId: req.user?.id });
     
     if (error.name === 'ZodError') {
       res.status(400).json({
@@ -88,7 +94,7 @@ export const deleteProfileImage = async (req: AuthenticatedRequest, res: Respons
     });
 
   } catch (error: any) {
-    console.error('❌ Delete error:', error);
+    logger.error('Delete error', { error, userId: req.user?.id });
     
     if (error.name === 'ZodError') {
       res.status(400).json({
@@ -109,7 +115,7 @@ export const deleteProfileImage = async (req: AuthenticatedRequest, res: Respons
 export const uploadGroupProfileImage = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id.toString();
-    const { groupId } = req.params;
+    const groupId = req.params.groupId as string;
     
     if (!req.file) {
       res.status(400).json({
@@ -144,6 +150,10 @@ export const uploadGroupProfileImage = async (req: AuthenticatedRequest, res: Re
       }
     });
 
+    // Track file upload metric
+    filesUploaded.inc({ type: 'group_profile_image' });
+    logger.info('Group profile image uploaded successfully', { userId, groupId, fileName });
+
     res.status(200).json({
       success: true,
       msg: 'Group profile image uploaded successfully',
@@ -157,7 +167,7 @@ export const uploadGroupProfileImage = async (req: AuthenticatedRequest, res: Re
     });
 
   } catch (error: any) {
-    console.error('❌ Group upload error:', error);
+    logger.error('Group upload error', { error, userId: req.user?.id, groupId: req.params.groupId });
     
     if (error.name === 'ZodError') {
       res.status(400).json({
@@ -178,7 +188,7 @@ export const uploadGroupProfileImage = async (req: AuthenticatedRequest, res: Re
 export const deleteGroupProfileImage = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id.toString();
-    const { groupId } = req.params;
+    const groupId = req.params.groupId as string;
     const { fileName } = deleteGroupProfileImageSchema.parse(req.body);
 
     if (!groupId) {
@@ -207,7 +217,7 @@ export const deleteGroupProfileImage = async (req: AuthenticatedRequest, res: Re
     });
 
   } catch (error: any) {
-    console.error('❌ Group delete error:', error);
+    logger.error('Group delete error', { error, userId: req.user?.id, groupId: req.params.groupId });
     
     if (error.name === 'ZodError') {
       res.status(400).json({
@@ -228,7 +238,7 @@ export const deleteGroupProfileImage = async (req: AuthenticatedRequest, res: Re
 export const uploadMessageFile = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id.toString();
-    const { groupId } = req.params;
+    const groupId = req.params.groupId as string;
     
     if (!req.file) {
       res.status(400).json({
@@ -265,6 +275,10 @@ export const uploadMessageFile = async (req: AuthenticatedRequest, res: Response
       }
     });
 
+    // Track file upload metric
+    filesUploaded.inc({ type: messageType.toLowerCase() });
+    logger.info('Message file uploaded successfully', { userId, groupId, fileName, messageType });
+
     res.status(200).json({
       success: true,
       msg: 'Message file uploaded successfully',
@@ -279,7 +293,7 @@ export const uploadMessageFile = async (req: AuthenticatedRequest, res: Response
     });
 
   } catch (error: any) {
-    console.error('❌ Message file upload error:', error);
+    logger.error('Message file upload error', { error, userId: req.user?.id, groupId: req.params.groupId });
     res.status(500).json({
       success: false,
       msg: 'Failed to upload message file'
@@ -289,7 +303,7 @@ export const uploadMessageFile = async (req: AuthenticatedRequest, res: Response
 export const deleteMessageFile = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id.toString();
-    const { groupId } = req.params;
+    const groupId = req.params.groupId as string;
     const { fileName } = deleteMessageFileSchema.parse(req.body);
 
     if (!groupId) {
@@ -319,7 +333,7 @@ export const deleteMessageFile = async (req: AuthenticatedRequest, res: Response
     });
 
   } catch (error: any) {
-    console.error('❌ Message file delete error:', error);
+    logger.error('Message file delete error', { error, userId: req.user?.id, groupId: req.params.groupId });
     
     if (error.name === 'ZodError') {
       res.status(400).json({

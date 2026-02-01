@@ -8,6 +8,8 @@ import mediaRouter from './routes/media.routes';
 import { connectRedis } from './redis';
 import storageService from './services/storage.service';
 import { errorHandler } from './middleware/middleware';
+import { register, httpRequests, httpDuration } from './utils/metrics';
+import logger from './utils/logger';
 
 const app = express();
 
@@ -18,7 +20,17 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
-
+// Monitoring middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = (Date.now() - start) / 1000;
+    httpRequests.inc({ method: req.method, route: req.route?.path || req.path, status_code: res.statusCode });
+    httpDuration.observe({ method: req.method, route: req.route?.path || req.path }, duration);
+    logger.info('HTTP Request', { method: req.method, url: req.url, status: res.statusCode, duration });
+  });
+  next();
+});
 
 // Initialize Redis and MinIO on startup
 connectRedis().catch(err => console.error('Failed to connect to Redis:', err));
@@ -36,6 +48,12 @@ app.get('/health', async (_req, res) => {
       message: 'Health check failed'
     });
   }
+});
+
+// Metrics endpoint
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
 });
 
 app.use('/api/v1/media', mediaRouter);

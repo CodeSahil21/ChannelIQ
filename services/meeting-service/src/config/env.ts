@@ -27,6 +27,9 @@ const envSchema = z.object({
   KAFKA_MEDIA_EVENTS_PARTITIONS: z.string().default('1').transform(val => parseInt(val)),
   KAFKA_REPLICATION_FACTOR: z.string().default('3').transform(val => parseInt(val)),
   FRONTEND_URLS: z.string().default('http://localhost:3000').transform(val => val.split(',')),
+  // Logging
+  LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
+  LOKI_HOST: z.string().default('http://localhost:3100'),
 });
 
 const parsed = envSchema.safeParse(process.env);

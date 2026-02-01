@@ -5,6 +5,8 @@ import { verifySocketAuth } from './middleware';
 import { registerMeetingHandlers } from './meetingHandlers';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { pubClient, subClient, connectPubSub } from '../redis';
+import { activeConnections } from '../utils/metrics';
+import logger from '../utils/logger';
 
 
 export const initMeetingSocket = (server: http.Server): TypedServer => {
@@ -24,9 +26,9 @@ export const initMeetingSocket = (server: http.Server): TypedServer => {
       await connectPubSub();
       io.adapter(createAdapter(pubClient, subClient));
       
-      console.log('Meeting Redis adapter initialized successfully');
+      logger.info('Meeting Redis adapter initialized successfully');
     } catch (error) {
-      console.error('Failed to initialize Meeting Redis:', error);
+      logger.error('Failed to initialize Meeting Redis', { error });
     }
   };
 
@@ -45,10 +47,19 @@ export const initMeetingSocket = (server: http.Server): TypedServer => {
         return;
       }
 
+      // Track active WebSocket connections
+      activeConnections.inc();
+      logger.info('Meeting socket connected', { userId: socket.data.user.id });
+
       socket.join(`user:${socket.data.user.id}`);
       registerMeetingHandlers(io, socket);
+
+      socket.on('disconnect', () => {
+        activeConnections.dec();
+        logger.info('Meeting socket disconnected', { userId: socket.data.user?.id });
+      });
     } catch (error) {
-      console.error('Meeting socket connection error:', error);
+      logger.error('Meeting socket connection error', { error, userId: socket.data.user?.id });
       socket.disconnect();
     }
   });

@@ -18,6 +18,8 @@ import { AuthenticatedRequest } from '../utils/types';
 import {sendConnectionRequestSchema,connectionIdParamSchema,userIdParamSchema} from "../utils/schema"
 import { ApiError } from '../utils/apiError';
 import { ApiResponse } from '../utils/apiResponse';
+import { connectionsTotal } from '../utils/metrics';
+import logger from '../utils/logger';
 
 // Send connection request
 export const sendConnectionRequestController = async (req: AuthenticatedRequest, res: Response, next: NextFunction):Promise<void> => {
@@ -92,6 +94,10 @@ export const acceptConnectionRequestController = async (req: AuthenticatedReques
 
         const { connectionId } = validationResult.data;
         const connection = await acceptConnectionRequest(connectionId, userId);
+        
+        // Increment connections metric when connection is accepted
+        connectionsTotal.inc();
+        logger.info('Connection request accepted', { connectionId, userId });
 
         const response = new ApiResponse(200, connection, 'Connection request accepted successfully');
         res.status(response.statusCode).json(response);

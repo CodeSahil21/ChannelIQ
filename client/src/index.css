@@ -1,25 +1,49 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-html, body, #root {
-  height: 100%;
-  overscroll-behavior: none;
+/* ====== SCROLL FIX START ======
+   Changed: Removed restrictive height/overflow on html/body/#root
+   Reason: height: 100% + overscroll-behavior was blocking page scroll
+   Now: Pages scroll naturally, only chat page has special handling
+*/
+
+html {
+  /* CHANGED: Use min-height instead of fixed height to allow content to grow */
+  min-height: 100%;
+  /* Keep overscroll for iOS bounce prevention */
+  overscroll-behavior-y: contain;
 }
 
-/* Only hide overflow for chat page */
-.chat-page-container {
+body {
+  /* CHANGED: Allow natural scroll - removed overflow: auto constraint */
+  min-height: 100%;
+  /* Allow vertical scroll by default */
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+#root {
+  /* CHANGED: Use min-height to allow content to expand naturally */
+  min-height: 100vh;
+  /* Allow content to overflow and scroll */
+  overflow: visible;
+}
+
+/* ====== CHAT PAGE SPECIFIC ======
+   Chat page needs fixed height with internal scrolling
+   Body gets 'chat-page' class when on chat route
+*/
+body.chat-page {
+  /* Lock body scroll only when on chat page */
+  overflow: hidden;
+  height: 100vh;
+}
+
+body.chat-page #root {
+  height: 100vh;
   overflow: hidden;
 }
 
-/* Allow scrolling for other pages */
-body:not(.chat-page) {
-  overflow-y: auto;
-}
-
-#root:not(.chat-page) {
-  overflow-y: auto;
-  min-height: 100vh;
-  height: auto;
-}
+/* ====== SCROLL FIX END ====== */
 
 :root {
   --bg-primary: #ffffff;
@@ -64,23 +88,29 @@ body:not(.chat-page) {
   box-sizing: border-box;
 }
 
-/* Hide scrollbars globally but allow scrolling */
-* {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+/* Hide scrollbars visually but KEEP scroll functionality 
+   CHANGED: These rules hide the scrollbar appearance only,
+   they do NOT prevent scrolling */
+::-webkit-scrollbar {
+  width: 0px;
+  background: transparent;
 }
 
-*::-webkit-scrollbar {
-  display: none;
+html {
+  scrollbar-width: none; /* Firefox - hides scrollbar visually */
 }
 
+/* CHANGED: Consolidated body rules - removed duplicate body declarations */
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--bg-primary);
   color: var(--text-primary);
   min-height: 100vh;
-  overflow-x: hidden;
+  /* CRITICAL: overflow-y is set to auto in the scroll fix section above */
+  /* overflow-x hidden prevents horizontal scroll */
   transition: all 0.3s ease;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
 }
 
 /* Theme-aware Loader */
@@ -443,14 +473,30 @@ body {
   padding: 4px 0;
 }
 
-/* Layout Styles */
+/* ====== LAYOUT STYLES ======
+   ADDED: home-layout wrapper for Layout component
+   CHANGED: Allows natural page scrolling
+*/
+.home-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  /* CRITICAL: Allow content to scroll naturally */
+  overflow: visible;
+}
+
+/* Main Content Area */
 .main-content {
   padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
   background: var(--bg-primary);
-  min-height: 100vh;
+  /* CHANGED: Use min-height instead of fixed height */
+  min-height: calc(100vh - 80px); /* Account for navbar height */
   border-radius: 20px 20px 0 0;
+  /* ADDED: Allow content to expand and scroll */
+  flex: 1;
+  width: 100%;
 }
 
 /* Navbar */
@@ -2668,17 +2714,24 @@ input:checked + .toggle-slider:before {
   font-size: 16px;
 }
 
-/* Chat Page Specific Styles */
+/* ====== CHAT PAGE SPECIFIC STYLES ======
+   Chat page is unique - it needs fixed positioning and internal scrolling
+   The body.chat-page class is added via JS when on this route
+*/
 .chat-page-container {
   background: var(--bg-primary);
   height: 100vh;
   width: 100%;
   color: var(--text-primary);
   transition: background 0.3s ease, color 0.3s ease;
+  /* KEPT: overflow hidden is correct for chat - internal areas scroll */
   overflow: hidden;
+  /* KEPT: position fixed is correct for chat app layout */
   position: fixed;
   top: 0;
   left: 0;
+  /* ADDED: Ensure it stacks correctly */
+  z-index: 1;
 }
 
 .chat-container {
@@ -4292,6 +4345,42 @@ input:checked + .toggle-slider:before {
   .create-profile-card {
     padding: 20px 12px;
     border-radius: 16px;
+  }
+}
+
+/* ====== MOBILE SCROLL FIXES ======
+   ADDED: Ensure touch scrolling works on mobile devices
+*/
+@media (max-width: 768px) {
+  html, body {
+    /* Enable momentum scrolling on iOS */
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .main-content {
+    /* Ensure content doesn't get cut off */
+    padding-bottom: 80px;
+  }
+  
+  .home-layout {
+    /* Ensure mobile layout scrolls */
+    overflow-y: visible;
+  }
+  
+  .enhanced-dashboard-container,
+  .enhanced-connections-container,
+  .enhanced-profile-container {
+    /* Add safe area padding for notched phones */
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+  }
+}
+
+/* PWA/Standalone mode adjustments */
+@media (display-mode: standalone) {
+  body {
+    /* Ensure PWA can scroll */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 }
 
@@ -9710,12 +9799,20 @@ img {
   background: var(--bg-secondary);
   border-color: var(--border-color);
 }
+
+/* ====== ENHANCED PAGE CONTAINERS ======
+   CHANGED: These containers need proper scroll handling
+*/
+
 /* Enhanced Dashboard Styles */
 .enhanced-dashboard-container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
-  min-height: 100vh;
+  /* CHANGED: Allow content to define height naturally */
+  min-height: auto;
+  /* ADDED: Padding bottom for scroll space on mobile */
+  padding-bottom: 4rem;
 }
 
 /* Dashboard Hero Section */
@@ -10213,12 +10310,15 @@ img {
 [data-theme="dark"] .auth-link-secondary {
   color: var(--text-secondary);
 }
+
 /* Enhanced Connections Page Styles */
 .enhanced-connections-container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
-  min-height: 100vh;
+  /* CHANGED: Allow natural height expansion */
+  min-height: auto;
+  padding-bottom: 4rem;
 }
 
 /* Connections Hero Section */
@@ -10582,10 +10682,13 @@ img {
     color: #9ca3af;
   }
 }
+
 /* Enhanced Profile Container */
 .enhanced-profile-container {
-  min-height: 100vh;
+  /* CHANGED: Allow content to expand naturally for scrolling */
+  min-height: auto;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding-bottom: 4rem;
 }
 
 /* Profile Hero Section */

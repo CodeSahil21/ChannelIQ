@@ -141,7 +141,7 @@ export const getProfileController = async (req: AuthenticatedRequest, res: Respo
 
 export const fetchUserProfileController = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const userId = parseInt(req.params.userId || "");
+        const userId = parseInt(req.params.userId as string || "");
         
         if (isNaN(userId) || userId <= 0) {
             throw new ApiError(400, "Invalid user ID");
@@ -183,7 +183,7 @@ export const deleteProfileController = async (req: AuthenticatedRequest, res: Re
 
 export const restoreUserController = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const userId = parseInt(req.params.userId || '0');
+        const userId = parseInt(req.params.userId as string || '0');
         
         if (isNaN(userId) || userId <= 0) {
             throw new ApiError(400, "Invalid user ID");

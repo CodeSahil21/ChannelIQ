@@ -9,11 +9,14 @@ import { CacheService, CacheKeys } from '../utils/cache';
 import { setSocketServer } from './emitters';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { pubClient, subClient, connectPubSub } from '../redis';
+import { activeConnections } from '../utils/metrics';
+import logger from '../utils/logger';
 
 export const initSocket = (server: http.Server): TypedServer => {
   const io: TypedServer = new Server(server, {
     allowEIO3: true,
     transports: ['websocket', 'polling'],
+    path: '/chat-socket/',
     cors: {
       origin: true, // Allow all origins since ingress handles CORS
       credentials: true
@@ -29,9 +32,9 @@ export const initSocket = (server: http.Server): TypedServer => {
       // This automatically handles cross-instance communication without duplicates
       io.adapter(createAdapter(pubClient, subClient));
       
-      console.log('Redis adapter initialized successfully');
+      logger.info('Redis adapter initialized successfully');
     } catch (error) {
-      console.error('Failed to initialize Redis for Socket.io:', error);
+      logger.error('Failed to initialize Redis for Socket.io', { error });
       // Continue without Redis adapter - single instance mode
     }
   };
@@ -46,9 +49,9 @@ export const initSocket = (server: http.Server): TypedServer => {
 
   io.on("connection", async (socket) => {
     try {
-      // Sanitize user ID for logging to prevent log injection
-      const sanitizedUserId = socket.user?.id?.toString().replace(/[\x00-\x1F\x7F\r\n]/g, '') || 'Unknown';
-      console.log("Connected:", sanitizedUserId);
+      // Increment active connections metric
+      activeConnections.inc();
+      logger.info('WebSocket connected', { userId: socket.user.id });
       
       if (!socket.user?.id) {
         socket.disconnect();
@@ -86,8 +89,14 @@ export const initSocket = (server: http.Server): TypedServer => {
       }
       
       registerChatHandlers(io, socket);
+      
+      // Add disconnect handler for metrics
+      socket.on('disconnect', () => {
+        activeConnections.dec();
+        logger.info('WebSocket disconnected', { userId: socket.user?.id });
+      });
     } catch (error) {
-      console.error('Socket connection error:', error);
+      logger.error('Socket connection error', { error, userId: socket.user?.id });
       socket.disconnect();
     }
   });

@@ -30,6 +30,9 @@ const envSchema = z.object({
   EMAIL_USER: z.string().optional(),
   EMAIL_PASS: z.string().optional(),
   FRONTEND_URLS: z.string().default('http://localhost:3000').transform(val => val.split(',')),
+  // Logging
+  LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
+  LOKI_HOST: z.string().default('http://localhost:3100'),
 });
 
 const parsed = envSchema.safeParse(process.env);

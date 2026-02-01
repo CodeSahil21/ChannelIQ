@@ -12,6 +12,8 @@ import { connectRedis } from './redis';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 import { ApiResponse } from './utils/apiResponse';
 import { env } from './config/env';
+import { register, httpRequests, httpDuration } from './utils/metrics';
+import logger from './utils/logger';
 
 const app = express();
 
@@ -26,6 +28,18 @@ if (env.NODE_ENV !== 'production') {
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
+
+// Monitoring middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = (Date.now() - start) / 1000;
+    httpRequests.inc({ method: req.method, route: req.route?.path || req.path, status_code: res.statusCode });
+    httpDuration.observe({ method: req.method, route: req.route?.path || req.path }, duration);
+    logger.info('HTTP Request', { method: req.method, url: req.url, status: res.statusCode, duration });
+  });
+  next();
+});
 
 app.use('/api/v1/users', userManagementRouter);
 app.use('/api/v1/connections', connectionrouter);
@@ -63,6 +77,11 @@ app.get('/health', async (_req, res) => {
   }
 });
 
+// Metrics endpoint
+app.get('/metrics', async (_req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
+});
 
 // 404 handler for undefined routes
 app.use(notFoundHandler);

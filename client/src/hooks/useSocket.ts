@@ -51,33 +51,40 @@ export const useSocket = () => {
 
   useEffect(() => {
     if (!currentUser?.id) {
+      console.log('🔌 useSocket: No user ID, skipping socket connection');
       return;
     }
 
+    console.log('🔌 useSocket: Connecting to socket...', API_CONFIG.SOCKET_URL);
     const newSocket = io(API_CONFIG.SOCKET_URL, {
       withCredentials: true,
       transports: ['websocket', 'polling'],
       timeout: API_CONFIG.TIMEOUT.DEFAULT,
-      path: '/socket.io/'
+      path: '/chat-socket/'
     });
 
     newSocket.on('connect', () => {
+      console.log('✅ useSocket: Socket connected successfully');
       setIsConnected(true);
     });
 
-    newSocket.on('connect_error', () => {
+    newSocket.on('connect_error', (error) => {
+      console.error('❌ useSocket: Connection error:', error);
       setIsConnected(false);
     });
 
-    newSocket.on('disconnect', () => {
+    newSocket.on('disconnect', (reason) => {
+      console.log('🔌 useSocket: Disconnected:', reason);
       setIsConnected(false);
     });
 
     newSocket.on('message:optimistic', (message: Message) => {
+      console.log('📨 useSocket: Optimistic message received:', message.id);
       setMessages(prev => [...prev, message]);
     });
 
     newSocket.on('message:persisted', (message: Message) => {
+      console.log('💾 useSocket: Persisted message received:', message.id);
       setMessages(prev => [...prev, message]);
     });
 
@@ -134,6 +141,7 @@ export const useSocket = () => {
   }, [currentUser?.id]);
 
   const joinGroup = useCallback((groupId: string, callback?: (response: SocketResponse) => void) => {
+    console.log('🏠 useSocket: Joining group:', groupId);
     socket?.emit('group:join', { groupId }, callback);
   }, [socket]);
 
@@ -142,6 +150,7 @@ export const useSocket = () => {
   }, [socket]);
 
   const sendMessage = useCallback((data: MessageData, callback?: (response: SocketResponse) => void) => {
+    console.log('📤 useSocket: Sending message:', data.type, data.content?.slice(0, 50));
     socket?.emit('message:send', data, callback);
   }, [socket]);
 

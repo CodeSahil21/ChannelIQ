@@ -10,6 +10,8 @@ import messageRouter from './routes/message.route';
 import { config } from './utils/config';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 import { ApiResponse } from './utils/apiResponse';
+import { register, httpRequests, httpDuration } from './utils/metrics';
+import logger from './utils/logger';
 
 const app = express();
 
@@ -25,6 +27,17 @@ app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Monitoring middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = (Date.now() - start) / 1000;
+    httpRequests.inc({ method: req.method, route: req.route?.path || req.path, status_code: res.statusCode });
+    httpDuration.observe({ method: req.method, route: req.route?.path || req.path }, duration);
+    logger.info('HTTP Request', { method: req.method, url: req.url, status: res.statusCode, duration });
+  });
+  next();
+});
 
 app.get('/health', async (_req, res) => {
   try {
@@ -66,6 +79,12 @@ app.get('/health', async (_req, res) => {
     const response = new ApiResponse(503, errorData, 'Health check failed');
     res.status(response.statusCode).json(response);
   }
+});
+
+// Metrics endpoint
+app.get('/metrics', async (_req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
 });
 
 // Register routes

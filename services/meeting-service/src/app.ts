@@ -1,9 +1,10 @@
 import express from 'express';
-import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import meetingRoutes from './routes/meeting.routes';
 import { env } from './config/env';
+import { register, httpRequests, httpDuration } from './utils/metrics';
+import logger from './utils/logger';
 
 const app = express();
 
@@ -18,9 +19,27 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+// Monitoring middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = (Date.now() - start) / 1000;
+    httpRequests.inc({ method: req.method, route: req.route?.path || req.path, status_code: res.statusCode });
+    httpDuration.observe({ method: req.method, route: req.route?.path || req.path }, duration);
+    logger.info('HTTP Request', { method: req.method, url: req.url, status: res.statusCode, duration });
+  });
+  next();
+});
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', service: 'meeting-service' });
+});
+
+// Metrics endpoint
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
 });
 
 // Routes

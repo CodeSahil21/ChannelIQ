@@ -93,29 +93,29 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
   const isMember = currentUserMembership !== null;
 
   return (
-    <ChatProvider>
-      <div className="group-detail-view">
-        <div className="group-detail-header">
-          <div className="group-detail-tabs">
-            <button
-              className={`group-detail-tab ${activeTab === 'messages' ? 'active' : ''}`}
-              onClick={() => setActiveTab('messages')}
-            >
-              <HiChat className="tab-icon" />
-              Messages
-            </button>
-            <button
-              className={`group-detail-tab ${activeTab === 'details' ? 'active' : ''}`}
-              onClick={() => setActiveTab('details')}
-            >
-              <HiInformationCircle className="tab-icon" />
-              Details
-            </button>
-          </div>
+    <div className="group-detail-view">
+      <div className="group-detail-header">
+        <div className="group-detail-tabs">
+          <button
+            className={`group-detail-tab ${activeTab === 'messages' ? 'active' : ''}`}
+            onClick={() => setActiveTab('messages')}
+          >
+            <HiChat className="tab-icon" />
+            Messages
+          </button>
+          <button
+            className={`group-detail-tab ${activeTab === 'details' ? 'active' : ''}`}
+            onClick={() => setActiveTab('details')}
+          >
+            <HiInformationCircle className="tab-icon" />
+            Details
+          </button>
         </div>
+      </div>
 
-        <div className="group-detail-content">
-          {activeTab === 'messages' && (
+      <div className="group-detail-content">
+        {activeTab === 'messages' && (
+          <ChatProvider>
             <ChatMessagesWrapper 
               groupId={fullGroup.id} 
               userRole={currentUserMembership?.role}
@@ -123,7 +123,8 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
               onShowAnnouncements={() => setShowAnnouncementsModal(true)}
               onShowPinnedMessages={() => setShowPinnedMessagesModal(true)}
             />
-          )}
+          </ChatProvider>
+        )}
           
           {activeTab === 'details' && (
             <div className="details-tab-content">
@@ -304,9 +305,7 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({ group }) => {
         onClose={() => setShowAnnouncementsModal(false)}
         groupId={fullGroup.id}
       />
-      </div>
-    </ChatProvider>
-
+    </div>
   );
 };
 

@@ -33,6 +33,8 @@ import {
   emitMeetingStarted,
   emitMeetingEnded
 } from '../services/meetingSocket.service';
+import { meetingsCreated } from '../utils/metrics';
+import logger from '../utils/logger';
 
 const liveKitService = new LiveKitService();
 
@@ -59,6 +61,10 @@ export const createMeetingController = async (
 
     const meeting = await createMeeting(req.user!.id, validationResult.data);
     
+    // Track meeting creation metric
+    meetingsCreated.inc();
+    logger.info('Meeting created successfully', { meetingId: meeting.id, userId: req.user!.id });
+    
     await publishMeetingEvent({
       type: 'MEETING_CREATED',
       meetingId: meeting.id,
@@ -72,7 +78,7 @@ export const createMeetingController = async (
       data: meeting,
     });
   } catch (error: any) {
-    console.error('Error creating meeting:', error);
+    logger.error('Error creating meeting', { error: error.message, userId: req.user?.id });
     res.status(500).json({
       success: false,
       message: error.message || 'Internal server error',
@@ -101,7 +107,7 @@ export const searchMeetingController = async (
       data: meeting,
     });
   } catch (error: any) {
-    console.error('Error searching meeting:', error);
+    logger.error('Error searching meeting', { error: error.message, meetingId: req.params.meetingId });
     res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -132,7 +138,7 @@ export const getUserMeetingsController = async (
       data: meetings,
     });
   } catch (error: any) {
-    console.error('Error fetching user meetings:', error);
+    logger.error('Error fetching user meetings', { error: error.message, userId: req.user?.id });
     res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -161,7 +167,7 @@ export const getMeetingController = async (
       data: meeting,
     });
   } catch (error: any) {
-    console.error('Error fetching meeting:', error);
+    logger.error('Error fetching meeting', { error: error.message, meetingId: req.params.id });
     res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -199,7 +205,7 @@ export const updateMeetingController = async (
       data: meeting,
     });
   } catch (error: any) {
-    console.error('Error updating meeting:', error);
+    logger.error('Error updating meeting', { error: error.message, meetingId: req.params.id });
     res.status(400).json({
       success: false,
       message: error.message,
@@ -220,7 +226,7 @@ export const cancelMeetingController = async (
       message: 'Meeting cancelled successfully',
     });
   } catch (error: any) {
-    console.error('Error cancelling meeting:', error);
+    logger.error('Error cancelling meeting', { error: error.message, meetingId: req.params.id });
     res.status(400).json({
       success: false,
       message: error.message,
@@ -255,7 +261,7 @@ export const startMeetingController = async (
       message: 'Meeting started successfully',
     });
   } catch (error: any) {
-    console.error('Error starting meeting:', error);
+    logger.error('Error starting meeting', { error: error.message, meetingId: req.params.id });
     res.status(400).json({
       success: false,
       message: error.message,
@@ -290,7 +296,7 @@ export const endMeetingController = async (
       message: 'Meeting ended successfully',
     });
   } catch (error: any) {
-    console.error('Error ending meeting:', error);
+    logger.error('Error ending meeting', { error: error.message, meetingId: req.params.id });
     res.status(400).json({
       success: false,
       message: error.message,
@@ -346,7 +352,7 @@ export const joinMeetingController = async (
       data: { role: result.role },
     });
   } catch (error: any) {
-    console.error('Error joining meeting:', error);
+    logger.error('Error joining meeting', { error: error.message, meetingId: req.params.id, userId: req.user?.id });
     res.status(400).json({
       success: false,
       message: error.message,
@@ -390,7 +396,7 @@ export const getLiveKitTokenController = async (
       },
     });
   } catch (error: any) {
-    console.error('Error generating LiveKit token:', error);
+    logger.error('Error generating LiveKit token', { error: error.message, meetingId: req.params.id });
     res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -428,7 +434,7 @@ export const setPasswordController = async (
       message: 'Password set successfully',
     });
   } catch (error: any) {
-    console.error('Error setting password:', error);
+    logger.error('Error setting password', { error: error.message, meetingId: req.params.id });
     res.status(400).json({
       success: false,
       message: error.message,
@@ -449,7 +455,7 @@ export const removePasswordController = async (
       message: 'Password removed successfully',
     });
   } catch (error: any) {
-    console.error('Error removing password:', error);
+    logger.error('Error removing password', { error: error.message, meetingId: req.params.id });
     res.status(400).json({
       success: false,
       message: error.message,
@@ -478,7 +484,7 @@ export const getPasswordStatusController = async (
       data: { passwordEnabled: meeting.passwordEnabled },
     });
   } catch (error: any) {
-    console.error('Error getting password status:', error);
+    logger.error('Error getting password status', { error: error.message, meetingId: req.params.id });
     res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -527,7 +533,7 @@ export const promoteToCoHostController = async (
       message: 'User promoted to co-host successfully',
     });
   } catch (error: any) {
-    console.error('Error promoting to co-host:', error);
+    logger.error('Error promoting to co-host', { error: error.message, meetingId: req.params.id });
     res.status(400).json({
       success: false,
       message: error.message,
@@ -558,7 +564,7 @@ export const leaveMeetingController = async (
       message: 'Left meeting successfully',
     });
   } catch (error: any) {
-    console.error('Error leaving meeting:', error);
+    logger.error('Error leaving meeting', { error: error.message, meetingId: req.params.id, userId: req.user?.id });
     res.status(400).json({
       success: false,
       message: error.message,
@@ -607,7 +613,7 @@ export const demoteCoHostController = async (
       message: 'Co-host demoted successfully',
     });
   } catch (error: any) {
-    console.error('Error demoting co-host:', error);
+    logger.error('Error demoting co-host', { error: error.message, meetingId: req.params.id });
     res.status(400).json({
       success: false,
       message: error.message,

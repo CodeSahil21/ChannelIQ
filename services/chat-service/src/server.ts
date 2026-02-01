@@ -7,6 +7,7 @@ import { initSocket } from './socket/SocketServer';
 import { setSocketServer } from './socket/emitters';
 import { config } from './utils/config';
 import { setupGracefulShutdown } from './utils/gracefulShutdown';
+import logger from './utils/logger';
 
 const PORT = config.PORT;
 
@@ -21,38 +22,38 @@ const startServer = async() => {
   try {
     // Initialize Redis
     await connectRedis();
-    console.log("✅ Redis connected successfully");
+    logger.info('Redis connected successfully');
     
     await initializeKafka();
-    console.log("✅ Kafka initialized successfully");
+    logger.info('Kafka initialized successfully');
 
     await startConsumer();
-    console.log("✅ Consumer initialized successfully");
+    logger.info('Consumer initialized successfully');
 
     server.listen(PORT, () => {
-      console.log(`🚀 Chat Service with Socket.IO running on port ${PORT}`);
-      console.log(`🔌 Socket server initialized: ${io.sockets.sockets.size} users connected`);
-      console.log(`📦 Bulk processing: ${config.ENABLE_BULK_MESSAGES ? 'ENABLED' : 'DISABLED'}`);
+      logger.info(`Chat Service with Socket.IO running on port ${PORT}`);
+      logger.info(`Socket server initialized: ${io.sockets.sockets.size} users connected`);
+      logger.info(`Bulk processing: ${config.ENABLE_BULK_MESSAGES ? 'ENABLED' : 'DISABLED'}`);
     });
 
     // Setup graceful shutdown for message buffer
     setupGracefulShutdown();
 
   } catch(error) {
-    console.error("❌ Failed to initialize services:", error);
+    logger.error('Failed to initialize services', { error });
     process.exit(1);
   }
 }
 
 // graceful shutdown
 process.on('SIGINT', async () => {
-  console.log("🔄 Gracefully shutting down...");
+  logger.info('Gracefully shutting down...');
   try {
     await disconnectKafka();
     await redis.disconnect();
-    console.log("✅ Services disconnected successfully");
+    logger.info('Services disconnected successfully');
   } catch (error) {
-    console.error("❌ Error during shutdown:", error);
+    logger.error('Error during shutdown', { error });
   }
   process.exit(0);
 });
