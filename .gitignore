@@ -43,3 +43,32 @@ channellQ-helm
 monitoring
 MONITORING_SETUP.md
 MONITORING_IMPLEMENTATION.md
+k8s
+
+# Helm values with sensitive data
+values.yaml
+**/values.yaml
+helm/**/values.yaml
+
+# Kubernetes secrets and sensitive configs
+**/secrets.yaml
+**/secret.yaml
+secrets/
+*.secret
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+
+# Environment and config files with sensitive data
+config.yaml
+config.json
+.env*
+!.env.example
+!.env.template
+
+channellQ-helm/values.yaml
+k8s/monitoring/grafana-dashboard-channellq-fixed.json
+k8s/monitoring
+Notes
