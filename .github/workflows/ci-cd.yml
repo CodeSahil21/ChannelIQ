@@ -2,7 +2,7 @@ name: ChannelIQ Build and Push
 
 on:
   push:
-    branches: [main, dev]
+    branches: [Main, main, dev]
     paths:
       - "services/**"
       - ".github/workflows/ci-cd.yml"
