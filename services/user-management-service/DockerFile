@@ -37,7 +37,7 @@ RUN npm ci --only=production && npm cache clean --force
 COPY --from=builder --chown=usermgmuser:nodejs /app/dist ./dist
 COPY --from=builder --chown=usermgmuser:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder --chown=usermgmuser:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=authuser:nodejs /app/prisma.config.ts ./
+COPY --from=builder --chown=usermgmuser:nodejs /app/prisma.config.ts ./
 
 USER usermgmuser
 

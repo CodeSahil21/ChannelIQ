@@ -4,6 +4,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Helm secrets
+ChannellQ-helm/values.yaml
+
 # Environment variables
 .env
 .env.local
@@ -72,3 +75,4 @@ channellQ-helm/values.yaml
 k8s/monitoring/grafana-dashboard-channellq-fixed.json
 k8s/monitoring
 Notes
+scripts
