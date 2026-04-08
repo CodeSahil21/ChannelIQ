@@ -9,11 +9,31 @@ on:
 
 env:
   DOCKER_REGISTRY: ravencraft568
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  validate-docker-secrets:
+    name: Validate Docker Hub Secrets
+    runs-on: ubuntu-latest
+    outputs:
+      docker-ready: ${{ steps.check.outputs.docker-ready }}
+    steps:
+      - name: Check required secrets
+        id: check
+        run: |
+          if [ -z "${{ secrets.DOCKER_USERNAME }}" ] || [ -z "${{ secrets.DOCKER_PASSWORD }}" ]; then
+            echo "::warning::Missing DOCKER_USERNAME or DOCKER_PASSWORD in GitHub repository secrets."
+            echo "::warning::Go to Settings -> Secrets and variables -> Actions, then add both secrets."
+            echo "docker-ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "docker-ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build-and-push:
     name: Build and Push ${{ matrix.service }}
     runs-on: ubuntu-latest
+    needs: validate-docker-secrets
+    if: needs.validate-docker-secrets.outputs.docker-ready == 'true'
     strategy:
       fail-fast: false
       matrix:
