@@ -1,0 +1,29 @@
+apiVersion: v2
+name: channellq
+description: ChannelIQ Enterprise Communication Platform - Microservices Architecture
+type: application
+version: 1.0.0         
+appVersion: "30"      
+
+keywords:
+  - microservices
+  - communication
+  - enterprise
+  - real-time
+  - websocket
+
+home: https://github.com/CodeSahil21/ChannelIQ
+sources:
+  - https://github.com/CodeSahil21/ChannelIQ
+
+maintainers:
+  - name: Sahil Singh
+    email: sahil.s39026@gmail.com
+    url: https://github.com/CodeSahil21
+
+# Dependencies (we'll add these later)
+dependencies: []
+
+annotations:
+  category: Communication
+  licenses: MIT

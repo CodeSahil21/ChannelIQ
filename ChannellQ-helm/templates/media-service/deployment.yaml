@@ -1,0 +1,85 @@
+{{- if .Values.services.media.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: media-service
+  namespace: {{ include "channellq.namespace" . }}
+  labels:
+    {{- include "channellq.labels" . | nindent 4 }}
+    app: media-service
+spec:
+  replicas: {{ .Values.services.media.replicas }}
+  selector:
+    matchLabels:
+      app: media-service
+  template:
+    metadata:
+      labels:
+        app: media-service
+        {{- include "channellq.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: media-service
+          image: {{ .Values.global.imageRegistry }}/{{ .Values.services.media.image }}:{{ .Values.services.media.tag }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.services.media.port }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "channellq.fullname" . }}-config
+          env:
+            - name: PORT
+              value: {{ .Values.services.media.port | quote }}
+            {{- include "channellq.commonEnv" . | nindent 12 }}
+            - name: FRONTEND_URLS
+              value: {{ .Values.config.FRONTEND_URLS | quote }}
+            - name: KAFKA_CLIENT_ID
+              value: "media-service"
+            - name: KAFKA_CONSUMER_GROUP_ID
+              value: "media-service-group"
+            - name: KAFKA_CREATE_TOPICS
+              value: "false"
+            - name: SUPABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "channellq.fullname" . }}-secrets
+                  key: SUPABASE_URL
+            - name: SUPABASE_ANON_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "channellq.fullname" . }}-secrets
+                  key: SUPABASE_ANON_KEY
+            - name: SUPABASE_SERVICE_ROLE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "channellq.fullname" . }}-secrets
+                  key: SUPABASE_SERVICE_ROLE_KEY
+            - name: SUPABASE_BUCKET_NAME
+              value: {{ .Values.config.SUPABASE_BUCKET_NAME | quote }}
+            - name: MAX_FILE_SIZE
+              value: {{ .Values.config.MAX_FILE_SIZE | quote }}
+            - name: ALLOWED_MIME_TYPES
+              value: {{ .Values.config.ALLOWED_MIME_TYPES | quote }}
+          volumeMounts:
+            - name: kafka-ca
+              mountPath: /app/certs
+              readOnly: true
+          resources:
+            {{- toYaml .Values.services.media.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.services.media.healthCheck.path }}
+              port: {{ .Values.services.media.port }}
+            initialDelaySeconds: {{ .Values.services.media.healthCheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.services.media.healthCheck.periodSeconds }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.services.media.healthCheck.path }}
+              port: {{ .Values.services.media.port }}
+            initialDelaySeconds: 15
+            periodSeconds: 5
+      volumes:
+        - name: kafka-ca
+          secret:
+            secretName: kafka-ca-cert
+{{- end }}

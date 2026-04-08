@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kafka-ca-cert
+  namespace: {{ include "channellq.namespace" . }}
+  labels:
+    {{- include "channellq.labels" . | nindent 4 }}
+type: Opaque
+data:
+  ca.pem: {{ .Values.kafkaCaCert }}

@@ -42,7 +42,6 @@ certs
 kubernates
 Helm_kube.md  
 Helm_Complete_Guide.md
-channellQ-helm
 monitoring
 MONITORING_SETUP.md
 MONITORING_IMPLEMENTATION.md
@@ -76,3 +75,8 @@ k8s/monitoring/grafana-dashboard-channellq-fixed.json
 k8s/monitoring
 Notes
 scripts
+
+# Keep Helm chart files tracked for GitHub, but exclude sensitive values
+!ChannellQ-helm/
+!ChannellQ-helm/**
+ChannellQ-helm/values.yaml

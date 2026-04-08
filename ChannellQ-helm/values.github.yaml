@@ -1,0 +1,183 @@
+global:
+  namespace: channellq
+  nodeEnv: development
+  imagePullPolicy: Always
+  imageRegistry: ravencraft568
+
+kafka:
+  broker: "${KAFKA_BROKER}"
+  useSSL: true
+  sslCaPath: "/app/certs/ca.pem"
+  replicationFactor: 2
+  createTopics: false
+  partitions:
+    userEvents: 2
+    chatEvents: 2
+    mediaEvents: 2
+
+redis:
+  host: "${REDIS_HOST}"
+  port: ${REDIS_PORT}
+  username: "${REDIS_USERNAME}"
+  useTLS: false
+
+email:
+  host: "${EMAIL_HOST}"
+  port: ${EMAIL_PORT}
+
+logging:
+  level: "info"
+  lokiHost: "${LOKI_HOST}"
+
+monitoring:
+  prometheus:
+    enabled: true
+    scrapeInterval: "30s"
+    metricsPath: "/metrics"
+  grafana:
+    enabled: true
+
+services:
+  auth:
+    enabled: true
+    image: auth-service
+    tag: latest
+    port: 3001
+    replicas: 2
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+    healthCheck:
+      path: /health
+      initialDelaySeconds: 45
+      periodSeconds: 10
+
+  user:
+    enabled: true
+    image: user-management-service
+    tag: latest
+    port: 3002
+    replicas: 2
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+    healthCheck:
+      path: /health
+      initialDelaySeconds: 45
+      periodSeconds: 10
+
+  media:
+    enabled: true
+    image: media-service
+    tag: latest
+    port: 3003
+    replicas: 2
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+    healthCheck:
+      path: /health
+      initialDelaySeconds: 45
+      periodSeconds: 10
+
+  chat:
+    enabled: true
+    image: chat-service
+    tag: latest
+    port: 3004
+    replicas: 2
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+    healthCheck:
+      path: /health
+      initialDelaySeconds: 45
+      periodSeconds: 10
+
+  meeting:
+    enabled: true
+    image: meeting-service
+    tag: latest
+    port: 3005
+    replicas: 2
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+    healthCheck:
+      path: /health
+      initialDelaySeconds: 45
+      periodSeconds: 10
+
+ingress:
+  enabled: true
+  className: nginx
+  host: "${INGRESS_HOST}"
+  tlsSecret: "${INGRESS_TLS_SECRET}"
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "${CORS_ALLOW_ORIGIN}"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+
+config:
+  NODE_ENV: "${NODE_ENV}"
+  SUPABASE_BUCKET_NAME: "${SUPABASE_BUCKET_NAME}"
+  MAX_FILE_SIZE: "${MAX_FILE_SIZE}"
+  ALLOWED_MIME_TYPES: "${ALLOWED_MIME_TYPES}"
+  ENABLE_BULK_MESSAGES: "${ENABLE_BULK_MESSAGES}"
+  MESSAGE_BATCH_TIMEOUT: "${MESSAGE_BATCH_TIMEOUT}"
+  MESSAGE_MAX_BATCH_SIZE: "${MESSAGE_MAX_BATCH_SIZE}"
+  FRONTEND_URLS: "${FRONTEND_URLS}"
+
+secrets:
+  databases:
+    auth: "${DATABASE_AUTH}"
+    user: "${DATABASE_USER}"
+    chat: "${DATABASE_CHAT}"
+    meeting: "${DATABASE_MEETING}"
+
+  jwt: "${JWT_SECRET}"
+
+  email:
+    user: "${EMAIL_USER}"
+    password: "${EMAIL_PASSWORD}"
+
+  kafka:
+    username: "${KAFKA_USERNAME}"
+    password: "${KAFKA_PASSWORD}"
+
+  redis:
+    password: "${REDIS_PASSWORD}"
+
+  supabase:
+    url: "${SUPABASE_URL}"
+    anonKey: "${SUPABASE_ANON_KEY}"
+    serviceRoleKey: "${SUPABASE_SERVICE_ROLE_KEY}"
+
+  livekit:
+    apiKey: "${LIVEKIT_API_KEY}"
+    apiSecret: "${LIVEKIT_API_SECRET}"
+    wsUrl: "${LIVEKIT_WS_URL}"
+
+kafkaCaCert: |
+  ${KAFKA_CA_CERT}

@@ -1,0 +1,73 @@
+{{- if .Values.services.user.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-management-service
+  namespace: {{ include "channellq.namespace" . }}
+  labels:
+    {{- include "channellq.labels" . | nindent 4 }}
+    app: user-management-service
+spec:
+  replicas: {{ .Values.services.user.replicas }}
+  selector:
+    matchLabels:
+      app: user-management-service
+  template:
+    metadata:
+      labels:
+        app: user-management-service
+        {{- include "channellq.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: user-management-service
+          image: {{ .Values.global.imageRegistry }}/{{ .Values.services.user.image }}:{{ .Values.services.user.tag }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.services.user.port }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "channellq.fullname" . }}-config
+          env:
+            - name: PORT
+              value: {{ .Values.services.user.port | quote }}
+            {{- include "channellq.commonEnv" . | nindent 12 }}
+            - name: FRONTEND_URLS
+              value: {{ .Values.config.FRONTEND_URLS | quote }}
+            - name: KAFKA_CLIENT_ID
+              value: "user-management-service"
+            - name: KAFKA_CONSUMER_GROUP_ID
+              value: "user-management-service-group"
+            - name: KAFKA_CREATE_TOPICS
+              value: "false"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "channellq.fullname" . }}-secrets
+                  key: DATABASE_URL_USER
+            - name: MAX_FILE_SIZE
+              value: {{ .Values.config.MAX_FILE_SIZE | quote }}
+            - name: ALLOWED_MIME_TYPES
+              value: {{ .Values.config.ALLOWED_MIME_TYPES | quote }}
+          volumeMounts:
+            - name: kafka-ca
+              mountPath: /app/certs
+              readOnly: true
+          resources:
+            {{- toYaml .Values.services.user.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.services.user.healthCheck.path }}
+              port: {{ .Values.services.user.port }}
+            initialDelaySeconds: {{ .Values.services.user.healthCheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.services.user.healthCheck.periodSeconds }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.services.user.healthCheck.path }}
+              port: {{ .Values.services.user.port }}
+            initialDelaySeconds: 15
+            periodSeconds: 5
+      volumes:
+        - name: kafka-ca
+          secret:
+            secretName: kafka-ca-cert
+{{- end }}

@@ -1,0 +1,65 @@
+{{- if .Values.monitoring.prometheus.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "channellq.fullname" . }}-metrics
+  namespace: {{ include "channellq.namespace" . }}
+  labels:
+    {{- include "channellq.labels" . | nindent 4 }}
+    app.kubernetes.io/component: metrics
+spec:
+  selector:
+    matchLabels:
+      {{- include "channellq.selectorLabels" . | nindent 6 }}
+  endpoints:
+  {{- if .Values.services.auth.enabled }}
+  - port: http
+    path: {{ .Values.monitoring.prometheus.metricsPath }}
+    interval: {{ .Values.monitoring.prometheus.scrapeInterval }}
+    targetPort: {{ .Values.services.auth.port }}
+    relabelings:
+    - sourceLabels: [__meta_kubernetes_service_name]
+      targetLabel: service
+      replacement: auth-service
+  {{- end }}
+  {{- if .Values.services.user.enabled }}
+  - port: http
+    path: {{ .Values.monitoring.prometheus.metricsPath }}
+    interval: {{ .Values.monitoring.prometheus.scrapeInterval }}
+    targetPort: {{ .Values.services.user.port }}
+    relabelings:
+    - sourceLabels: [__meta_kubernetes_service_name]
+      targetLabel: service
+      replacement: user-management-service
+  {{- end }}
+  {{- if .Values.services.chat.enabled }}
+  - port: http
+    path: {{ .Values.monitoring.prometheus.metricsPath }}
+    interval: {{ .Values.monitoring.prometheus.scrapeInterval }}
+    targetPort: {{ .Values.services.chat.port }}
+    relabelings:
+    - sourceLabels: [__meta_kubernetes_service_name]
+      targetLabel: service
+      replacement: chat-service
+  {{- end }}
+  {{- if .Values.services.media.enabled }}
+  - port: http
+    path: {{ .Values.monitoring.prometheus.metricsPath }}
+    interval: {{ .Values.monitoring.prometheus.scrapeInterval }}
+    targetPort: {{ .Values.services.media.port }}
+    relabelings:
+    - sourceLabels: [__meta_kubernetes_service_name]
+      targetLabel: service
+      replacement: media-service
+  {{- end }}
+  {{- if .Values.services.meeting.enabled }}
+  - port: http
+    path: {{ .Values.monitoring.prometheus.metricsPath }}
+    interval: {{ .Values.monitoring.prometheus.scrapeInterval }}
+    targetPort: {{ .Values.services.meeting.port }}
+    relabelings:
+    - sourceLabels: [__meta_kubernetes_service_name]
+      targetLabel: service
+      replacement: meeting-service
+  {{- end }}
+{{- end }}

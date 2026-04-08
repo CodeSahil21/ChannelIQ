@@ -1,0 +1,25 @@
+{{- if .Values.services.user.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-management-service
+  namespace: {{ include "channellq.namespace" . }}
+  labels:
+    {{- include "channellq.labels" . | nindent 4 }}
+    app: user-management-service
+  {{- if .Values.monitoring.prometheus.enabled }}
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: {{ .Values.services.user.port | quote }}
+    prometheus.io/path: {{ .Values.monitoring.prometheus.metricsPath | quote }}
+  {{- end }}
+spec:
+  selector:
+    app: user-management-service
+  ports:
+    - port: {{ .Values.services.user.port }}
+      targetPort: {{ .Values.services.user.port }}
+      protocol: TCP
+      name: http
+  type: ClusterIP
+{{- end }}

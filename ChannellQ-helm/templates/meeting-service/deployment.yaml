@@ -1,0 +1,84 @@
+{{- if .Values.services.meeting.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: meeting-service
+  namespace: {{ include "channellq.namespace" . }}
+  labels:
+    {{- include "channellq.labels" . | nindent 4 }}
+    app: meeting-service
+spec:
+  replicas: {{ .Values.services.meeting.replicas }}
+  selector:
+    matchLabels:
+      app: meeting-service
+  template:
+    metadata:
+      labels:
+        app: meeting-service
+        {{- include "channellq.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: meeting-service
+          image: {{ .Values.global.imageRegistry }}/{{ .Values.services.meeting.image }}:{{ .Values.services.meeting.tag }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.services.meeting.port }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "channellq.fullname" . }}-config
+          env:
+            - name: PORT
+              value: {{ .Values.services.meeting.port | quote }}
+            {{- include "channellq.commonEnv" . | nindent 12 }}
+            - name: KAFKA_CLIENT_ID
+              value: "meeting-service"
+            - name: KAFKA_CONSUMER_GROUP_ID
+              value: "meeting-service-group"
+            - name: KAFKA_CREATE_TOPICS
+              value: "false"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "channellq.fullname" . }}-secrets
+                  key: DATABASE_URL_MEETING
+            - name: LIVEKIT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "channellq.fullname" . }}-secrets
+                  key: LIVEKIT_API_KEY
+            - name: LIVEKIT_API_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "channellq.fullname" . }}-secrets
+                  key: LIVEKIT_API_SECRET
+            - name: LIVEKIT_WS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "channellq.fullname" . }}-secrets
+                  key: LIVEKIT_WS_URL
+            - name: FRONTEND_URLS
+              value: {{ .Values.config.FRONTEND_URLS | quote }}
+          volumeMounts:
+            - name: kafka-ca
+              mountPath: /app/certs
+              readOnly: true
+          resources:
+            {{- toYaml .Values.services.meeting.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.services.meeting.healthCheck.path }}
+              port: {{ .Values.services.meeting.port }}
+            initialDelaySeconds: {{ .Values.services.meeting.healthCheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.services.meeting.healthCheck.periodSeconds }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.services.meeting.healthCheck.path }}
+              port: {{ .Values.services.meeting.port }}
+            initialDelaySeconds: 15
+            periodSeconds: 5
+      volumes:
+        - name: kafka-ca
+          secret:
+            secretName: kafka-ca-cert
+{{- end }}

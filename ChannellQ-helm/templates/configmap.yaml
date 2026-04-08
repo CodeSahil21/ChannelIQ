@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "channellq.fullname" . }}-config
+  namespace: {{ include "channellq.namespace" . }}
+  labels:
+    {{- include "channellq.labels" . | nindent 4 }}
+data:
+  # Environment
+  NODE_ENV: {{ .Values.global.nodeEnv | quote }}
+  
+  # Ports
+  AUTH_PORT: {{ .Values.services.auth.port | quote }}
+  USER_PORT: {{ .Values.services.user.port | quote }}
+  MEDIA_PORT: {{ .Values.services.media.port | quote }}
+  CHAT_PORT: {{ .Values.services.chat.port | quote }}
+  MEETING_PORT: {{ .Values.services.meeting.port | quote }}
+  
+  # Kafka Configuration
+  KAFKA_BROKER: {{ .Values.kafka.broker | quote }}
+  KAFKA_USE_SSL: {{ .Values.kafka.useSSL | quote }}
+  KAFKA_SSL_CA_PATH: {{ .Values.kafka.sslCaPath | quote }}
+  KAFKA_REPLICATION_FACTOR: {{ .Values.kafka.replicationFactor | quote }}
+  KAFKA_CREATE_TOPICS: {{ .Values.kafka.createTopics | quote }}
+  KAFKA_USER_EVENTS_PARTITIONS: {{ .Values.kafka.partitions.userEvents | quote }}
+  KAFKA_CHAT_EVENTS_PARTITIONS: {{ .Values.kafka.partitions.chatEvents | quote }}
+  KAFKA_MEDIA_EVENTS_PARTITIONS: {{ .Values.kafka.partitions.mediaEvents | quote }}
+  
+  # Service-specific Kafka
+  AUTH_KAFKA_CLIENT_ID: "auth-service"
+  AUTH_KAFKA_CONSUMER_GROUP_ID: "auth-service-group"
+  CHAT_KAFKA_CLIENT_ID: "chat-service"
+  CHAT_KAFKA_CONSUMER_GROUP_ID: "chat-service-group"
+  MEDIA_KAFKA_CLIENT_ID: "media-service"
+  MEDIA_KAFKA_CONSUMER_GROUP_ID: "media-service-group"
+  USER_KAFKA_CLIENT_ID: "user-management-service"
+  USER_KAFKA_CONSUMER_GROUP_ID: "user-management-service-group"
+  MEETING_KAFKA_CLIENT_ID: "meeting-service"
+  MEETING_KAFKA_CONSUMER_GROUP_ID: "meeting-service-group"
+  
+  # Redis Configuration
+  REDIS_HOST: {{ .Values.redis.host | quote }}
+  REDIS_PORT: {{ .Values.redis.port | quote }}
+  REDIS_USERNAME: {{ .Values.redis.username | quote }}
+  REDIS_USE_TLS: {{ .Values.redis.useTLS | quote }}
+  
+  # Email Configuration
+  EMAIL_HOST: {{ .Values.email.host | quote }}
+  EMAIL_PORT: {{ .Values.email.port | quote }}
+  
+  # Logging Configuration
+  LOG_LEVEL: {{ .Values.logging.level | quote }}
+  LOKI_HOST: {{ .Values.logging.lokiHost | quote }}
+  
+  # Service URLs (for API Gateway)
+  AUTH_SERVICE_URL: "http://auth-service:{{ .Values.services.auth.port }}"
+  USER_MANAGEMENT_SERVICE_URL: "http://user-management-service:{{ .Values.services.user.port }}"
+  MEDIA_SERVICE_URL: "http://media-service:{{ .Values.services.media.port }}"
+  CHAT_SERVICE_URL: "http://chat-service:{{ .Values.services.chat.port }}"
+  MEETING_SERVICE_URL: "http://meeting-service:{{ .Values.services.meeting.port }}"
+  
+  # Additional configuration from values
+  {{- range $key, $value := .Values.config }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}

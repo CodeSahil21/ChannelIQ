@@ -1,0 +1,25 @@
+{{- if .Values.services.meeting.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: meeting-service
+  namespace: {{ include "channellq.namespace" . }}
+  labels:
+    {{- include "channellq.labels" . | nindent 4 }}
+    app: meeting-service
+  {{- if .Values.monitoring.prometheus.enabled }}
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: {{ .Values.services.meeting.port | quote }}
+    prometheus.io/path: {{ .Values.monitoring.prometheus.metricsPath | quote }}
+  {{- end }}
+spec:
+  selector:
+    app: meeting-service
+  ports:
+    - port: {{ .Values.services.meeting.port }}
+      targetPort: {{ .Values.services.meeting.port }}
+      protocol: TCP
+      name: http
+  type: ClusterIP
+{{- end }}

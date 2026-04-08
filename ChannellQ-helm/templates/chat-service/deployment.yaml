@@ -1,0 +1,75 @@
+{{- if .Values.services.chat.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-service
+  namespace: {{ include "channellq.namespace" . }}
+  labels:
+    {{- include "channellq.labels" . | nindent 4 }}
+    app: chat-service
+spec:
+  replicas: {{ .Values.services.chat.replicas }}
+  selector:
+    matchLabels:
+      app: chat-service
+  template:
+    metadata:
+      labels:
+        app: chat-service
+        {{- include "channellq.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: chat-service
+          image: {{ .Values.global.imageRegistry }}/{{ .Values.services.chat.image }}:{{ .Values.services.chat.tag }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.services.chat.port }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "channellq.fullname" . }}-config
+          env:
+            - name: PORT
+              value: {{ .Values.services.chat.port | quote }}
+            {{- include "channellq.commonEnv" . | nindent 12 }}
+            - name: KAFKA_CLIENT_ID
+              value: "chat-service"
+            - name: KAFKA_CONSUMER_GROUP_ID
+              value: "chat-service-group"
+            - name: KAFKA_CREATE_TOPICS
+              value: "false"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "channellq.fullname" . }}-secrets
+                  key: DATABASE_URL_CHAT
+            - name: ENABLE_BULK_MESSAGES
+              value: {{ .Values.config.ENABLE_BULK_MESSAGES | quote }}
+            - name: MESSAGE_BATCH_TIMEOUT
+              value: {{ .Values.config.MESSAGE_BATCH_TIMEOUT | quote }}
+            - name: MESSAGE_MAX_BATCH_SIZE
+              value: {{ .Values.config.MESSAGE_MAX_BATCH_SIZE | quote }}
+            - name: FRONTEND_URLS
+              value: {{ .Values.config.FRONTEND_URLS | quote }}
+          volumeMounts:
+            - name: kafka-ca
+              mountPath: /app/certs
+              readOnly: true
+          resources:
+            {{- toYaml .Values.services.chat.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.services.chat.healthCheck.path }}
+              port: {{ .Values.services.chat.port }}
+            initialDelaySeconds: {{ .Values.services.chat.healthCheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.services.chat.healthCheck.periodSeconds }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.services.chat.healthCheck.path }}
+              port: {{ .Values.services.chat.port }}
+            initialDelaySeconds: 15
+            periodSeconds: 5
+      volumes:
+        - name: kafka-ca
+          secret:
+            secretName: kafka-ca-cert
+{{- end }}
