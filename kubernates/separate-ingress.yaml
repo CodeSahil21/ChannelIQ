@@ -1,0 +1,255 @@
+# =========================================================
+# AUTH SERVICE
+# =========================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: auth-ingress
+  namespace: corporatechat
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /api/v1/auth/$2
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://api.corporate.local:3000"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.corporate.local
+      secretName: corporatechat-tls
+  rules:
+    - host: api.corporate.local
+      http:
+        paths:
+          - path: /api/auth(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 3001
+---
+# =========================================================
+# USER MANAGEMENT SERVICE
+# =========================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: user-management-ingress
+  namespace: corporatechat
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /api/v1/users/$2
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://api.corporate.local:3000"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.corporate.local
+      secretName: corporatechat-tls
+  rules:
+    - host: api.corporate.local
+      http:
+        paths:
+          - path: /api/users(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: user-management-service
+                port:
+                  number: 3002
+---
+# =========================================================
+# CONNECTIONS
+# =========================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: connections-ingress
+  namespace: corporatechat
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /api/v1/connections/$2
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://api.corporate.local:3000"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.corporate.local
+      secretName: corporatechat-tls
+  rules:
+    - host: api.corporate.local
+      http:
+        paths:
+          - path: /api/connections(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: user-management-service
+                port:
+                  number: 3002
+---
+# =========================================================
+# MEDIA SERVICE
+# =========================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: media-ingress
+  namespace: corporatechat
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /api/v1/media/$2
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://api.corporate.local:3000"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.corporate.local
+      secretName: corporatechat-tls
+  rules:
+    - host: api.corporate.local
+      http:
+        paths:
+          - path: /api/media(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: media-service
+                port:
+                  number: 3003
+---
+# =========================================================
+# CHAT SERVICE (REST)
+# =========================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: chat-ingress
+  namespace: corporatechat
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/websocket-services: chat-service
+    nginx.ingress.kubernetes.io/rewrite-target: /api/groups/$2
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://api.corporate.local:3000"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.corporate.local
+      secretName: corporatechat-tls
+  rules:
+    - host: api.corporate.local
+      http:
+        paths:
+          - path: /api/groups(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: chat-service
+                port:
+                  number: 3004
+---
+# =========================================================
+# CHAT SERVICE (Socket.IO)
+# =========================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: chat-socket-ingress
+  namespace: corporatechat
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/websocket-services: chat-service
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://api.corporate.local:3000"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.corporate.local
+      secretName: corporatechat-tls
+  rules:
+    - host: api.corporate.local
+      http:
+        paths:
+          - path: /socket.io(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: chat-service
+                port:
+                  number: 3004
+---
+# =========================================================
+# MEETING SERVICE (REST)
+# =========================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: meetings-ingress
+  namespace: corporatechat
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://api.corporate.local:3000"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.corporate.local
+      secretName: corporatechat-tls
+  rules:
+    - host: api.corporate.local
+      http:
+        paths:
+          - path: /api/meetings(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: meeting-service
+                port:
+                  number: 3005
+---
+# =========================================================
+# MEETING SERVICE (WebSocket)
+# =========================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: meeting-socket-ingress
+  namespace: corporatechat
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/websocket-services: meeting-service
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://api.corporate.local:3000"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.corporate.local
+      secretName: corporatechat-tls
+  rules:
+    - host: api.corporate.local
+      http:
+        paths:
+          - path: /meeting-socket(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: meeting-service
+                port:
+                  number: 3005

@@ -80,3 +80,9 @@ scripts
 !ChannellQ-helm/
 !ChannellQ-helm/**
 ChannellQ-helm/values.yaml
+
+# Keep kubernates manifests tracked, but exclude secret/config manifests
+!kubernates/
+!kubernates/**
+kubernates/*secret*.yaml
+kubernates/*config*.yaml

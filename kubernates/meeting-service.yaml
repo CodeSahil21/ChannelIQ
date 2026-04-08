@@ -1,0 +1,170 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: meeting-service
+  namespace: corporatechat
+  labels:
+    app: meeting-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: meeting-service
+  template:
+    metadata:
+      labels:
+        app: meeting-service
+    spec:
+      containers:
+        - name: meeting-service
+          image: ravencraft568/meeting-service:v29
+          ports:
+            - containerPort: 3005
+          env:
+            - name: PORT
+              value: "3005"
+            - name: NODE_TLS_REJECT_UNAUTHORIZED
+              value: "0"
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: corporate-config
+                  key: NODE_ENV
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: corporate-secrets
+                  key: JWT_SECRET
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: corporate-secrets
+                  key: DATABASE_URL_MEETING
+            - name: KAFKA_CLIENT_ID
+              value: "meeting-service"
+            - name: KAFKA_CONSUMER_GROUP_ID
+              value: "meeting-service-group"
+            - name: KAFKA_BROKER
+              valueFrom:
+                configMapKeyRef:
+                  name: corporate-config
+                  key: KAFKA_BROKER
+            - name: KAFKA_USE_SSL
+              valueFrom:
+                configMapKeyRef:
+                  name: corporate-config
+                  key: KAFKA_USE_SSL
+            - name: KAFKA_SSL_CA_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: corporate-config
+                  key: KAFKA_SSL_CA_PATH
+            - name: KAFKA_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: corporate-secrets
+                  key: KAFKA_USERNAME
+            - name: KAFKA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: corporate-secrets
+                  key: KAFKA_PASSWORD
+            - name: KAFKA_REPLICATION_FACTOR
+              valueFrom:
+                configMapKeyRef:
+                  name: corporate-config
+                  key: KAFKA_REPLICATION_FACTOR
+            - name: KAFKA_MEDIA_EVENTS_PARTITIONS
+              valueFrom:
+                configMapKeyRef:
+                  name: corporate-config
+                  key: KAFKA_MEDIA_EVENTS_PARTITIONS
+            - name: KAFKA_CREATE_TOPICS
+              value: "false"
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: corporate-config
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: corporate-config
+                  key: REDIS_PORT
+            - name: REDIS_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: corporate-config
+                  key: REDIS_USERNAME
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: corporate-secrets
+                  key: REDIS_PASSWORD
+            - name: REDIS_USE_TLS
+              valueFrom:
+                configMapKeyRef:
+                  name: corporate-config
+                  key: REDIS_USE_TLS
+            - name: LIVEKIT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: corporate-secrets
+                  key: LIVEKIT_API_KEY
+            - name: LIVEKIT_API_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: corporate-secrets
+                  key: LIVEKIT_API_SECRET
+            - name: LIVEKIT_WS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: corporate-secrets
+                  key: LIVEKIT_WS_URL
+            - name: FRONTEND_URLS
+              valueFrom:
+                configMapKeyRef:
+                  name: corporate-config
+                  key: FRONTEND_URLS
+          volumeMounts:
+            - name: kafka-ca
+              mountPath: /app/certs
+              readOnly: true
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3005
+            initialDelaySeconds: 45
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3005
+            initialDelaySeconds: 15
+            periodSeconds: 5
+      volumes:
+        - name: kafka-ca
+          secret:
+            secretName: kafka-ca-cert
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: meeting-service
+  namespace: corporatechat
+spec:
+  selector:
+    app: meeting-service
+  ports:
+    - port: 3005
+      targetPort: 3005
+      protocol: TCP
+  type: ClusterIP
